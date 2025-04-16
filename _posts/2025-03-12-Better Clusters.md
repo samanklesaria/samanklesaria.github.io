@@ -1,3 +1,11 @@
+---
+title: Topic Extraction (Old and New)
+category: inference
+excerpt: >
+  How do you find thematic clusters in a large corpus of text documents? There are the standared algorithms baked into `sklearn`: k-means, nonnegative matrix factorization and LDA. But contemporary NLP has largely moved on from bag-of-words representations. Can I get better results with some pretrained transformer models? In this notebook, I'll be playing around with topic extraction: first with some small language models from huggingface, then with some larger ones from langchain.
+---
+
+
 ## Topic Extraction: Old and New
 
 How do you find thematic clusters in a large corpus of text documents? There are the standared algorithms baked into `sklearn`: k-means, nonnegative matrix factorization and LDA. But contemporary NLP has largely moved on from bag-of-words representations. Can I get better results with some pretrained transformer models? In this notebook, I'll be playing around with topic extraction: first with some small language models from huggingface, then with some larger ones from langchain.
@@ -44,7 +52,7 @@ dataset = fetch_20newsgroups(
 )
 ```
 
-Some of the documents in the dataset are only a few words; I only want to deal with documents that are least a couple hundred characters. 
+Some of the documents in the dataset are only a few words; I only want to deal with documents that are least a couple hundred characters.
 
 
 ```python
@@ -530,7 +538,7 @@ def top_components(terms, m, n=5, k=5):
           for (i, ix) in enumerate(ixs)]
 ```
 
-This recovers categories for *space* and *graphics* like we expect. But we're not seeing much in the way of atheism or religion. 
+This recovers categories for *space* and *graphics* like we expect. But we're not seeing much in the way of atheism or religion.
 
 
 ```python
@@ -570,7 +578,7 @@ top_components(tf_feature_names, lda)
 
 ## NMF
 
-Another off-the shelf approach is to use nonnegative matrix factorization of tfidf features. 
+Another off-the shelf approach is to use nonnegative matrix factorization of tfidf features.
 
 
 ```python
@@ -592,7 +600,7 @@ tfidf_terms = tfidf_vectorizer.get_feature_names_out()
 nmf = NMF(n_components=4, alpha_W=0.00005, alpha_H=0.00005, l1_ratio=1).fit(X_tfidf)
 ```
 
-Here, we see strong evidence for topics about Christianity, space and images. It's a little vague, though. For example, we don't differentiate atheism and theism, and we don't see anything about computers in the graphics topic. 
+Here, we see strong evidence for topics about Christianity, space and images. It's a little vague, though. For example, we don't differentiate atheism and theism, and we don't see anything about computers in the graphics topic.
 
 
 ```python
@@ -627,7 +635,7 @@ top_components(tfidf_terms, nmf)
 
 ## KMeans via SVD
 
-Rounding out our classical approaches is the venerable k-means algorithm. We'll use tf-idf features with dimensionality reduced via SVD. 
+Rounding out our classical approaches is the venerable k-means algorithm. We'll use tf-idf features with dimensionality reduced via SVD.
 
 
 ```python
@@ -1085,7 +1093,7 @@ original_space_centroids = lsa[0].inverse_transform(kmeans.cluster_centers_)
 order_centroids = original_space_centroids.argsort()[:, ::-1]
 ```
 
-This gives pretty good results: we get Christianity, computer graphics, and space! We just can't tell atheism apart from Christianity. 
+This gives pretty good results: we get Christianity, computer graphics, and space! We just can't tell atheism apart from Christianity.
 
 
 ```python
@@ -1134,7 +1142,7 @@ def summarize(strs):
 
 ## Summarized Central Texts
 
-We can start by just summarizing the documents nearest to the center of each cluster. 
+We can start by just summarizing the documents nearest to the center of each cluster.
 
 
 ```python
@@ -1168,7 +1176,7 @@ Not bad, but pretty document specific.
 
 ## Multi Document Summarization using LogitsProcessor
 
-Perhaps relying on a single representative document per class is too restrictive. We can let the probability of generating a token given a set of context vectors be the product of the token's probability in each context. The intuition is that a token is a good choice for describing a cluster if it's a good choice for describing each document within the cluster individually. This is easy to accomplish with a little abuse of huggingface's `logits_processor` argument. 
+Perhaps relying on a single representative document per class is too restrictive. We can let the probability of generating a token given a set of context vectors be the product of the token's probability in each context. The intuition is that a token is a good choice for describing a cluster if it's a good choice for describing each document within the cluster individually. This is easy to accomplish with a little abuse of huggingface's `logits_processor` argument.
 
 
 ```python
@@ -1192,7 +1200,7 @@ def top_per_cluster(kmeans, X, k=16):
         for i, c in enumerate(kmeans.cluster_centers_)]
 ```
 
-Alas, this doesn't seem to work particularly well. 
+Alas, this doesn't seem to work particularly well.
 
 
 ```python
@@ -1224,7 +1232,7 @@ def marginalize_logits(input_ids, scores):
     return scores.softmax(dim=-1).sum(dim=0, keepdim=True).log()
 ```
 
-Nope: results are similarly bad. 
+Nope: results are similarly bad.
 
 
 ```python
@@ -1243,7 +1251,7 @@ Nope: results are similarly bad.
 
 ## Neural Embeddings
 
-We can also use transformers for the document embeddings to be clustered with k-means. The following model is another BERT variant fine-tuned for generating embeddings. 
+We can also use transformers for the document embeddings to be clustered with k-means. The following model is another BERT variant fine-tuned for generating embeddings.
 
 
 ```python
@@ -1741,7 +1749,7 @@ summarize(central_texts)
 
 
 
-Space, ethics, religion and graphics. Not bad. But larger transformers can do a lot better. 
+Space, ethics, religion and graphics. Not bad. But larger transformers can do a lot better.
 
 ## LLama Summaries
 
@@ -1792,4 +1800,4 @@ results = [llama_summarize([a[:5000] for a in t[:4]]) for t in top_embeddings]
 
 That's more like it!
 
-This notebook will continue to grow as I try other aproaches to the problem. 
+This notebook will continue to grow as I try other aproaches to the problem.

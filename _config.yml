@@ -56,8 +56,8 @@ plugins:
   - jekyll-remote-theme
 
 author:
-  name   : "Sam Anklesaria"
-  avatar : "/assets/images/bio-photo.jpg"
+  name: "Sam Anklesaria"
+  avatar: "/assets/images/bio-photo.jpg"
   bio: >-
     Data scientist at Minnesota Department of Human Services.
     Interested in explainable models and causal inference.
@@ -73,6 +73,7 @@ defaults:
       type: posts
     values:
       layout: single
+      classes: wide
       author_profile: true
       read_time: false
       comments: false
@@ -84,6 +85,7 @@ defaults:
       type: pages
     values:
       layout: single
+      classes: wide
       author_profile: true
 
 category_archive:
