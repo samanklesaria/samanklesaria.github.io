@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Sam's Blog - algorithms</title>
+                        <link rel="stylesheet" href="/theme/css/main.css" />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="/">Sam's Blog</a></h1>
+                        <nav><ul>
+                                                <li class="active"><a href="/category/algorithms.html">algorithms</a></li>
+                                                <li><a href="/category/machine_learning.html">machine_learning</a></li>
+                                                <li><a href="/category/math.html">math</a></li>
+                                                <li><a href="/category/slam.html">slam</a></li>
+                                                <li><a href="/category/statistics.html">statistics</a></li>
+                                                <li><a href="/category/tools.html">tools</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+
+                <aside id="featured" class="body">
+                    <article>
+                        <h1 class="entry-title"><a href="/hop-lists.html">Hop Lists</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2024-10-05T00:00:00-05:00">
+                Published: Sat 05 October 2024
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
+                </address>
+        <p>In <a href="/category/algorithms.html">algorithms</a>.</p>
+        
+</footer><!-- /.post-info --><h3>Introduction</h3>
+<p><em>Hop Lists</em> are a novel retroactive set data-structure that allow for a branching timeline. Each hop list node <span class="math">\(h_t\)</span> is associated with a specific time <span class="math">\(t\)</span> and a randomly chosen height <span class="math">\(L_t\)</span>. The interface consists of three methods:</p>
+<ul>
+<li><span class="math">\(\text{current}(h_t)\)</span> gets the set of elements we would see at time <span class="math">\(t\)</span>. </li>
+<li><span class="math">\(\text{advance}(h_t)\)</span> creates a new node <span class="math">\(h_{t+1}\)</span> allowing queries about the set at time <span class="math">\(t+1\)</span>. </li>
+<li><span class="math">\(\text{push}(h_t, v)\)</span> pushes the value <span class="math">\(v\)</span> into the set at time <span class="math">\(t\)</span>. This value will now appear in the sets associated with all future times <span class="math">\(t' &gt;t\)</span>. </li>
+</ul>
+<p>Hop lists nodes store four fields: a set of underlying type <span class="math">\(S\)</span>, a pointer to a predecessor node with heigh at least <span class="math">\(L_t\)</span>, a list of the most recent nodes at each height, and a list of pointers to specific future nodes.</p>
+<div class="codehilite"><pre><span></span><code><span class="nd">@kwdef</span><span class="w"> </span><span class="k">struct</span> <span class="kt">HopNode</span><span class="p">{</span><span class="kt">S</span><span class="p">}</span>
+<span class="w">    </span><span class="s">&quot;The new elements since `pred`.&quot;</span>
+<span class="w">    </span><span class="n">set</span><span class="o">::</span><span class="kt">S</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S</span><span class="p">()</span>
+<span class="w">    </span><span class="s">&quot;The most recent node at the same height as this one or higher&quot;</span>
+<span class="w">    </span><span class="n">pred</span><span class="o">::</span><span class="kt">Union</span><span class="p">{</span><span class="kt">Nothing</span><span class="p">,</span><span class="kt">HopNode</span><span class="p">{</span><span class="kt">S</span><span class="p">}}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nothing</span>
+<span class="w">    </span><span class="s">&quot;(Node, height) pairs sorted by height giving the most recent node at that height&quot;</span>
+<span class="w">    </span><span class="n">levels</span><span class="o">::</span><span class="kt">LinkedList</span><span class="p">{</span><span class="kt">Pair</span><span class="p">{</span><span class="kt">HopNode</span><span class="p">{</span><span class="kt">S</span><span class="p">},</span><span class="w"> </span><span class="kt">Int</span><span class="p">}}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">nil</span><span class="p">(</span><span class="kt">Pair</span><span class="p">{</span><span class="kt">HopNode</span><span class="p">{</span><span class="kt">S</span><span class="p">},</span><span class="w"> </span><span class="kt">Int</span><span class="p">})</span>
+<span class="w">    </span><span class="s">&quot;Nodes to update when this node gets updated&quot;</span>
+<span class="w">    </span><span class="n">succs</span><span class="o">::</span><span class="kt">Vector</span><span class="p">{</span><span class="kt">HopNode</span><span class="p">{</span><span class="kt">S</span><span class="p">}}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">HopNode</span><span class="p">{</span><span class="kt">S</span><span class="p">}[]</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<p>Hop lists maintain the <strong>Predecessor Property</strong>:
+<em>If hop node <span class="math">\(h_t\)</span> has predecessor <span class="math">\(h_s\)</span>, then <span class="math">\(h_t\)</span>'s set must store all the elements pushed at times in the interval <span class="math">\((s, t]\)</span></em>.</p>
+<p>This means we can find <span class="math">\(\text{current}(h_t)\)</span> by taking the union of <span class="math">\(h_t\)</span>'s ancestors. </p>
+<div class="codehilite"><pre><span></span><code><span class="c"># Iteration jumps back through `pred` edges</span>
+<span class="n">Base</span><span class="o">.</span><span class="n">iterate</span><span class="p">(</span><span class="n">h</span><span class="o">::</span><span class="kt">HopNode</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="o">::</span><span class="kt">HopNode</span><span class="o">=</span><span class="n">h</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="o">.</span><span class="n">pred</span><span class="p">)</span>
+<span class="n">Base</span><span class="o">.</span><span class="n">iterate</span><span class="p">(</span><span class="n">h</span><span class="o">::</span><span class="kt">HopNode</span><span class="p">,</span><span class="w"> </span><span class="o">::</span><span class="kt">Nothing</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nothing</span>
+<span class="n">Base</span><span class="o">.</span><span class="n">IteratorSize</span><span class="p">(</span><span class="o">::</span><span class="kt">Type</span><span class="p">{</span><span class="kt">HopNode</span><span class="p">{</span><span class="kt">S</span><span class="p">}})</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="p">{</span><span class="kt">S</span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Base</span><span class="o">.</span><span class="n">SizeUnknown</span><span class="p">()</span>
+<span class="n">Base</span><span class="o">.</span><span class="n">eltype</span><span class="p">(</span><span class="o">::</span><span class="kt">Type</span><span class="p">{</span><span class="kt">HopNode</span><span class="p">{</span><span class="kt">S</span><span class="p">}})</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="p">{</span><span class="kt">S</span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">HopNode</span><span class="p">{</span><span class="kt">S</span><span class="p">}</span>
+
+<span class="n">current</span><span class="p">(</span><span class="n">h</span><span class="o">::</span><span class="kt">HopNode</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mapreduce</span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">a</span><span class="o">.</span><span class="n">set</span><span class="p">,</span><span class="w"> </span><span class="n">union</span><span class="p">,</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
+</code></pre></div>
+
+<p>When we create a new hop node <span class="math">\(h_{t'} = \text{advance}(h_t)\)</span>, we will set the predecessor to be <code>h_t.levels[l]</code> where <span class="math">\(l = L_{t'} \sim \text{Geom}(0.5)\)</span>. To ensure that we maintain the <em>predecessor property</em>, we must take the the union of all the predecessor sets we find this way and store them in the new node's set. The new <code>levels</code> list should remove all entries below <span class="math">\(L_t\)</span> and add <span class="math">\(h_t\)</span>. </p>
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">advance</span><span class="p">(</span><span class="n">h</span><span class="o">::</span><span class="kt">HopNode</span><span class="p">)</span>
+<span class="w">    </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">rand</span><span class="p">(</span><span class="n">Geometric</span><span class="p">(</span><span class="mf">0.5</span><span class="p">))</span>
+<span class="w">    </span><span class="n">pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">getpred</span><span class="p">(</span><span class="n">h</span><span class="o">.</span><span class="n">levels</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="w">    </span><span class="n">itr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">takewhile</span><span class="p">(</span><span class="n">x</span><span class="o">-&gt;</span><span class="n">x!</span><span class="o">=</span><span class="n">pred</span><span class="p">,</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
+<span class="w">    </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">HopNode</span><span class="p">(;</span><span class="n">pred</span><span class="p">,</span><span class="w"> </span><span class="n">set</span><span class="o">=</span><span class="n">mapreduce</span><span class="p">(</span><span class="n">a</span><span class="o">-&gt;</span><span class="n">a</span><span class="o">.</span><span class="n">set</span><span class="p">,</span><span class="w"> </span><span class="n">union</span><span class="p">,</span><span class="w"> </span><span class="n">itr</span><span class="p">))</span>
+<span class="w">    </span><span class="n">result</span><span class="o">.</span><span class="n">levels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cons</span><span class="p">(</span><span class="n">result</span><span class="o">=&gt;</span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">listdrop</span><span class="p">(</span><span class="n">h</span><span class="o">.</span><span class="n">levels</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">))</span>
+<span class="w">    </span><span class="n">result</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<p>This uses the utility functions <code>listdrop</code> and <code>getpred</code></p>
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">listdrop</span><span class="p">(</span><span class="n">l</span><span class="o">::</span><span class="kt">LinkedList</span><span class="p">{</span><span class="kt">Pair</span><span class="p">{</span><span class="kt">A</span><span class="p">,</span><span class="kt">Int</span><span class="p">}},</span><span class="w"> </span><span class="n">k</span><span class="o">::</span><span class="kt">Int</span><span class="p">)</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="p">{</span><span class="kt">A</span><span class="p">}</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="o">!</span><span class="n">isempty</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
+<span class="w">        </span><span class="p">(</span><span class="n">_</span><span class="p">,</span><span class="n">a</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">l</span><span class="o">.</span><span class="n">head</span>
+<span class="w">        </span><span class="n">a</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">l</span>
+<span class="w">        </span><span class="n">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">l</span><span class="o">.</span><span class="n">tail</span>
+<span class="w">    </span><span class="k">end</span>
+<span class="w">    </span><span class="n">l</span>
+<span class="k">end</span>
+
+<span class="k">function</span><span class="w"> </span><span class="n">getpred</span><span class="p">(</span><span class="n">l</span><span class="o">::</span><span class="kt">LinkedList</span><span class="p">{</span><span class="kt">Pair</span><span class="p">{</span><span class="kt">A</span><span class="p">,</span><span class="kt">Int</span><span class="p">}},</span><span class="w"> </span><span class="n">n</span><span class="o">::</span><span class="kt">Int</span><span class="p">)</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="p">{</span><span class="kt">A</span><span class="p">}</span>
+<span class="w">    </span><span class="n">pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nothing</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">p</span><span class="p">,</span><span class="w"> </span><span class="n">height</span><span class="p">)</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">l</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">height</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">n</span>
+<span class="w">            </span><span class="n">pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span>
+<span class="w">            </span><span class="k">break</span>
+<span class="w">        </span><span class="k">end</span>
+<span class="w">    </span><span class="k">end</span>
+<span class="w">    </span><span class="n">pred</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<p>For example, if we inserted 1 at time 1, 2 at time 2, and so on up to 6, we might get a HopNode structure that looks like this The black arrows here correspond to <code>pred</code> pointers, the x axis corresponds to time, and the <span class="math">\(y\)</span> axis gives the height <span class="math">\(L_t\)</span> of each node <span class="math">\(h_t\)</span>. </p>
+<p><img alt="example" src="/Hop-Lists_files/hoplist_example.png" /></p>
+<p>The tricky part is handling <span class="math">\(\text{push}\)</span>. We need to give each node <span class="math">\(h_s\)</span> pointers to all future nodes <span class="math">\(h_t\)</span> for which <code>h_s.set</code> <span class="math">\(\subseteq\)</span> <code>h_t.set</code> That way, when we push into <span class="math">\(h_s\)</span>, we know to push into <span class="math">\(h_t\)</span> as well. This list of pointers will be our <code>succs</code> vector. The idea results in the following code.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">Base</span><span class="o">.</span><span class="n">push!</span><span class="p">(</span><span class="n">t</span><span class="o">::</span><span class="kt">HopNode</span><span class="p">{</span><span class="kt">S</span><span class="p">},</span><span class="w"> </span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="p">{</span><span class="kt">S</span><span class="p">}</span>
+<span class="w">    </span><span class="n">q</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">HopNode</span><span class="p">{</span><span class="kt">S</span><span class="p">}[</span><span class="n">t</span><span class="p">]</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="o">!</span><span class="n">isempty</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
+<span class="w">        </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pop!</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
+<span class="w">        </span><span class="n">push!</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">set</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="p">)</span>
+<span class="w">        </span><span class="n">append!</span><span class="p">(</span><span class="n">q</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="o">.</span><span class="n">succs</span><span class="p">)</span>
+<span class="w">    </span><span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<p>We still need to create these <code>succs</code> pointers in the first place. Each node should have an element of <code>succs</code> pointing to the closest future node with a higher height if one exists. </p>
+<p>To fit these requirements, we can modify the <code>advance</code> method as follows:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">advance</span><span class="p">(</span><span class="n">h</span><span class="o">::</span><span class="kt">HopNode</span><span class="p">)</span>
+<span class="w">    </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">rand</span><span class="p">(</span><span class="n">Geometric</span><span class="p">(</span><span class="mf">0.5</span><span class="p">))</span>
+<span class="w">    </span><span class="n">pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">getpred</span><span class="p">(</span><span class="n">h</span><span class="o">.</span><span class="n">levels</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="w">    </span><span class="n">itr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">takewhile</span><span class="p">(</span><span class="n">x</span><span class="o">-&gt;</span><span class="n">x!</span><span class="o">=</span><span class="n">pred</span><span class="p">,</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
+<span class="w">    </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">HopNode</span><span class="p">(</span><span class="n">set</span><span class="o">=</span><span class="n">mapreduce</span><span class="p">(</span><span class="n">a</span><span class="o">-&gt;</span><span class="n">a</span><span class="o">.</span><span class="n">set</span><span class="p">,</span><span class="w"> </span><span class="n">union</span><span class="p">,</span><span class="w"> </span><span class="n">itr</span><span class="p">))</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">itr</span>
+<span class="w">        </span><span class="n">push!</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">succs</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">)</span>
+<span class="w">    </span><span class="k">end</span>
+<span class="w">    </span><span class="n">result</span><span class="o">.</span><span class="n">levels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cons</span><span class="p">(</span><span class="n">result</span><span class="o">=&gt;</span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">listdrop</span><span class="p">(</span><span class="n">h</span><span class="o">.</span><span class="n">levels</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">))</span>
+<span class="w">    </span><span class="n">result</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<p>With the <code>succs</code> pointers visualized in red, the previous example looks as follows:</p>
+<p><img alt="example2" src="/Hop-Lists_files/hoplist_example_2.png" /></p>
+<p>Note that <code>advance</code> can be called twice on the same node <span class="math">\(h_t\)</span>, producing a branching timeline. Updates to <span class="math">\(h_t\)</span> will be propagated to both possible futures. This is why we need <code>succs</code> to be a vector rather than simply an optional pointer. </p>
+<h3>Average Time and Space Complexity</h3>
+<p>If the size of our timeline is <span class="math">\(n\)</span>, we'll have on average <span class="math">\(n\)</span> nodes with height <span class="math">\(\geq 1\)</span>, <span class="math">\(n/2\)</span> nodes with height <span class="math">\(\geq 2\)</span>, and so on up to <span class="math">\(1\)</span> node with height <span class="math">\(\log n\)</span>. If we perform a <code>current</code> query from a node at height <span class="math">\(1\)</span>, it takes on average <span class="math">\(2\)</span> hops through predecessor nodes to get to a node with height <span class="math">\(\geq 2\)</span>. This means that after at most <span class="math">\(2 \log n\)</span> hops on average we should be at the node with height <span class="math">\(\log n\)</span> which has no predecessors. Therefore, the average number of sets we must union to answer a <code>current</code> query is <span class="math">\(O(\log n)\)</span> in expectation.</p>
+<p>The average time complexity for <code>push</code> can be found analogously. The <code>push</code> operation follows <code>succ</code> pointers, where the  successor to a node is the closest future node with a higher height, if one exists. As traversing each <code>succ</code> pointer takes us to a higher height, the time complexity of <code>push</code> is just the largest height of any node in our timeline, which on average is also <span class="math">\(O(\log n)\)</span>.</p>
+<p>The same logic allows us to find space complexity. Say we store at most <span class="math">\(c\)</span> elements in each time-slot. We know that the set associated with any time <span class="math">\(t\)</span> will be replicated at most <span class="math">\(\log n\)</span> times. So we use at most <span class="math">\(cn \log n = O(n \log n)\)</span> space for the <code>set</code> fields. For the <code>levels</code> field, each HopNode creates a single linked list node for its <code>levels</code> list, so this contributes <span class="math">\(O(n)\)</span> space. Each node's <code>succs</code> field will contain at most one element if the timeline does not branch, so once again we get a linear space contribution. This gives total space complexity <span class="math">\(O(n \log n)\)</span>. </p>
+<h3>Concentration Bounds</h3>
+<p>We know from the previous section that the time it takes to insert an element is at most the maximum height of any node in the timeline. The probability that the maximum height of any node in a timeline is above <span class="math">\(k\)</span> is 
+</p>
+<div class="math">$$
+\begin{align*}
+&amp;1 - \prod_{i=1}^n P(h_i \text{ has height below $k$}) \\
+&amp;= 1 - (1 - 2^{-k})^n
+\end{align*}
+$$</div>
+<p>
+For <span class="math">\(k=2\log_2 n\)</span>, we get
+</p>
+<div class="math">$$
+1 - \left(1 - \frac{1}{n^2}\right)^n
+$$</div>
+<p>
+But <span class="math">\(\lim_{n \to \infty} \left(1 - \frac{1}{n^2}\right)^n = 1\)</span>. So the probability of insertion being any worse than <span class="math">\(2\log_2 n\)</span> goes to zero.</p>
+<p>To bound the number of backward hops taken by <code>current</code> queries, we can find the probability it takes <span class="math">\(\leq k\)</span> hops to iterate backwards from a node <span class="math">\(h_n\)</span> with height <span class="math">\(1\)</span>. We can lower bound this by the probability that it takes <span class="math">\(\leq k/L\)</span> hops to get to a node with height 2, times the probability it takes <span class="math">\(\leq k/L\)</span> hops to get to a node with height 3, and so on up to the maximum height <span class="math">\(L\)</span>. This is 
+</p>
+<div class="math">$$
+(1 - 2^{-k/L})^L
+$$</div>
+<p>
+For <span class="math">\(k = 2L\log_2 L\)</span>, we get the probability
+</p>
+<div class="math">$$
+\left(1 - \frac{1}{L^2}\right)^L
+$$</div>
+<p>
+As <span class="math">\(L \to \infty\)</span> this converges to <span class="math">\(1\)</span>, meaning that the probability a <code>current</code> query takes more than <span class="math">\(2 L \log_2L\)</span> time falls to zero. </p>
+<h3>Height-Free Variant</h3>
+<p>We can construct a variant of the data structure described that does not use a <code>levels</code> list. Instead, when we create a new hop node <span class="math">\(h_{t'} = \text{advance}(h_t)\)</span>, we will set the predecessor by sampling <span class="math">\(n \sim \text{Geom}(0.5)\)</span> and then taking <span class="math">\(n\)</span> predecessor hops back from <span class="math">\(h_t\)</span>. Specifically, we would have </p>
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">advance</span><span class="p">(</span><span class="n">t</span><span class="o">::</span><span class="kt">HopList2</span><span class="p">)</span>
+<span class="w">    </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rand</span><span class="p">(</span><span class="n">Geometric</span><span class="p">(</span><span class="mf">0.5</span><span class="p">))</span>
+<span class="w">    </span><span class="n">itr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Iterators</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">Iterators</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="p">),</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="w">    </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">HopList2</span><span class="p">()</span>
+<span class="w">    </span><span class="n">set</span><span class="p">,</span><span class="w"> </span><span class="n">pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reduce</span><span class="p">(</span><span class="n">itr</span><span class="p">;</span><span class="w"> </span><span class="n">init</span><span class="o">=</span><span class="p">(</span><span class="nb">nothing</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="p">))</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">),</span><span class="w"> </span><span class="n">a</span>
+<span class="w">        </span><span class="n">push!</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">succs</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">)</span>
+<span class="w">        </span><span class="p">(</span><span class="n">s</span><span class="w"> </span><span class="o">∪</span><span class="w"> </span><span class="n">p</span><span class="o">.</span><span class="n">set</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">)</span>
+<span class="w">    </span><span class="k">end</span>
+<span class="w">    </span><span class="n">result</span><span class="o">.</span><span class="n">set</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">set</span>
+<span class="w">    </span><span class="n">result</span><span class="o">.</span><span class="n">pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pred</span>
+<span class="w">    </span><span class="n">result</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<p>Analysis of this variant is more difficult. Let the number of hops back to the start of time from node <span class="math">\(h_t\)</span> be given by <span class="math">\(X_t\)</span>. It's easy to see that
+</p>
+<div class="math">$$
+\begin{align*}
+X_0 &amp;= 0 \\
+X_t &amp;= \max(0, X_{t-1} + 1 - G_t)
+\end{align*}
+$$</div>
+<p>
+where <span class="math">\(G_t \sim \text{Geom}(0.5)\)</span>. Simulating samples from this stochastic process seems to indicate that <span class="math">\(X_t\)</span> scales as <span class="math">\(\sqrt{t}\)</span> rather than <span class="math">\(\log t\)</span> as in the original structure. But insertions into the height-free variant seem to be much faster than those into the original structure in practice. Thorough analysis of why this is the case remains to be done.  </p>
+<h3>Extensions</h3>
+<p>While I have introduced these datastructures as retroactive set, they can compute partial sums of arbitrary monoids. For example, you can use them to compute prefix sums of a changing list of numbers.</p>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
+
+    var configscript = document.createElement('script');
+    configscript.type = 'text/x-mathjax-config';
+    configscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    messageStyle: 'normal'," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        availableFonts: ['STIX', 'TeX']," +
+        "        preferredFont: 'STIX'," +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); " +
+        "if ('default' !== 'default') {" +
+            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+        "}";
+
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script>                    </article>
+                </aside><!-- /#featured -->
+                <section id="extras" class="body">
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>

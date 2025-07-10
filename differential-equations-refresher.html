@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Differential Equations Refresher</title>
+                        <link rel="stylesheet" href="/theme/css/main.css" />
+    <meta name="description" content="In my freshman year of college, I took an introductory differential equations class. That was nine years ago. I've forgotten pretty much..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="/">Sam's Blog</a></h1>
+                        <nav><ul>
+                                                <li><a href="/category/algorithms.html">algorithms</a></li>
+                                                <li><a href="/category/machine_learning.html">machine_learning</a></li>
+                                                <li class="active"><a href="/category/math.html">math</a></li>
+                                                <li><a href="/category/slam.html">slam</a></li>
+                                                <li><a href="/category/statistics.html">statistics</a></li>
+                                                <li><a href="/category/tools.html">tools</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="/differential-equations-refresher.html" rel="bookmark"
+             title="Permalink to Differential Equations Refresher">Differential Equations Refresher</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2021-04-01T00:00:00-05:00">
+                Published: Thu 01 April 2021
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
+                </address>
+        <p>In <a href="/category/math.html">math</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>In my freshman year of college, I took an introductory differential equations class. That was nine years ago. I've forgotten pretty much everything, so I thought I'd review a little, trying to generalize the techniques along the way. I'll use <a href="">summation notation</a> throughout, and write <span class="math">\(\frac{\partial^n}{\partial x^n}\)</span> as <span class="math">\(\partial^n_x\)</span>.  </p>
+<h2>Ordinary Differential Equations</h2>
+<p>Solving ordinary differential equations is mostly an exercise in linear algebra.  </p>
+<h3>Initial Value Problems</h3>
+<p>Let <span class="math">\(u : \mathbb{R} \to \mathbb{R}^n\)</span>. It's a vector function of time. In an initial value problem, we know that <span class="math">\(u'(t) = Au(t)\)</span> for some linear operator <span class="math">\(A\)</span>, and we know <span class="math">\(u(0)\)</span>. If <span class="math">\(A\)</span> were diagonal, finding <span class="math">\(u(t)\)</span> would be easy. Each element would obey <span class="math">\(u_i'(t) = A_{ii} u_i(t)\)</span>, which means <span class="math">\(u_i(t) = e^{A_{ii}t}u_i(0)\)</span>. The trick to these problems, therefore, is to express <span class="math">\(u\)</span> in a basis where <span class="math">\(A\)</span> <em>is</em> diagonal: its eigenvector basis. Say <span class="math">\(A\)</span> has eigenvectors <span class="math">\(v_i\)</span>, and <span class="math">\(u(t) =\sum_i c_i(t)v_i\)</span> for some <span class="math">\(c_i\)</span>. Then <span class="math">\(Au(t) = \lambda_i c_i(t) v_i\)</span>, so
+</p>
+<div class="math">$$
+u(t) = \sum_i e^{\lambda_i t}c_i(0) v_i= e^{At}u(0)
+$$</div>
+<p>
+This can also be used for constraints of the form <span class="math">\(u''(t) = Au'(t) + Bu(t)\)</span>, when we're given <span class="math">\(u(0)\)</span> and <span class="math">\(u'(0)\)</span>. Just expand the system into
+</p>
+<div class="math">$$
+\begin{pmatrix} u'' \\ u' \end{pmatrix} = \begin{bmatrix} A &amp; B \\ I &amp; 0 \end{bmatrix} \begin{pmatrix} u' \\ u \end{pmatrix}
+$$</div>
+<p>
+We're left with the same form we had before.</p>
+<h3>Characteristic Equations</h3>
+<p>More generally, say your differential equation is described by the following linear system:
+</p>
+<div class="math">$$
+\begin{pmatrix}
+u'''' \\
+u''' \\
+u'' \\
+u' \\
+\end{pmatrix}
+=
+\begin{pmatrix}
+a_1 &amp; a_2 &amp; a_3 &amp; a_4 \\
+1 &amp; 0 &amp; 0 &amp; 0\\
+0 &amp; 1 &amp; 0 &amp; 0\\
+0 &amp; 0 &amp; 1 &amp; 0\\
+\end{pmatrix}
+\begin{pmatrix}
+u''' \\
+u'' \\
+u' \\
+u
+\end{pmatrix}
+$$</div>
+<p>
+Let the matrix in the middle be <span class="math">\(M\)</span>. We want to find <span class="math">\(\lambda\)</span> such that <span class="math">\(|M-\lambda I| = 0\)</span>. Calculating the determinant with a cofactor expansion looks like this:
+</p>
+<div class="math">$$
+(a_1 - \lambda) \begin{vmatrix}
+-\lambda &amp; 0 &amp; 0 \\
+1 &amp; -\lambda &amp; 0 \\
+0 &amp; 1 &amp; -\lambda
+\end{vmatrix}
+- 
+a_2 \begin{vmatrix}
+1 &amp; 0 &amp; 0 \\
+0 &amp; -\lambda &amp; 0 \\
+0 &amp; 1 &amp; -\lambda
+\end{vmatrix}
++ \dots
+$$</div>
+<p>
+Each of these are cofactors are triangular. The determinant of a triangular matrix is the product of pivots. We get <span class="math">\((a_1 - \lambda)(-\lambda)^3 - a_2 (-\lambda)^2 + a_3(-\lambda) - a_4 =0\)</span>. </p>
+<p>This simplifies to the <em>characteristic equation</em> <span class="math">\(\lambda^4 = a_1 \lambda^3 + a_2 \lambda^2 + a_3 \lambda + a_4\)</span>, which can be easily read off the top row of the matrix. </p>
+<p>When differential equations are written in the form <span class="math">\(au’’ + bu’ + cu = 0\)</span>, this means we’re solving a system like this:
+</p>
+<div class="math">$$
+\begin{pmatrix}
+u'' \\
+u' \\
+\end{pmatrix}
+=
+\begin{pmatrix}
+-b/a &amp; -c/a \\
+1 &amp; 0 \\
+\end{pmatrix}
+\begin{pmatrix}
+u' \\
+u
+\end{pmatrix}
+$$</div>
+<p>
+We get <span class="math">\((-b/a - \lambda)(-\lambda) + c/a =0\)</span>. Multiply by <span class="math">\(a\)</span> to get <span class="math">\(a\lambda^2 + b\lambda + c = 0\)</span>. </p>
+<h3>Inhomogenous Differential Equations</h3>
+<p>So far, we've seen differential equations of the form <span class="math">\(u' - Au = 0\)</span>. But what if the right hand side is some <span class="math">\(q(t)\)</span> instead? We can use <em>integrating factors</em> to solve this. Multiply both sides by <span class="math">\(e^{-At}\)</span>:
+</p>
+<div class="math">$$
+e^{-At}u' - e^{-At}Au = a^{-At}q(t)
+$$</div>
+<p>
+By the product rule, the left hand side is just the derivative of <span class="math">\(e^{-At}u\)</span>. This lets its integrate both sides from <span class="math">\(0\)</span> to <span class="math">\(T\)</span>.<br />
+</p>
+<div class="math">$$
+e^{-AT}u - u(0) = \int_0^T a^{-At}q(t)\, dt
+$$</div>
+<p>
+Multiply by <span class="math">\(e^{-AT}\)</span> to get <span class="math">\(u = e^{-AT}u(0) + \int_0^T a^{-A(T-t)}q(t)\, dt\)</span>.</p>
+<p>Conceptually, we're adding up a bunch of different copies of our homogenous equation <span class="math">\(y'=Ay\)</span>, but with different starting conditions <span class="math">\(q(t)\)</span> and shifted forward in time. </p>
+<h2>Partial Differential Equations</h2>
+<p>With partial differential equations (where we can be differentiating with respect to multiple different variables), the simple finite dimensional vector spaces we’ve been using won’t be as useful. We’ll have to use an infinite dimensional basis. </p>
+<h3>Functions are vectors</h3>
+<p>Functions <span class="math">\(f : Y \to Z\)</span> form a vector space when <span class="math">\(Z\)</span> is a field. For example, we could form a basis from the delta functions for different values of <span class="math">\(Y\)</span>, or we could use the Fourier basis. It’s also pretty easy to see how they form a field. This means that functions <span class="math">\(g : X \to Y \to Z\)</span> are also vector spaces, but over the field of functions in <span class="math">\(Y \to Z\)</span>.  If we have a function <span class="math">\(u(x,y) : (X,Y) \to Z\)</span>, therefore, we can express it both as <span class="math">\(X \to Y \to Z\)</span> (making it a vector space over functions <span class="math">\(Y \to Z\)</span>) and as <span class="math">\(Y \to X \to Z\)</span> (making it a vector space over functions <span class="math">\(X \to Z\)</span>). To be more concrete, we can both think about <span class="math">\(u(x,y)\)</span> as a linear combination of basis functions <span class="math">\(u_i(x)\)</span> where the coefficients <span class="math">\(c_i(y)\)</span> depend on <span class="math">\(y\)</span>, as well as a linear combination of basis functions <span class="math">\(u_i(y)\)</span> where the coefficients <span class="math">\(c_i(x)\)</span> depend on <span class="math">\(x\)</span>. In other words, any function <span class="math">\(u(x,y)\)</span> can be written as <span class="math">\(c_{ij}u_i(x)u_j(y)\)</span>. </p>
+<h3>Eigenfunctions of derivatives are exponentials</h3>
+<p>Say <span class="math">\(f : A \to B\)</span> is a linear function and <span class="math">\(A\)</span> is a vector space. Then, for any <span class="math">\(u \in A\)</span>, <span class="math">\(f(u) = f(c_iu_i) = c_if(u_i)\)</span>, where the <span class="math">\(u_i\)</span> are a basis for <span class="math">\(A\)</span>. Specifically, you can choose <span class="math">\(u_i\)</span> to be an eigenvector basis for <span class="math">\(f\)</span>, so that <span class="math">\(f(c_iu_i) = c_i \lambda_i u_i\)</span> for eigenvalues <span class="math">\(\lambda_i\)</span>. If the vector space <span class="math">\(A\)</span> we’re looking at consists of functions of a single argument, then when <span class="math">\(\frac{d^n}{dx^n}v_i=\lambda^n v_i\)</span>,  <span class="math">\(v_i(x)=e^{\lambda x}\)</span>.  If the vector space contains functions <span class="math">\(u(x,y)\)</span> of multiple arguments, when <span class="math">\(\frac{\partial^n u_i}{\partial x^n} = \lambda^n u_i\)</span>, <span class="math">\(u_i(x,y) = e^{\lambda x}u_i(y)\)</span>.</p>
+<h3>Solving homogeneous equations</h3>
+<p>Say we know that <span class="math">\(A\frac{d^2 u}{dx} + B \frac{du}{dx} + Cu = 0\)</span>. We can express <span class="math">\(u\)</span> in the derivative’s eigenfunction basis to get <span class="math">\((A\lambda_i^2 + B \lambda_i + C)c_i e^{\lambda_i t}=0\)</span>, which simplifies to <span class="math">\(A\lambda_i^2 + B\lambda_i + C = 0\)</span> (once again giving us the characteristic equation). This means that the only eigenfunctions that make up <span class="math">\(u\)</span> are those with eigenvalues that are the roots of the characteristic equation.</p>
+<p>We can solve a system of linear equations to get the coefficients <span class="math">\(c_i\)</span>. If we know the initial conditions <span class="math">\(u(0)\)</span> and <span class="math">\(\partial_x u(0)\)</span>,  when <span class="math">\(x=0\)</span>, we get that the sum <span class="math">\(c_i = u(0)\)</span>, and <span class="math">\(c_i \lambda_i = \partial_x u(0)\)</span>. If, alternately, we know <span class="math">\(u(0)\)</span> and <span class="math">\(u(X)\)</span> for some <span class="math">\(X\)</span>, the second equation in the system becomes <span class="math">\(c_ie^{\lambda_i T} = u(T)\)</span>, which is still linear in the <span class="math">\(c_i\)</span>.   </p>
+<h3>Separation of Variables</h3>
+<p>Partial differential equations of the form <span class="math">\(\partial^n_x u = k^m \partial^m_y u\)</span> are called “separable”. To find what <span class="math">\(u(x,y)\)</span> is, we express it in the basis <span class="math">\(c_i u_i(x) u_i(y)\)</span>. The differential equation tells us that <span class="math">\(c_{ij} u_i(y) \partial^n_x u_j(x) = k^m c_{ij} u_j(x) \partial^m_y u_i(y)\)</span>. Considering each component of the sum separately, we get <span class="math">\(\frac{\partial^n_x u_i(x)}{u_i(x)} = k^m \frac{\partial^m_y u_i(y)}{u_i(y)}\)</span>. As one side of the equation is only a function of <span class="math">\(x\)</span> and the other is only a function of <span class="math">\(y\)</span>, both must equal a constant. Call this <span class="math">\(\lambda^n\)</span>. We get <span class="math">\(\partial_x^n u_i(x) = \lambda^n u_i(x)\)</span>, which means <span class="math">\(u_i(x)=e^{\lambda x}\)</span>. For the other side, <span class="math">\(\partial_y^m u_i(y) = \frac{\lambda^m}{k^m} u_i(y)\)</span>, which means <span class="math">\(u_i(y) = e^{\frac{\lambda y}{k}}\)</span>. Together, we find that  <span class="math">\(u_i(x,y)=e^{\lambda (x + \frac{\lambda y}{k})}\)</span>. </p>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
+
+    var configscript = document.createElement('script');
+    configscript.type = 'text/x-mathjax-config';
+    configscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    messageStyle: 'normal'," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        availableFonts: ['STIX', 'TeX']," +
+        "        preferredFont: 'STIX'," +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); " +
+        "if ('default' !== 'default') {" +
+            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+        "}";
+
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>

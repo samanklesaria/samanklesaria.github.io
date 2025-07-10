@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Fun with Likelihood Ratios</title>
+                        <link rel="stylesheet" href="/theme/css/main.css" />
+    <meta name="description" content="Say you're trying to maximize a likelihood \(p_{\theta}(x)\), but you only have an unnormalized version \(\hat{p_{\theta}}\) for which..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="/">Sam's Blog</a></h1>
+                        <nav><ul>
+                                                <li><a href="/category/algorithms.html">algorithms</a></li>
+                                                <li class="active"><a href="/category/machine_learning.html">machine_learning</a></li>
+                                                <li><a href="/category/math.html">math</a></li>
+                                                <li><a href="/category/slam.html">slam</a></li>
+                                                <li><a href="/category/statistics.html">statistics</a></li>
+                                                <li><a href="/category/tools.html">tools</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="/fun-with-likelihood-ratios.html" rel="bookmark"
+             title="Permalink to Fun with Likelihood Ratios">Fun with Likelihood Ratios</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2021-01-14T00:00:00-06:00">
+                Published: Thu 14 January 2021
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
+                </address>
+        <p>In <a href="/category/machine_learning.html">machine_learning</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>Say you're trying to maximize a likelihood <span class="math">\(p_{\theta}(x)\)</span>, but you only have an unnormalized version <span class="math">\(\hat{p_{\theta}}\)</span> for which <span class="math">\(p_{\theta}(x) = \frac{\hat{p_\theta}(x)}{N_\theta}\)</span>. How do you pick <span class="math">\(\theta\)</span>? Well, you can rely on the magic of self normalized importance sampling.</p>
+<div class="math">$$
+\int \hat{p_{\theta}}(x)dx = N_\theta \\
+\int \frac{q(x)}{q(x)} \hat{p_{\theta}}(x)dx = N_\theta \\
+E_{q(x)}\frac{\hat{p_{\theta}}(x)}{q(x)}=N_\theta
+$$</div>
+<p>Take a Monte Carlo estimate of the expectation, and you're good to go. Specifically, you can maximize</p>
+<div class="math">$$
+\log \frac{\hat{p_{\theta}}(x)}{N_\theta} = \log \hat{p_{\theta}}(x) - \log E_{q(x)}\frac{\hat{p_{\theta}}(x)}{q(x)}
+$$</div>
+<p>A special case is when <span class="math">\(q(x)\)</span> is uniform, where this simplifies to <span class="math">\(\log \hat{p_{\theta}}(x) - b\log E_{q(x)}\hat{p_{\theta}}(x)\)</span> for constant <span class="math">\(b\)</span>. This is just the negative sampling rule from Mikolov's famous skip-gram paper!</p>
+<h2>Maximizing Implicit Likelihoods</h2>
+<p>Okay, that's cool, but what if we don't even have an unnormalized <span class="math">\(\hat{p_{\theta}}(x)\)</span> and <span class="math">\(q(x)\)</span>? What if we just had a simulator <span class="math">\(q(x)\)</span> that can spit out samples, but doesn't know anything about densities?</p>
+<p>We'd like to minimize the KL divergence of between whatever density our sampler <span class="math">\(q\)</span> is capturing and the true data distribution <span class="math">\(p\)</span>.</p>
+<div class="math">$$
+-E_{q(x)}\log \frac{p(x)}{q(x)}
+$$</div>
+<p>Well, that expression looks familiar. Once again, we need to maximize a likelihood ratio! Only this time, we can't evaluate <span class="math">\(q(x)\)</span>. Instead, we can notice that <span class="math">\(\log p(x)/q(x)\)</span> is just the log odds of a sample <span class="math">\(x\)</span> coming from <span class="math">\(p\)</span> rather than <span class="math">\(q\)</span>. And estimating the log odds of some event occurring is easy: just build a discriminative binary classifier! Specifically, let <span class="math">\(u(x)=p(x)\)</span> if <span class="math">\(y=1\)</span> and <span class="math">\(u(x)=q(x)\)</span> if <span class="math">\(y=0\)</span>. Then</p>
+<div class="math">$$
+\begin{align*}
+\frac{p(x)}{q(x)} &amp;= \frac{u(x \vert y=1)}{u(x \vert y=0)} \\
+&amp;= \frac{u(y=1, x)}{u(y=0, x)} \frac{u(y=0)}{u(y=1)} \\
+&amp;= \frac{u(y=1 \vert x)}{u(y=0 \vert x)} \frac{u(y=0)}{u(y=1)}
+\end{align*}
+$$</div>
+<p>So now we have two objectives to minimize: the one for the classifier <span class="math">\(u(y=1 \vert x)\)</span> and the one for the implicit model <span class="math">\(q(x)\)</span>.  That's just a GAN!</p>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
+
+    var configscript = document.createElement('script');
+    configscript.type = 'text/x-mathjax-config';
+    configscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    messageStyle: 'normal'," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        availableFonts: ['STIX', 'TeX']," +
+        "        preferredFont: 'STIX'," +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); " +
+        "if ('default' !== 'default') {" +
+            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+        "}";
+
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>

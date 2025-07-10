@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Finite Basis Gaussian Processes</title>
+                        <link rel="stylesheet" href="/theme/css/main.css" />
+    <meta name="description" content="By Mercer's theorem, every positive definite kernel \(k(x, y) : \mathcal{X} \to \mathcal{X} \to \mathbb{R}\) that we might want to use in a..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="/">Sam's Blog</a></h1>
+                        <nav><ul>
+                                                <li><a href="/category/algorithms.html">algorithms</a></li>
+                                                <li class="active"><a href="/category/machine_learning.html">machine_learning</a></li>
+                                                <li><a href="/category/math.html">math</a></li>
+                                                <li><a href="/category/slam.html">slam</a></li>
+                                                <li><a href="/category/statistics.html">statistics</a></li>
+                                                <li><a href="/category/tools.html">tools</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="/finite-basis-gaussian-processes.html" rel="bookmark"
+             title="Permalink to Finite Basis Gaussian Processes">Finite Basis Gaussian Processes</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2024-04-02T00:00:00-05:00">
+                Published: Tue 02 April 2024
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
+                </address>
+        <p>In <a href="/category/machine_learning.html">machine_learning</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>By Mercer's theorem, every positive definite kernel <span class="math">\(k(x, y) : \mathcal{X} \to \mathcal{X} \to \mathbb{R}\)</span> that we might want to use in a Gaussian Process corresponds to some inner product <span class="math">\(\langle \phi(x), \phi(y) \rangle\)</span>, where <span class="math">\(\phi : \mathcal{X} \to \mathcal{V}\)</span> maps our inputs into some other space.  For many kernels (like the venerable RBF), this space is infinite dimensional, and we can't work with it directly. But when it's finite dimensional (in say <span class="math">\(d\)</span> dimensions), we can! This lets us avoid the usual <span class="math">\(O(n^3)\)</span> scaling for Gaussian process regression, getting <span class="math">\(O(nd+d^3)\)</span> instead.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">using</span><span class="w"> </span><span class="n">KernelFunctions</span><span class="p">,</span><span class="n">LinearAlgebra</span><span class="p">,</span><span class="w"> </span><span class="n">AbstractGPs</span><span class="p">,</span><span class="w"> </span><span class="n">Random</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="n">AbstractGPs</span><span class="o">:</span><span class="w"> </span><span class="n">AbstractGP</span><span class="p">,</span><span class="w"> </span><span class="n">FiniteGP</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="n">Statistics</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span> <span class="kt">FiniteBasis</span><span class="w"> </span><span class="o">&lt;:</span><span class="w"> </span><span class="kt">KernelFunctions</span><span class="o">.</span><span class="n">SimpleKernel</span><span class="w"> </span><span class="k">end</span>
+</code></pre></div>
+
+<p>We can define a finite dimensional kernel in Julia using the <code>KernelFunctions</code> library. The library assumes our kernel <code>k</code> has the form <code>k(x,y) = kappa(metric(x,y))</code>, and lets us fill in the definitions for <code>kappa</code> and <code>metric</code>.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">KernelFunctions</span><span class="o">.</span><span class="n">kappa</span><span class="p">(</span><span class="o">::</span><span class="kt">FiniteBasis</span><span class="p">,</span><span class="w"> </span><span class="n">d</span><span class="o">::</span><span class="kt">Real</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">d</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">KernelFunctions</span><span class="o">.</span><span class="n">metric</span><span class="p">(</span><span class="o">::</span><span class="kt">FiniteBasis</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KernelFunctions</span><span class="o">.</span><span class="n">DotProduct</span><span class="p">()</span>
+</code></pre></div>
+
+<p>We will use the <em>weight space</em> view of Gaussian processes, which interprets GP regression as Bayesian linear regression. We assume that there is a weight vector <span class="math">\(w : \mathcal{V}\)</span> with prior <span class="math">\(\mathcal{N}(0, I)\)</span>, and that <span class="math">\(y \sim \mathcal{N}(X w, I)\)</span>, where <span class="math">\(X\)</span> is the matrix for which row <span class="math">\(i\)</span> is given by <span class="math">\(\phi(x_i)\)</span>.
+The posterior over <span class="math">\(w\)</span> remains Gaussian with precision <span class="math">\(\Lambda = I + X^T X\)</span> and mean <span class="math">\(\mu = \Lambda^{-1} X^T y\)</span>. To make a prediction at <span class="math">\(x_*\)</span>, we simply find <span class="math">\(\langle \phi(x_*), w \rangle\)</span>.</p>
+<p>On the face of it, this seems like a very different generative model than the traditional depiction of Gaussian processes in which the observations <span class="math">\(y\)</span> are noisy versions of the function values <span class="math">\(f\)</span>, which are all jointly Gaussian with a covariance matrix given by the associated kernel. But with a little algebra, one can show that the posterior over <span class="math">\(f(x_*) = \langle \phi(x_*), w \rangle\)</span> in the weight space view is the same as the posterior over <span class="math">\(f(x_*)\)</span> is the traditional function-space view.</p>
+<p>First, we can marginalize out <span class="math">\(w\)</span> to find that</p>
+<div class="math">$$
+f(x_*) | y \sim \mathcal{N}(X_* \mu, X_* \Lambda^{-1} X_*^T)
+$$</div>
+<p>
+The mean expands to <span class="math">\(X_*(I + X^T X)^{-1} X^T y\)</span> and the variance expands to
+<span class="math">\(X_*(I + X^T X)^{-1}X_*^T\)</span>.</p>
+<p>Now, we can use the Woodbury Matrix Identity, which says that
+</p>
+<div class="math">$$
+(I + X^TX)^{-1} = I - X^T(I + XX^T)^{-1}X
+$$</div>
+<p>
+This lets the mean simplify to
+<span class="math">\(X_*X^T (XX^T + I)^{-1}y\)</span> and the variance simplify to <span class="math">\(X_*X_*^T -X_*X^T(XX^T + I)^{-1}XX_*^T\)</span>. Letting <span class="math">\(XX^T = K\)</span>, we recover the familiar function space representation of Gaussian process. See the first chapter of the <a href="http://gaussianprocess.org/gpml/">Rasmussen book</a> for a more detailed derivation.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span> <span class="kt">DegeneratePosterior</span><span class="p">{</span><span class="kt">P</span><span class="p">,</span><span class="kt">T</span><span class="p">,</span><span class="kt">C</span><span class="p">}</span><span class="w"> </span><span class="o">&lt;:</span><span class="w"> </span><span class="kt">AbstractGP</span>
+<span class="w">    </span><span class="n">prior</span><span class="o">::</span><span class="kt">P</span>
+<span class="w">    </span><span class="n">w_mean</span><span class="o">::</span><span class="kt">T</span>
+<span class="w">    </span><span class="n">w_prec</span><span class="o">::</span><span class="kt">C</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">weight_form</span><span class="p">(</span><span class="n">A</span><span class="o">::</span><span class="kt">KernelFunctions</span><span class="o">.</span><span class="n">ColVecs</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">A</span><span class="o">.</span><span class="n">X</span><span class="o">&#39;</span><span class="p">;</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">weight_form</span><span class="p">(</span><span class="n">A</span><span class="o">::</span><span class="kt">KernelFunctions</span><span class="o">.</span><span class="n">RowVecs</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">A</span><span class="o">.</span><span class="n">X</span><span class="p">;</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">AbstractGPs</span><span class="o">.</span><span class="n">posterior</span><span class="p">(</span><span class="n">fx</span><span class="o">::</span><span class="kt">FiniteGP</span><span class="p">{</span><span class="kt">GP</span><span class="p">{</span><span class="kt">M</span><span class="p">,</span><span class="w"> </span><span class="kt">B</span><span class="p">}},</span><span class="w"> </span><span class="n">y</span><span class="o">::</span><span class="kt">AbstractVector</span><span class="p">{</span><span class="o">&lt;:</span><span class="kt">Real</span><span class="p">})</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="p">{</span><span class="kt">M</span><span class="p">,</span><span class="w"> </span><span class="kt">B</span><span class="w"> </span><span class="o">&lt;:</span><span class="w"> </span><span class="kt">FiniteBasis</span><span class="p">}</span>
+<span class="w">    </span><span class="n">kern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fx</span><span class="o">.</span><span class="n">f</span><span class="o">.</span><span class="n">kernel</span>
+<span class="w">    </span><span class="n">δ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">mean</span><span class="p">(</span><span class="n">fx</span><span class="p">)</span>
+<span class="w">    </span><span class="n">X</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">weight_form</span><span class="p">(</span><span class="n">fx</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+<span class="w">    </span><span class="n">X_prec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">X</span><span class="o">&#39;</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">inv</span><span class="p">(</span><span class="n">fx</span><span class="o">.</span><span class="n">Σy</span><span class="p">)</span>
+<span class="w">    </span><span class="n">Λμ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">X_prec</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">y</span>
+<span class="w">    </span><span class="n">prec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cholesky</span><span class="p">(</span><span class="n">I</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Symmetric</span><span class="p">(</span><span class="n">X_prec</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">X</span><span class="p">))</span>
+<span class="w">    </span><span class="n">w</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">prec</span><span class="w"> </span><span class="o">\</span><span class="w"> </span><span class="n">Λμ</span>
+<span class="w">    </span><span class="n">DegeneratePosterior</span><span class="p">(</span><span class="n">fx</span><span class="o">.</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">prec</span><span class="p">)</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">Statistics</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">f</span><span class="o">::</span><span class="kt">DegeneratePosterior</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="o">::</span><span class="kt">AbstractVector</span><span class="p">)</span>
+<span class="w">    </span><span class="n">w</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">f</span><span class="o">.</span><span class="n">w_mean</span>
+<span class="w">    </span><span class="n">X</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">weight_form</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="w">    </span><span class="n">X</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">w</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">Statistics</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">f</span><span class="o">::</span><span class="kt">DegeneratePosterior</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="o">::</span><span class="kt">AbstractVector</span><span class="p">)</span>
+<span class="w">    </span><span class="n">X</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">weight_form</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="w">    </span><span class="n">AbstractGPs</span><span class="o">.</span><span class="n">Xt_invA_X</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">w_prec</span><span class="p">,</span><span class="w"> </span><span class="n">X</span><span class="o">&#39;</span><span class="p">)</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">Statistics</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">f</span><span class="o">::</span><span class="kt">DegeneratePosterior</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="o">::</span><span class="kt">AbstractVector</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="o">::</span><span class="kt">AbstractVector</span><span class="p">)</span>
+<span class="w">    </span><span class="n">X</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">weight_form</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="w">    </span><span class="n">Y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">weight_form</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+<span class="w">    </span><span class="n">AbstractGPs</span><span class="o">.</span><span class="n">Xt_invA_Y</span><span class="p">(</span><span class="n">X</span><span class="o">&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="o">.</span><span class="n">w_prec</span><span class="p">,</span><span class="w"> </span><span class="n">Y</span><span class="o">&#39;</span><span class="p">)</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">Statistics</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">f</span><span class="o">::</span><span class="kt">DegeneratePosterior</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="o">::</span><span class="kt">AbstractVector</span><span class="p">)</span>
+<span class="w">    </span><span class="n">X</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">weight_form</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="w">    </span><span class="n">AbstractGPs</span><span class="o">.</span><span class="n">diag_Xt_invA_X</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">w_prec</span><span class="p">,</span><span class="w"> </span><span class="n">X</span><span class="o">&#39;</span><span class="p">)</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">Statistics</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">rng</span><span class="o">::</span><span class="kt">AbstractRNG</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="o">::</span><span class="kt">DegeneratePosterior</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="o">::</span><span class="kt">AbstractVector</span><span class="p">)</span>
+<span class="w">    </span><span class="n">w</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">f</span><span class="o">.</span><span class="n">w_mean</span>
+<span class="w">    </span><span class="n">X</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">weight_form</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="w">    </span><span class="n">X</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">w_prec</span><span class="o">.</span><span class="n">U</span><span class="w"> </span><span class="o">\</span><span class="w"> </span><span class="n">randn</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<p>We can compare the results of this optimized implementation with the standard posterior implementation to ensure that the two agree on the output.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2000</span><span class="p">);</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sin</span><span class="o">.</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="p">(</span><span class="n">eachcol</span><span class="p">(</span><span class="n">x</span><span class="p">)));</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">kern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FiniteBasis</span><span class="p">();</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">f</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GP</span><span class="p">(</span><span class="n">kern</span><span class="p">);</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">fx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">f</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="mf">0.001</span><span class="p">);</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">x2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ColVecs</span><span class="p">(</span><span class="n">rand</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">2000</span><span class="p">));</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">using</span><span class="w"> </span><span class="n">BenchmarkTools</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">opt_m</span><span class="p">,</span><span class="w"> </span><span class="n">opt_C</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nd">@btime</span><span class="w"> </span><span class="n">mean_and_cov</span><span class="p">(</span><span class="n">posterior</span><span class="p">(</span><span class="o">$</span><span class="n">fx</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">y</span><span class="p">)(</span><span class="o">$</span><span class="n">x2</span><span class="p">));</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>  6.405 ms (28 allocations: 61.13 MiB)
+</code></pre></div>
+
+<p>To compare against the implementation that uses a function-space perspective, we'll use a bit of a hack: by adding a <code>ZeroKernel</code> to our <code>FiniteBasis</code> kernel, we get a kernel for which our custom <code>posterior</code> method won't be called.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">fx2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GP</span><span class="p">(</span><span class="n">kern</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ZeroKernel</span><span class="p">())(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="mf">0.001</span><span class="p">);</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nd">@btime</span><span class="w"> </span><span class="n">mean_and_cov</span><span class="p">(</span><span class="n">posterior</span><span class="p">(</span><span class="o">$</span><span class="n">fx2</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">y</span><span class="p">)(</span><span class="o">$</span><span class="n">x2</span><span class="p">));</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>  418.465 ms (74 allocations: 457.83 MiB)
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">max</span><span class="p">(</span><span class="n">maximum</span><span class="p">(</span><span class="n">abs</span><span class="o">.</span><span class="p">(</span><span class="n">opt_C</span><span class="w"> </span><span class="o">.-</span><span class="w"> </span><span class="n">C</span><span class="p">)),</span><span class="w"> </span><span class="n">maximum</span><span class="p">(</span><span class="n">abs</span><span class="o">.</span><span class="p">(</span><span class="n">opt_m</span><span class="w"> </span><span class="o">.-</span><span class="w"> </span><span class="n">m</span><span class="p">)))</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>7.394529433213393e-12
+</code></pre></div>
+
+<p>Our optimized technique produces the same results!</p>
+<h2>Random Fourier Features</h2>
+<p>One application of this technique is the <em>Random Fourier Features</em> approximation. By Bochner's theorem, every kernel of the form <span class="math">\(k(x,y) = f(x-y)\)</span> for some <span class="math">\(f\)</span> can be expressed in the Fourier basis as <span class="math">\(f(x-y) = E e^{i\omega (x-y)}\)</span>, where the distribution from which <span class="math">\(\omega\)</span> is sampled determines the kernel. A Monte Carlo estimate of this expectation is just <span class="math">\(\sum_{w_j} e^{i w_j x}e^{-i w_j y}\)</span>, which is an inner product of features of the form <span class="math">\(\phi_j(x) = e^{i w_j x}\)</span>. With some algebraic simplifications (see <a href="https://gregorygundersen.com/blog/2019/12/23/random-fourier-features/#a4-alternative-random-fourier-features">here</a> for a good derivation) we can ignore the imaginary parts and express this as <span class="math">\(\phi_j(x)=(\cos(w_j x), \sin(w_j x))\)</span>.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">begin</span>
+<span class="k">struct</span> <span class="kt">RandomFourierFeature</span>
+<span class="w">    </span><span class="n">ws</span><span class="o">::</span><span class="kt">Vector</span><span class="p">{</span><span class="kt">Float64</span><span class="p">}</span>
+<span class="k">end</span>
+<span class="n">RandomFourierFeature</span><span class="p">(</span><span class="n">kern</span><span class="o">::</span><span class="kt">SqExponentialKernel</span><span class="p">,</span><span class="w"> </span><span class="n">k</span><span class="o">::</span><span class="kt">Int</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RandomFourierFeature</span><span class="p">(</span><span class="n">randn</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+<span class="k">function</span><span class="w"> </span><span class="p">(</span><span class="n">f</span><span class="o">::</span><span class="kt">RandomFourierFeature</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
+<span class="w">    </span><span class="kt">Float64</span><span class="p">[</span><span class="n">cos</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">ws</span><span class="w"> </span><span class="o">.*</span><span class="w"> </span><span class="n">x</span><span class="p">);</span><span class="w"> </span><span class="n">sin</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">ws</span><span class="w"> </span><span class="o">.*</span><span class="w"> </span><span class="n">x</span><span class="p">)]</span><span class="w"> </span><span class="o">.*</span><span class="w"> </span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="o">/</span><span class="n">length</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">ws</span><span class="p">))</span>
+<span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">begin</span>
+<span class="n">FFApprox</span><span class="p">(</span><span class="n">kern</span><span class="o">::</span><span class="kt">Kernel</span><span class="p">,</span><span class="w"> </span><span class="n">k</span><span class="o">::</span><span class="kt">Int</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FiniteBasis</span><span class="p">()</span><span class="w"> </span><span class="o">∘</span><span class="w"> </span><span class="n">FunctionTransform</span><span class="p">(</span><span class="n">RandomFourierFeature</span><span class="p">(</span><span class="n">kern</span><span class="p">,</span><span class="w"> </span><span class="n">k</span><span class="p">))</span>
+<span class="n">FFApprox</span><span class="p">(</span><span class="n">rng</span><span class="o">::</span><span class="kt">AbstractRNG</span><span class="p">,</span><span class="w"> </span><span class="n">kern</span><span class="o">::</span><span class="kt">Kernel</span><span class="p">,</span><span class="w"> </span><span class="n">k</span><span class="o">::</span><span class="kt">Int</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FiniteBasis</span><span class="p">()</span><span class="w"> </span><span class="o">∘</span><span class="w"> </span><span class="n">FunctionTransform</span><span class="p">(</span><span class="n">RandomFourierFeature</span><span class="p">(</span><span class="n">rng</span><span class="p">,</span><span class="w"> </span><span class="n">kern</span><span class="p">,</span><span class="w"> </span><span class="n">k</span><span class="p">))</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>FFApprox (generic function with 2 methods)
+</code></pre></div>
+
+<p>To support other spectral densities besides the RBF, we could add constructors for <code>RandomFourierFeature</code>.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">rbf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SqExponentialKernel</span><span class="p">();</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">flat_x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rand</span><span class="p">(</span><span class="mi">2000</span><span class="p">);</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">flat_x2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rand</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">ffkern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FFApprox</span><span class="p">(</span><span class="n">rbf</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">);</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">ff_m</span><span class="p">,</span><span class="w"> </span><span class="n">ff_C</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mean_and_cov</span><span class="p">(</span><span class="n">posterior</span><span class="p">(</span><span class="n">GP</span><span class="p">(</span><span class="n">ffkern</span><span class="p">)(</span><span class="n">flat_x</span><span class="p">,</span><span class="w"> </span><span class="mf">0.001</span><span class="p">),</span><span class="w"> </span><span class="n">y</span><span class="p">)(</span><span class="n">flat_x2</span><span class="p">));</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">m2</span><span class="p">,</span><span class="w"> </span><span class="n">C2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mean_and_cov</span><span class="p">(</span><span class="n">posterior</span><span class="p">(</span><span class="n">GP</span><span class="p">(</span><span class="n">rbf</span><span class="p">)(</span><span class="n">flat_x</span><span class="p">,</span><span class="w"> </span><span class="mf">0.001</span><span class="p">),</span><span class="w"> </span><span class="n">y</span><span class="p">)(</span><span class="n">flat_x2</span><span class="p">));</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">max</span><span class="p">(</span><span class="n">maximum</span><span class="p">(</span><span class="n">abs</span><span class="o">.</span><span class="p">(</span><span class="n">m2</span><span class="w"> </span><span class="o">.-</span><span class="w"> </span><span class="n">ff_m</span><span class="p">)),</span><span class="w"> </span><span class="n">maximum</span><span class="p">(</span><span class="n">abs</span><span class="o">.</span><span class="p">(</span><span class="n">C2</span><span class="w"> </span><span class="o">.-</span><span class="w"> </span><span class="n">ff_C</span><span class="p">)))</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>0.0009988876117859036
+</code></pre></div>
+
+<p>Even with only 100 samples, we get a pretty close approximation!</p>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
+
+    var configscript = document.createElement('script');
+    configscript.type = 'text/x-mathjax-config';
+    configscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    messageStyle: 'normal'," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        availableFonts: ['STIX', 'TeX']," +
+        "        preferredFont: 'STIX'," +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); " +
+        "if ('default' !== 'default') {" +
+            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+        "}";
+
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>

@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Conjugate Computation</title>
+                        <link rel="stylesheet" href="/theme/css/main.css" />
+    <meta name="description" content="This post is about a technique that allows us to use variational message passing on models where the likelihood doesn't have a conjugate prior...." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="/">Sam's Blog</a></h1>
+                        <nav><ul>
+                                                <li><a href="/category/algorithms.html">algorithms</a></li>
+                                                <li class="active"><a href="/category/machine_learning.html">machine_learning</a></li>
+                                                <li><a href="/category/math.html">math</a></li>
+                                                <li><a href="/category/slam.html">slam</a></li>
+                                                <li><a href="/category/statistics.html">statistics</a></li>
+                                                <li><a href="/category/tools.html">tools</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="/conjugate-computation.html" rel="bookmark"
+             title="Permalink to Conjugate Computation">Conjugate Computation</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2023-08-16T00:00:00-05:00">
+                Published: Wed 16 August 2023
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
+                </address>
+        <p>In <a href="/category/machine_learning.html">machine_learning</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>This post is about a technique that allows us to use variational message passing on models where the likelihood doesn't have a conjugate prior. There will be a lot of Jax code snippets to make everything as concrete as possible. </p>
+<h2>The Math</h2>
+<p>Say <span class="math">\(X\)</span> comes from a distribution with density <span class="math">\(q(X;\theta)\)</span>, and we want to find <span class="math">\(\theta\)</span> to maximize <span class="math">\(E[g(X)]\)</span>. While in gradient descent we let <span class="math">\(\theta_{t+1}=\theta_t + \alpha \nabla_\theta E[g(X)]\)</span>, the <em>natural gradient</em> update is <span class="math">\(\theta_{t+1}=\theta_t + \alpha F^{-1}\nabla_\theta E[g(X)]\)</span>, where <span class="math">\(F\)</span> is the <em>Fisher Information Matrix</em>. When <span class="math">\(q\)</span> is the density for an exponential family (which is the only form of <span class="math">\(q\)</span> I will consider here), <span class="math">\(F\)</span> is the Hessian of the log normalizer <span class="math">\(A(\theta)\)</span>.</p>
+<p>Variational inference seeks a <span class="math">\(\theta\)</span> that maximizes the ELBO <span class="math">\(\mathcal{L} = f(\theta) + E_{q_\theta}[\log p(X) - \log q(X)]\)</span> where the expected likelihood <span class="math">\(f(\theta) = E_{q_\theta} \log p(y \vert  X)\)</span>. When <span class="math">\(p\)</span> and <span class="math">\(q\)</span> come from an exponential family with statistic <span class="math">\(T(X)\)</span> and natural parameters <span class="math">\(\eta\)</span> and <span class="math">\(\theta\)</span> respectively, taking the gradient of the ELBO gives
+</p>
+<div class="math">$$
+\begin{aligned}
+\nabla_\theta L &amp;= \nabla_\theta f + \nabla_\theta \langle E[T(X)], \eta - \theta \rangle + \nabla_{\theta} A(\theta) \\
+&amp;= \nabla_\theta f + \nabla_\theta \langle \nabla A(\theta), \eta - \theta \rangle + \nabla_{\theta} A(\theta) \\
+&amp;= \nabla_\theta f + \nabla_\theta^2A(\theta)(\eta - \theta) \\
+\end{aligned}
+$$</div>
+<p>This means that the natural gradient is <span class="math">\(F^{-1} \nabla_\theta f + (\eta - \theta)\)</span>. </p>
+<p>When the likelihood is conjugate to the prior, <span class="math">\(\log p(y\vert x)\)</span> can be written as <span class="math">\(\langle T(X), \phi(y) \rangle + c\)</span>, where <span class="math">\(c\)</span> does not depend on <span class="math">\(x\)</span> and <span class="math">\(\phi\)</span> is a transformation of the observations. This means that <span class="math">\(\log p(y\vert x) + \log p(x) = \langle T(x), \phi(y) + \eta \rangle + c\)</span>. Taking the gradient as above, we get
+</p>
+<div class="math">$$
+\begin{align*}
+\nabla_\theta L &amp;= \nabla_\theta \langle E[T(X)], \phi(y) + \eta - \theta \rangle + \nabla_{\theta} A(\theta) \\
+&amp;= \nabla_\theta^2A(\theta)(\phi(y) + \eta - \theta) \\
+\end{align*}
+$$</div>
+<p>This means that the natural gradient is <span class="math">\(\phi(y) + \eta - \theta\)</span>; a unit length step along the natural gradient recovers the conjugate update.</p>
+<p>When <span class="math">\(q\)</span> factors as <span class="math">\(q(X_1; \theta_1)q(X_2; \theta_2)\)</span> and non-leaf children in <span class="math">\(p\)</span> are always conjugate to their parents, we can update each component separately. Say <span class="math">\(f\)</span> is a function of <span class="math">\(X_1\)</span> alone, <span class="math">\(\eta_1\)</span> is a function of <span class="math">\(X_2\)</span>, and <span class="math">\(\eta_2\)</span>  is a constant. The gradient of the ELBO with respect to <span class="math">\(\theta_1\)</span> becomes
+</p>
+<div class="math">$$
+\begin{align*}
+\nabla_{\theta_1} L &amp;= \nabla_{\theta_1} f + \nabla_{\theta_1} \langle E[T(X_1)], E[\eta_1(X_2)] - \theta_1 \rangle + \nabla_{\theta_1} A(\theta_1) \\
+&amp;= \nabla_{\theta_1} f + \nabla_{\theta_1}^2A(\theta_1)( E[\eta_1(X_2)] - \theta_1) \\
+\end{align*}
+$$</div>
+<p>Similarly, the gradient for <span class="math">\(\theta_2\)</span> is <span class="math">\( \nabla_{\theta_2}^2A(\theta_2)(E[\phi(X_1)] + \eta_2 - \theta_2)\)</span>. This coordinate-wise natural gradient update is called "variational message passing". </p>
+<p>We can find <span class="math">\(F^{-1} \nabla_\theta f\)</span> by using the "conjugate computation" trick. Let <span class="math">\(\hat{\theta}\)</span> be the expected-statistic parameterization corresponding to natural parameters <span class="math">\(\theta\)</span>. Observe that, by the chain rule:</p>
+<div class="math">$$\frac{\partial f}{\partial \theta} = \frac{\partial f}{\partial \hat{\theta}}\frac{\partial \hat{\theta}}{\partial \theta}$$</div>
+<p>As <span class="math">\(\hat{\theta} = \nabla_\theta A(\theta)\)</span>, this simiplies to 
+</p>
+<div class="math">$$\frac{\partial f}{\partial \theta} = \frac{\partial f}{\partial \hat{\theta}} \nabla_\theta^2 A(\theta) $$</div>
+<p>
+So 
+</p>
+<div class="math">$$ \nabla_\theta^{-2} A(\theta) \frac{\partial f}{\partial \theta} = \frac{\partial f}{\partial \hat{\theta}} $$</div>
+<p>
+That is, the natural gradient with respect to the natural parameterization is just the ordinary gradient with respect to the mean parameterization. </p>
+<h2>The Code</h2>
+<p>To see how this works in practice, consider doing variational inference for a hierarchical latent Gaussian mixture model. Let our observations <span class="math">\(y_i\)</span> have log density <span class="math">\(f(y_i; \mu_{c_i})\)</span> where <span class="math">\(f\)</span> is some complicated function like a neural net and <span class="math">\(c_i\)</span> is the known mixture component responsible for <span class="math">\(z_i\)</span>. The <span class="math">\(\mu_j \sim \mathcal{N}(m_{d_j}, \tau_2)\)</span>, where <span class="math">\(d_j\)</span> is the known mixture component responsible for <span class="math">\(\mu_j\)</span>, and <span class="math">\(m_k \sim \mathcal{N}(0, \tau_3)\)</span>.  In our variational approximation, we will assume the <span class="math">\(\mu_j\)</span> and <span class="math">\(m_k\)</span> are all independently Gaussian distributed with natural parameters <span class="math">\(\theta_j\)</span>  and <span class="math">\(\theta_k\)</span> respectively. Then the natural gradient update for <span class="math">\(\mu_j\)</span> is
+</p>
+<div class="math">$$F^{-1} \nabla_{\theta_j} f + \begin{bmatrix} \tau_2 m_{d_j} \\ -\tau_2/2 \end{bmatrix} - \theta_j$$</div>
+<p>
+The update for <span class="math">\(m_k\)</span> is
+</p>
+<div class="math">$$\sum_j \begin{bmatrix} \tau_2 E[\mu_j] \\ -\tau_2/2 \end{bmatrix} + \begin{bmatrix} 0 \\ -\tau_3/2 \end{bmatrix} - \theta_k$$</div>
+<p>If the number of observations <span class="math">\(N\)</span> is large, it may be hard to find <span class="math">\(\nabla_{\theta_j} f = \sum_i^N \log p(y_i \vert  \mu_{c_i})\)</span> exactly. In this case, we can take a Monte Carlo estimate <span class="math">\(N \nabla_{\theta_j} E_{i \in [N]} \log p(y_i \vert  \mu_{c_i})\)</span>. Alternately, we can divide the learning rate by <span class="math">\(N\)</span>, so that the natural gradient is
+</p>
+<div class="math">$$
+F^{-1}_i \nabla_{\theta_i} \log p(y_i \vert  \mu_{c_i}) + \frac{1}{N} \left( \begin{bmatrix} \tau_2 m_{d_j} \\ -\tau_2/2 \end{bmatrix} - \theta_j \right)
+$$</div>
+<p>
+The same goes for the sums involved in the variational message passing updates.</p>
+<p>In Jax, we’ll represent our posterior distributions in vectorized form; each <code>Normal</code> will actually represent a plate of <span class="math">\(n\)</span> normal distributions. Plates of distributions will have methods for their means and natural gradient updates.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">NamedTuple</span>
+<span class="kn">from</span> <span class="nn">jaxtyping</span> <span class="kn">import</span> <span class="n">Array</span><span class="p">,</span> <span class="n">Float</span><span class="p">,</span> <span class="n">Int</span>
+<span class="kn">import</span> <span class="nn">jax</span><span class="o">,</span> <span class="nn">jax.numpy</span> <span class="k">as</span> <span class="nn">jnp</span><span class="o">,</span> <span class="nn">jax.random</span> <span class="k">as</span> <span class="nn">jr</span><span class="o">,</span> <span class="nn">jax.tree_util</span> <span class="k">as</span> <span class="nn">jt</span><span class="o">,</span> <span class="nn">jax.nn</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span><span class="o">,</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">einops</span> <span class="kn">import</span> <span class="n">repeat</span>
+<span class="kn">import</span> <span class="nn">equinox</span> <span class="k">as</span> <span class="nn">eqx</span><span class="o">,</span> <span class="nn">equinox.nn</span> <span class="k">as</span> <span class="nn">nn</span><span class="o">,</span> <span class="nn">optax</span><span class="o">,</span> <span class="nn">diffrax</span> <span class="k">as</span> <span class="nn">dfx</span>
+<span class="kn">import</span> <span class="nn">functools</span> <span class="k">as</span> <span class="nn">ft</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">class</span> <span class="nc">Normal</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
+    <span class="n">nat_params</span><span class="p">:</span> <span class="n">Float</span><span class="p">[</span><span class="n">Array</span><span class="p">,</span> <span class="s2">&quot;n ... 2&quot;</span><span class="p">]</span>
+    <span class="n">n_obs</span><span class="p">:</span> <span class="n">Int</span><span class="p">[</span><span class="n">Array</span><span class="p">,</span> <span class="s2">&quot;n&quot;</span><span class="p">]</span>
+    <span class="n">lr</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span>
+    <span class="n">prior_mean</span><span class="p">:</span> <span class="s2">&quot;Distribution&quot;</span>
+    <span class="n">prior_prec</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span>
+    <span class="n">parent_ixs</span><span class="p">:</span> <span class="n">Int</span><span class="p">[</span><span class="n">Array</span><span class="p">,</span> <span class="s2">&quot;n&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ix</span><span class="p">):</span>
+        <span class="k">return</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">nat_params</span><span class="p">[</span><span class="n">ix</span><span class="p">,</span> <span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">nat_params</span><span class="p">[</span><span class="n">ix</span><span class="p">,</span> <span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">mean_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ix</span><span class="p">):</span>
+        <span class="n">prec</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">nat_params</span><span class="p">[</span><span class="n">ix</span><span class="p">,</span> <span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">ix</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">((</span><span class="n">mu</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">prec</span><span class="p">)</span> <span class="o">+</span> <span class="n">jnp</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">mu</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">ix</span><span class="p">):</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_mean</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">ix</span><span class="p">)</span>
+        <span class="n">ones</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">mu</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">prior_msg</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">prior_prec</span> <span class="o">*</span> <span class="n">mu</span><span class="p">,</span>
+                               <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">prior_prec</span> <span class="o">*</span> <span class="n">ones</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">onestr</span> <span class="o">=</span> <span class="s2">&quot;1 &quot;</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="n">n_obs</span> <span class="o">=</span> <span class="n">repeat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_obs</span><span class="p">,</span> <span class="s2">&quot;n -&gt; n &quot;</span> <span class="o">+</span> <span class="n">onestr</span><span class="p">)</span>
+        <span class="n">nat_grad</span> <span class="o">=</span> <span class="n">df</span> <span class="o">+</span> <span class="p">(</span><span class="n">prior_msg</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">nat_params</span><span class="p">[</span><span class="n">ix</span><span class="p">])</span> <span class="o">/</span> <span class="n">n_obs</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">nat_params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nat_params</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">*</span> <span class="n">nat_grad</span><span class="p">))</span>
+        <span class="n">parent_df</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">prior_prec</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">ix</span><span class="p">),</span> <span class="o">-</span> <span class="n">ones</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_prec</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">prior_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior_mean</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">parent_df</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_ixs</span><span class="p">[</span><span class="n">ix</span><span class="p">])</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">prior_mean</span><span class="o">=</span><span class="n">prior_mean</span><span class="p">)</span>
+</code></pre></div>
+
+<p>We’ll make a helper function to initialize one of these variational posterior plates given a plate of prior distributions. </p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">normal</span><span class="p">(</span><span class="n">mean_dist</span><span class="p">,</span> <span class="n">prec</span><span class="p">,</span> <span class="n">n_obs</span><span class="p">,</span> <span class="n">parent_ixs</span><span class="p">,</span> <span class="n">lr</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="n">mean</span> <span class="o">=</span> <span class="n">mean_dist</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">parent_ixs</span><span class="p">)</span>
+    <span class="n">post_mu</span> <span class="o">=</span> <span class="n">mean</span> <span class="o">+</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="n">prec</span><span class="p">)</span> <span class="o">*</span> <span class="n">jr</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">mean</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Normal</span><span class="p">(</span><span class="n">normal_nats</span><span class="p">(</span><span class="n">post_mu</span><span class="p">,</span> <span class="n">prec</span><span class="p">),</span> <span class="n">n_obs</span><span class="p">,</span> <span class="n">lr</span><span class="p">,</span> <span class="n">mean_dist</span><span class="p">,</span> <span class="n">prec</span><span class="p">,</span> <span class="n">parent_ixs</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">normal_nats</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">prec</span><span class="p">):</span>
+    <span class="n">ones</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">mu</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">prec</span> <span class="o">*</span> <span class="n">mu</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">prec</span> <span class="o">*</span> <span class="n">ones</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+</code></pre></div>
+
+<p>The prior mean for <span class="math">\(m_k\)</span> is a delta distribution, so we’ll need a representation of this as well. </p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span> <span class="nc">Delta</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
+    <span class="n">val</span><span class="p">:</span> <span class="n">Float</span><span class="p">[</span><span class="n">Array</span><span class="p">,</span> <span class="s2">&quot;k&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ix</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">repeat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val</span><span class="p">,</span> <span class="s1">&#39;... -&gt; i ...&#39;</span><span class="p">,</span> <span class="n">i</span><span class="o">=</span><span class="n">ix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">ix</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">colon</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+<h2>Example: Simple Nonlinearity</h2>
+<p>Let the expected likelihood <span class="math">\(f\)</span> be a monte carlo estimate of a normal distribution around a transformation of <span class="math">\(z\)</span> with precision <span class="math">\(\tau_1\)</span>. We'll have two <span class="math">\(m\)</span>s, two <span class="math">\(\mu\)</span>s for each <span class="math">\(m\)</span>, and 20 <span class="math">\(z\)</span>s for each <span class="math">\(\mu\)</span>. </p>
+<div class="codehilite"><pre><span></span><code><span class="n">TAU3</span> <span class="o">=</span> <span class="mf">0.1</span>
+<span class="n">TAU2</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">TAU1</span> <span class="o">=</span> <span class="mi">5</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">init_posteriors</span><span class="p">(</span><span class="n">n_obs_ms</span><span class="p">,</span> <span class="n">n_obs_mus</span><span class="p">,</span> <span class="n">mu_parents</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">key2</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">normal</span><span class="p">(</span><span class="n">Delta</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="mi">0</span><span class="p">)),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">TAU3</span><span class="p">),</span> <span class="n">n_obs_ms</span><span class="p">,</span>
+        <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">n_obs_mus</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">),</span> <span class="mf">1e-3</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">normal</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">TAU2</span><span class="p">),</span>
+        <span class="n">n_obs_mus</span><span class="p">,</span> <span class="n">mu_parents</span><span class="p">,</span> <span class="mf">1e-3</span><span class="p">,</span> <span class="n">key2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mu</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">data_key</span><span class="p">,</span> <span class="n">post_key</span><span class="p">,</span> <span class="n">obs_key</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">jr</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
+<span class="n">n_obs_ms</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+<span class="n">n_obs_mus</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+<span class="n">mu_parents</span> <span class="o">=</span> <span class="n">repeat</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="s1">&#39;a -&gt; (a b)&#39;</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">true_mu_dist</span> <span class="o">=</span> <span class="n">init_posteriors</span><span class="p">(</span><span class="n">n_obs_ms</span><span class="p">,</span> <span class="n">n_obs_mus</span><span class="p">,</span> <span class="n">mu_parents</span><span class="p">,</span> <span class="n">data_key</span><span class="p">)</span>
+<span class="n">true_z</span> <span class="o">=</span> <span class="n">true_mu_dist</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">colon</span><span class="p">)[:,</span><span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">TAU1</span><span class="p">)</span> <span class="o">*</span> <span class="n">jr</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">obs_key</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">20</span><span class="p">))</span>
+<span class="n">true_z</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">true_z</span><span class="p">)</span>
+<span class="n">mu</span> <span class="o">=</span> <span class="n">init_posteriors</span><span class="p">(</span><span class="n">n_obs_ms</span><span class="p">,</span> <span class="n">n_obs_mus</span><span class="p">,</span> <span class="n">mu_parents</span><span class="p">,</span> <span class="n">post_key</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">init_mu</span> <span class="o">=</span> <span class="n">init_posteriors</span><span class="p">(</span><span class="n">n_obs_ms</span><span class="p">,</span> <span class="n">n_obs_mus</span><span class="p">,</span> <span class="n">mu_parents</span><span class="p">,</span> <span class="n">post_key</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">true_z</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span><span class="mi">20</span><span class="p">))),</span> <span class="n">stacked</span><span class="o">=</span><span class="kc">True</span><span class="p">);</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">labels</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;D&#39;</span><span class="p">]);</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Conjugate-Computation_files/Conjugate-Computation_17_0.png" /></p>
+<p>We'll keep the nonlinear log likelihood simple for now:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">trans_val</span><span class="p">(</span><span class="n">z</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="nd">@jax</span><span class="o">.</span><span class="n">value_and_grad</span>
+<span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">moments</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">key2</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">std</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">moments</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">moments</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="n">mu_sample</span> <span class="o">=</span> <span class="n">moments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">std</span> <span class="o">*</span> <span class="n">jr</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">std</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">noise</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">TAU1</span><span class="p">)</span> <span class="o">*</span> <span class="n">jr</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">key2</span><span class="p">,</span> <span class="n">std</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">z_sample</span> <span class="o">=</span> <span class="n">mu_sample</span> <span class="o">+</span> <span class="n">noise</span>
+    <span class="n">obs_lik</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">trans_val</span><span class="p">(</span><span class="n">z_sample</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">obs_lik</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">y</span> <span class="o">=</span> <span class="n">trans_val</span><span class="p">(</span><span class="n">true_z</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">20</span><span class="p">))),</span> <span class="n">stacked</span><span class="o">=</span><span class="kc">True</span><span class="p">);</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Conjugate-Computation_files/Conjugate-Computation_22_0.png" /></p>
+<p>Although it's unnecessary for this toy example, we'll process the observations in batches to demonstrate how to handle a big-data setting. </p>
+<div class="codehilite"><pre><span></span><code><span class="n">orig_ixs</span> <span class="o">=</span> <span class="n">repeat</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span> <span class="s1">&#39;a -&gt; (a b)&#39;</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">permkey</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">ixs</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">jr</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">permkey</span><span class="p">,</span> <span class="mi">80</span><span class="p">),</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">20</span><span class="p">))</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="nd">@jax</span><span class="o">.</span><span class="n">jit</span>
+<span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">noise_key</span><span class="p">,</span> <span class="n">ix</span><span class="p">):</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">noise_key</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ix</span><span class="p">))</span>
+    <span class="n">oix</span> <span class="o">=</span> <span class="n">orig_ixs</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span>
+    <span class="n">logprob</span><span class="p">,</span> <span class="n">ng</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">f</span><span class="p">)(</span><span class="n">mu</span><span class="o">.</span><span class="n">mean_params</span><span class="p">(</span><span class="n">oix</span><span class="p">),</span> <span class="n">y</span><span class="p">[</span><span class="n">ix</span><span class="p">],</span> <span class="n">keys</span><span class="p">)</span>
+    <span class="k">return</span> <span class="o">-</span><span class="n">jnp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">logprob</span><span class="p">),</span> <span class="n">mu</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">ng</span><span class="p">,</span> <span class="n">oix</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">ix</span> <span class="ow">in</span> <span class="n">ixs</span><span class="p">:</span>
+        <span class="n">noise_key</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">loss</span><span class="p">,</span> <span class="n">mu</span> <span class="o">=</span> <span class="n">step</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">noise_key</span><span class="p">,</span> <span class="n">ix</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">epoch</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Loss&quot;</span><span class="p">,</span> <span class="n">loss</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>Loss 100.12155
+Loss 23.347706
+Loss 15.448761
+Loss 9.154531
+Loss 6.0349517
+Loss 8.66155
+Loss 6.0191417
+Loss 6.167668
+Loss 3.9419441
+Loss 4.059013
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">true_mu_dist</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">colon</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>Array([ 0.93337744, -0.959161  , -2.7729065 , -2.4498918 ], dtype=float32)
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">mu</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">colon</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>Array([-1.8313473, -1.6707655,  2.7105517,  2.4046152], dtype=float32)
+</code></pre></div>
+
+<p>Inference got pretty close to the true values (up to sign, which isn't identifiable here). Compare this to where we started:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">init_mu</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">colon</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>Array([-7.319654  , -6.7709327 ,  1.2107476 ,  0.45153332], dtype=float32)
+</code></pre></div>
+
+<h2>Example: Simple Neural Nonlinearity</h2>
+<p>For a slightly more sophisticated example, let's try to generate some related sin-curves from noise. Our linlinearity will come from a neural net. </p>
+<div class="codehilite"><pre><span></span><code><span class="n">jax</span><span class="o">.</span><span class="n">clear_caches</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">RES</span> <span class="o">=</span> <span class="mi">64</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">inputs</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="n">RES</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">post_key</span><span class="p">,</span> <span class="n">net_key</span><span class="p">,</span> <span class="n">data_key</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">jr</span><span class="o">.</span><span class="n">PRNGKey</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">w_base</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.9</span><span class="p">,</span> <span class="mf">1.15</span><span class="p">])[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">w_resid</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.4</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.4</span><span class="p">])[:,</span> <span class="kc">None</span><span class="p">]</span>
+<span class="n">w</span> <span class="o">=</span> <span class="n">w_base</span> <span class="o">+</span> <span class="n">w_base</span> <span class="o">*</span> <span class="n">w_resid</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">inputs</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="o">...</span><span class="p">,</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.02</span> <span class="o">*</span> <span class="p">(</span><span class="n">jr</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">data_key</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">20</span><span class="p">))[</span><span class="o">...</span><span class="p">,</span><span class="kc">None</span><span class="p">])))</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="p">(</span><span class="mi">80</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">for</span> <span class="n">ix</span><span class="p">,</span> <span class="n">yi</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">64</span><span class="p">))):</span>
+    <span class="k">for</span> <span class="n">yj</span> <span class="ow">in</span> <span class="n">yi</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">yj</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;C</span><span class="si">{</span><span class="n">ix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Conjugate-Computation_files/Conjugate-Computation_38_0.png" /></p>
+<div class="codehilite"><pre><span></span><code><span class="k">for</span> <span class="n">ix</span><span class="p">,</span> <span class="n">yi</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">64</span><span class="p">))):</span>
+    <span class="k">for</span> <span class="n">yj</span> <span class="ow">in</span> <span class="n">yi</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">yj</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;C</span><span class="si">{</span><span class="n">ix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Conjugate-Computation_files/Conjugate-Computation_39_0.png" /></p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">init_posteriors</span><span class="p">(</span><span class="n">n_obs_ms</span><span class="p">,</span> <span class="n">n_obs_mus</span><span class="p">,</span> <span class="n">mu_parents</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">key2</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">normal</span><span class="p">(</span><span class="n">Delta</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">RES</span><span class="p">)),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">TAU3</span><span class="p">),</span> <span class="n">n_obs_ms</span><span class="p">,</span>
+        <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">n_obs_mus</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">),</span> <span class="mf">1e-2</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">normal</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">TAU2</span><span class="p">),</span>
+        <span class="n">n_obs_mus</span><span class="p">,</span> <span class="n">mu_parents</span><span class="p">,</span> <span class="mf">1e-3</span><span class="p">,</span> <span class="n">key2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">mu</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="nd">@ft</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">eqx</span><span class="o">.</span><span class="n">filter_vmap</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+<span class="nd">@eqx</span><span class="o">.</span><span class="n">filter_value_and_grad</span>
+<span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="n">moments</span><span class="p">,</span> <span class="n">net</span> <span class="o">=</span> <span class="n">args</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">key2</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">std</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">moments</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">moments</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]))</span>
+    <span class="n">mu_sample</span> <span class="o">=</span> <span class="n">moments</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">std</span> <span class="o">*</span> <span class="n">jr</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">std</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">noise</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">TAU1</span><span class="p">)</span> <span class="o">*</span> <span class="n">jr</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">key2</span><span class="p">,</span> <span class="n">std</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">z_sample</span> <span class="o">=</span> <span class="n">mu_sample</span> <span class="o">+</span> <span class="n">noise</span>
+    <span class="n">obs_lik</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">net</span><span class="p">(</span><span class="n">z_sample</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="o">-</span><span class="n">obs_lik</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="nd">@eqx</span><span class="o">.</span><span class="n">filter_jit</span>
+<span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">net</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">noise_key</span><span class="p">,</span> <span class="n">ix</span><span class="p">,</span> <span class="n">opt_state</span><span class="p">,</span> <span class="n">opt_update</span><span class="p">):</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">noise_key</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ix</span><span class="p">))</span>
+    <span class="n">oix</span> <span class="o">=</span> <span class="n">orig_ixs</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="n">mu</span><span class="o">.</span><span class="n">mean_params</span><span class="p">(</span><span class="n">oix</span><span class="p">)</span>
+    <span class="n">neg_logprob</span><span class="p">,</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">f</span><span class="p">((</span><span class="n">params</span><span class="p">,</span> <span class="n">net</span><span class="p">),</span> <span class="n">y</span><span class="p">[</span><span class="n">ix</span><span class="p">],</span> <span class="n">keys</span><span class="p">)</span>
+    <span class="n">ng</span><span class="p">,</span> <span class="n">net_grads</span> <span class="o">=</span> <span class="n">grads</span>
+    <span class="n">net_grad</span> <span class="o">=</span> <span class="n">jt</span><span class="o">.</span><span class="n">tree_map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">net_grads</span><span class="p">)</span>
+    <span class="n">updates</span><span class="p">,</span> <span class="n">opt_state</span> <span class="o">=</span> <span class="n">opt_update</span><span class="p">(</span><span class="n">net_grad</span><span class="p">,</span> <span class="n">opt_state</span><span class="p">)</span>
+    <span class="n">net</span> <span class="o">=</span> <span class="n">eqx</span><span class="o">.</span><span class="n">apply_updates</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">updates</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">neg_logprob</span><span class="p">),</span> <span class="n">mu</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="o">-</span><span class="n">ng</span><span class="p">,</span> <span class="n">oix</span><span class="p">),</span> <span class="n">net</span><span class="p">,</span> <span class="n">opt_state</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">mu</span> <span class="o">=</span> <span class="n">init_posteriors</span><span class="p">(</span><span class="n">n_obs_ms</span><span class="p">,</span> <span class="n">n_obs_mus</span><span class="p">,</span> <span class="n">mu_parents</span><span class="p">,</span> <span class="n">post_key</span><span class="p">)</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MLP</span><span class="p">(</span><span class="n">RES</span><span class="p">,</span> <span class="n">RES</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="n">jax</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">swish</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">net_key</span><span class="p">)</span> 
+<span class="n">lr</span><span class="o">=</span><span class="mf">1e-3</span>
+<span class="n">opt</span> <span class="o">=</span> <span class="n">optax</span><span class="o">.</span><span class="n">adabelief</span><span class="p">(</span><span class="n">learning_rate</span><span class="o">=</span><span class="n">lr</span><span class="p">)</span>
+<span class="n">opt_state</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">eqx</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">eqx</span><span class="o">.</span><span class="n">is_inexact_array</span><span class="p">))</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">500</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">ix</span> <span class="ow">in</span> <span class="n">ixs</span><span class="p">:</span>
+        <span class="n">noise_key</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">loss</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">net</span><span class="p">,</span> <span class="n">opt_state</span> <span class="o">=</span> <span class="n">step</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">net</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">noise_key</span><span class="p">,</span> <span class="n">ix</span><span class="p">,</span> <span class="n">opt_state</span><span class="p">,</span> <span class="n">opt</span><span class="o">.</span><span class="n">update</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">epoch</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Loss&quot;</span><span class="p">,</span> <span class="n">loss</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>Loss 4.2189612
+Loss 0.064982645
+Loss 0.068376474
+Loss 0.08926205
+Loss 0.060243923
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">params</span> <span class="o">=</span> <span class="n">mu</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">colon</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">net</span><span class="p">(</span><span class="n">p</span><span class="p">))</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Conjugate-Computation_files/Conjugate-Computation_46_0.png" /></p>
+<p>The distances between <span class="math">\(\mu\)</span> values correspond to what we'd assume given the prior.  </p>
+<div class="codehilite"><pre><span></span><code><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">params</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">params</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">colorbar</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>&lt;matplotlib.colorbar.Colorbar at 0x13555fcb0&gt;
+</code></pre></div>
+
+<p><img alt="png" src="/Conjugate-Computation_files/Conjugate-Computation_48_1.png" /></p>
+<h2>Example: Diffusion Nonlinearity</h2>
+<p>We can try to accomplish the same task using a ODE-based model. We learn a neural network describing a vector field. Integrating along this vector field maps from our latent space to the space of observations.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">jax</span><span class="o">.</span><span class="n">clear_caches</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="nd">@ft</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">eqx</span><span class="o">.</span><span class="n">filter_vmap</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+<span class="nd">@eqx</span><span class="o">.</span><span class="n">filter_value_and_grad</span>
+<span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="n">moments</span><span class="p">,</span> <span class="n">net</span> <span class="o">=</span> <span class="n">args</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">key2</span><span class="p">,</span> <span class="n">key3</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="n">std</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">moments</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">moments</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]))</span>
+    <span class="n">mu_sample</span> <span class="o">=</span> <span class="n">moments</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">std</span> <span class="o">*</span> <span class="n">jr</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">std</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">noise</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">TAU1</span><span class="p">)</span> <span class="o">*</span> <span class="n">jr</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">key2</span><span class="p">,</span> <span class="n">std</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">z_sample</span> <span class="o">=</span> <span class="n">mu_sample</span> <span class="o">+</span> <span class="n">noise</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">key3</span><span class="p">)</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">t</span> <span class="o">*</span> <span class="n">y</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">t</span><span class="p">)</span> <span class="o">*</span> <span class="n">z_sample</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="n">z_sample</span>
+    <span class="n">obs_lik</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">target</span> <span class="o">-</span> <span class="n">net</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">pos</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="o">-</span><span class="n">obs_lik</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">eqx</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="n">net</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">MLP</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">net</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MLP</span><span class="p">(</span><span class="n">RES</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">RES</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="n">jax</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">swish</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span> 
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">repeat</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="s2">&quot;-&gt; 1&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">net</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">y</span><span class="p">,</span> <span class="n">t</span><span class="p">]))</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">mu</span> <span class="o">=</span> <span class="n">init_posteriors</span><span class="p">(</span><span class="n">n_obs_ms</span><span class="p">,</span> <span class="n">n_obs_mus</span><span class="p">,</span> <span class="n">mu_parents</span><span class="p">,</span> <span class="n">post_key</span><span class="p">)</span>
+<span class="n">lr</span><span class="o">=</span><span class="mf">1e-3</span>
+<span class="n">net</span> <span class="o">=</span> <span class="n">Net</span><span class="p">(</span><span class="n">net_key</span><span class="p">)</span>
+<span class="n">opt</span> <span class="o">=</span> <span class="n">optax</span><span class="o">.</span><span class="n">adabelief</span><span class="p">(</span><span class="n">learning_rate</span><span class="o">=</span><span class="n">lr</span><span class="p">)</span>
+<span class="n">opt_state</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">eqx</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">eqx</span><span class="o">.</span><span class="n">is_inexact_array</span><span class="p">))</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">losses</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3000</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">ix</span> <span class="ow">in</span> <span class="n">ixs</span><span class="p">:</span>
+        <span class="n">noise_key</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="n">jr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">loss</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">net</span><span class="p">,</span> <span class="n">opt_state</span> <span class="o">=</span> <span class="n">step</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">net</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">noise_key</span><span class="p">,</span> <span class="n">ix</span><span class="p">,</span> <span class="n">opt_state</span><span class="p">,</span> <span class="n">opt</span><span class="o">.</span><span class="n">update</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">epoch</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">losses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">losses</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">);</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Conjugate-Computation_files/Conjugate-Computation_55_0.png" /></p>
+<div class="codehilite"><pre><span></span><code><span class="n">params</span> <span class="o">=</span> <span class="n">mu</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">colon</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="nd">@ft</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+<span class="k">def</span> <span class="nf">forwardflow</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">z</span><span class="p">):</span>
+    <span class="n">term</span> <span class="o">=</span> <span class="n">dfx</span><span class="o">.</span><span class="n">ODETerm</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+    <span class="n">solver</span> <span class="o">=</span> <span class="n">dfx</span><span class="o">.</span><span class="n">ReversibleHeun</span><span class="p">()</span>
+    <span class="n">sol</span> <span class="o">=</span> <span class="n">dfx</span><span class="o">.</span><span class="n">diffeqsolve</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">solver</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">1e-3</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sol</span><span class="o">.</span><span class="n">ys</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">results</span> <span class="o">=</span> <span class="n">forwardflow</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Conjugate-Computation_files/Conjugate-Computation_59_0.png" /></p>
+<div class="codehilite"><pre><span></span><code><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">params</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">params</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">colorbar</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>&lt;matplotlib.colorbar.Colorbar at 0x15258ccd0&gt;
+</code></pre></div>
+
+<p><img alt="png" src="/Conjugate-Computation_files/Conjugate-Computation_60_1.png" /></p>
+<p>One of the nice things about ODE models is that we can use them for prediction as well as generation. </p>
+<div class="codehilite"><pre><span></span><code><span class="nd">@ft</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+<span class="k">def</span> <span class="nf">backflow</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+    <span class="n">term</span> <span class="o">=</span> <span class="n">dfx</span><span class="o">.</span><span class="n">ODETerm</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+    <span class="n">solver</span> <span class="o">=</span> <span class="n">dfx</span><span class="o">.</span><span class="n">ReversibleHeun</span><span class="p">()</span>
+    <span class="n">sol</span> <span class="o">=</span> <span class="n">dfx</span><span class="o">.</span><span class="n">diffeqsolve</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">solver</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mf">1e-3</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sol</span><span class="o">.</span><span class="n">ys</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</code></pre></div>
+
+<p>We'll take one sample from each class.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">ry</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">64</span><span class="p">))</span>
+<span class="n">topy</span> <span class="o">=</span> <span class="n">ry</span><span class="p">[:,</span><span class="mi">0</span><span class="p">,:]</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">for</span> <span class="n">yi</span> <span class="ow">in</span> <span class="n">topy</span><span class="p">:</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">yi</span><span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Conjugate-Computation_files/Conjugate-Computation_65_0.png" /></p>
+<p>We can integrate backwards through time to get the latent code associated with each sample.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">zs</span> <span class="o">=</span> <span class="n">backflow</span><span class="p">(</span><span class="n">net</span><span class="p">,</span> <span class="n">topy</span><span class="p">)</span>
+</code></pre></div>
+
+<p>The latent codes are well separated in Euclidean space. </p>
+<div class="codehilite"><pre><span></span><code><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">zs</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">params</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">colorbar</span><span class="p">();</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Conjugate-Computation_files/Conjugate-Computation_69_0.png" /></p>
+<p>We can visualize the embeddings with PCA.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">numpy.linalg</span> <span class="kn">import</span> <span class="n">eig</span>
+<span class="n">pmu</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">Xbar</span> <span class="o">=</span> <span class="n">params</span> <span class="o">-</span> <span class="n">pmu</span><span class="p">[</span><span class="kc">None</span><span class="p">,:]</span>
+<span class="n">S</span> <span class="o">=</span> <span class="n">Xbar</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">Xbar</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">eig</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
+<span class="n">proj</span> <span class="o">=</span> <span class="n">Xbar</span> <span class="o">@</span> <span class="n">res</span><span class="p">[</span><span class="mi">1</span><span class="p">][:,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">proj</span><span class="p">[:</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">proj</span><span class="p">[:</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">proj</span><span class="p">[</span><span class="mi">2</span><span class="p">:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">proj</span><span class="p">[</span><span class="mi">2</span><span class="p">:,</span> <span class="mi">1</span><span class="p">]);</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Conjugate-Computation_files/Conjugate-Computation_71_0.png" /></p>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
+
+    var configscript = document.createElement('script');
+    configscript.type = 'text/x-mathjax-config';
+    configscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    messageStyle: 'normal'," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        availableFonts: ['STIX', 'TeX']," +
+        "        preferredFont: 'STIX'," +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); " +
+        "if ('default' !== 'default') {" +
+            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+        "}";
+
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>

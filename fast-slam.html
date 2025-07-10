@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Fast SLAM</title>
+                        <link rel="stylesheet" href="/theme/css/main.css" />
+    <meta name="description" content="This notebook looks at a technique for simultaneous localization (finding the position of a robot) and mapping (finding the positions of any..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="/">Sam's Blog</a></h1>
+                        <nav><ul>
+                                                <li><a href="/category/algorithms.html">algorithms</a></li>
+                                                <li><a href="/category/machine_learning.html">machine_learning</a></li>
+                                                <li><a href="/category/math.html">math</a></li>
+                                                <li class="active"><a href="/category/slam.html">slam</a></li>
+                                                <li><a href="/category/statistics.html">statistics</a></li>
+                                                <li><a href="/category/tools.html">tools</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="/fast-slam.html" rel="bookmark"
+             title="Permalink to Fast SLAM">Fast SLAM</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2023-10-30T00:00:00-05:00">
+                Published: Mon 30 October 2023
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
+                </address>
+        <p>In <a href="/category/slam.html">slam</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>This notebook looks at a technique for simultaneous localization (finding the position of a robot) and mapping (finding the positions of any obstacles), abbreviated as SLAM. In this model, the probability distribution for the robot's trajectory <span class="math">\(x_{1:t}\)</span> is represented with a set of weighted particles. Let the weight for particle <span class="math">\(i\)</span> be denoted <span class="math">\(w^i\)</span>, and let <span class="math">\(W\)</span> denote the sum of all the weights. Each particle also keeps track of the conditional distribution of obstacle locations <span class="math">\(m\)</span> given <span class="math">\(x_1, \dotsc x_t\)</span>. Even though each particle <span class="math">\(i\)</span> should be thought of as describing a full potential trajectory <span class="math">\(x_1^i, \dotsc x_t^i\)</span>, we will only need to store the position at the most recent time <span class="math">\(x_t^i\)</span>.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">using</span><span class="w"> </span><span class="n">LinearAlgebra</span><span class="p">,</span><span class="w"> </span><span class="n">StaticArrays</span><span class="p">,</span><span class="w"> </span><span class="n">LogExpFunctions</span><span class="p">,</span><span class="w"> </span><span class="n">Distributions</span><span class="p">,</span><span class="w"> </span><span class="n">ArraysOfArrays</span><span class="p">,</span><span class="w"> </span><span class="n">FillArrays</span><span class="p">,</span><span class="w"> </span><span class="n">Plots</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">const</span><span class="w"> </span><span class="n">Dist</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">Tuple</span><span class="p">{</span><span class="kt">SVector</span><span class="p">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="kt">Float64</span><span class="p">},</span><span class="w"> </span><span class="kt">SMatrix</span><span class="p">{</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="kt">Float64</span><span class="p">}}</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>Tuple{SVector{2, Float64}, SMatrix{2, 2, Float64}}
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">sample</span><span class="p">(</span><span class="n">d</span><span class="o">::</span><span class="kt">Dist</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rand</span><span class="p">(</span><span class="n">Distributions</span><span class="o">.</span><span class="n">MvNormal</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="n">d</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>sample (generic function with 1 method)
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span> <span class="kt">Particle</span>
+<span class="w">    </span><span class="n">weight</span><span class="o">::</span><span class="kt">Float64</span><span class="w"> </span><span class="c"># stored in log scale</span>
+<span class="w">    </span><span class="n">x</span><span class="o">::</span><span class="kt">SVector</span><span class="p">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="kt">Float64</span><span class="p">}</span>
+<span class="w">    </span><span class="n">m</span><span class="o">::</span><span class="kt">Vector</span><span class="p">{</span><span class="kt">Dist</span><span class="p">}</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">const</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">6</span><span class="p">;</span><span class="w"> </span><span class="c"># Number of obstacles</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">init_particles</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+<span class="w">    </span><span class="n">d</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">zeros</span><span class="p">(</span><span class="kt">SVector</span><span class="p">{</span><span class="mi">2</span><span class="p">}),</span><span class="w"> </span><span class="kt">SMatrix</span><span class="p">{</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">}(</span><span class="mf">10.0</span><span class="n">I</span><span class="p">))</span>
+<span class="w">    </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Particle</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="n">zeros</span><span class="p">(</span><span class="kt">SVector</span><span class="p">{</span><span class="mi">2</span><span class="p">}),</span><span class="w"> </span><span class="n">fill</span><span class="p">(</span><span class="n">d</span><span class="p">,</span><span class="w"> </span><span class="n">k</span><span class="p">))</span>
+<span class="w">    </span><span class="n">fill</span><span class="p">(</span><span class="n">p</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">const</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span><span class="w"> </span><span class="c"># Number of particles</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">particles</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">init_particles</span><span class="p">(</span><span class="n">n</span><span class="p">);</span>
+</code></pre></div>
+
+<p>The particles <span class="math">\(x^i\)</span> at time <span class="math">\(t\)</span> will always be samples from a <em>proposal distribution</em> <span class="math">\(q_t(x^i)\)</span>. The weights <span class="math">\(w^i\)</span> will be <em>importance ratios</em> of the form <span class="math">\(C \pi_t(x^i)/q_t(x^i)\)</span>, where <span class="math">\(\pi_t(x^i)\)</span> is our <em>target distribution</em> and <span class="math">\(C\)</span> is a constant. Given these particles, we can approximate <span class="math">\(E_{X_t \sim \pi_t} f(X_t)\)</span> for any function <span class="math">\(f\)</span> by computing</p>
+<div class="math">$$
+\frac{1}{W}\sum_{i=1}^n w^i f(x_t^i) \approx E_{x_t^i \sim q} \frac{\pi(x_t^i)f(x_t^i)}{q(x_t^i)}=\int \pi(x_t^i) dx_t^i = E_{x_t^i \sim \pi} f(x_t^i)
+$$</div>
+<p>In our case, the target distribution <span class="math">\(\pi_{t+1}(x^i)\)</span> at time <span class="math">\(t+1\)</span> will be the conditional distribution <span class="math">\(p(x^i_{1:t+1} | z_{1:t+1})\)</span>, and the proposal distribution <span class="math">\(q_{t+1}(x^i) = \pi_t(x^i_{1:t})p(x_{t+1} | x_t, z_{1:t+1})\)</span>. By Bayes' rule</p>
+<div class="math">$$
+\pi_{t+1}(x^i) \propto \pi_t(x^i) p(x_{t+1} | x_t) p(z_{t+1} | x_{t+1}, z_{1:t})
+$$</div>
+<p>Similarly,</p>
+<div class="math">$$
+\begin{align*}
+q_{t+1}(x^i) &amp;\propto \frac{\pi_t(x^i) p(x_{t+1}, z_{t+1} | x_t, z_{1:t})}{p(z_{t+1} | x_t)} \\
+&amp;= \frac{\pi_t(x^i) p(x_{t+1} | x_t) p(z_{t+1} | x_{t+1}, z_{1:t})}{p(z_{t+1} | x_t, z_{1:t})}
+\end{align*}
+$$</div>
+<p>This means the ratio simplifies to <span class="math">\(p(z_{t+1} | x_t, z_{1:t})\)</span>.</p>
+<p>At each step <span class="math">\(t\)</span> in time, our algorithm will do the following:
+1. Resample the particles in proportion to their importance weights. This effectively turns our samples from <span class="math">\(q_t\)</span> into samples from <span class="math">\(\pi_t\)</span>.
+2. Extend each particle, turning the samples from <span class="math">\(\pi_t\)</span> into samples from <span class="math">\(q_{t+1}\)</span>. This requires sampling from <span class="math">\(p(x_{t+1}^i | x_t^i, z_{1:t})\)</span>, computing the importance weight <span class="math">\(p(z_{t+1} | x_T, z_{1:t})\)</span>, and updating the associated distribution <span class="math">\(p(m | x_{1:t}, z_{1:t})\)</span>.</p>
+<p>At <span class="math">\(t=0\)</span>, the proposal and target distributions are the same so we don't need to resample.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">step</span><span class="p">(</span><span class="n">particles</span><span class="o">::</span><span class="kt">Vector</span><span class="p">{</span><span class="kt">Particle</span><span class="p">},</span><span class="w"> </span><span class="n">z</span><span class="p">)</span>
+<span class="w">    </span><span class="n">new_particles</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">propose</span><span class="o">.</span><span class="p">(</span><span class="n">particles</span><span class="p">,</span><span class="w"> </span><span class="kt">Ref</span><span class="p">(</span><span class="n">z</span><span class="p">))</span>
+<span class="w">    </span><span class="n">ix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">resample</span><span class="p">(</span><span class="n">softmax</span><span class="p">([</span><span class="n">p</span><span class="o">.</span><span class="n">weight</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">new_particles</span><span class="p">]))</span>
+<span class="w">    </span><span class="n">resampled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_particles</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span>
+<span class="w">    </span><span class="n">Particle</span><span class="p">[</span><span class="n">Particle</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="o">.</span><span class="n">m</span><span class="p">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">resampled</span><span class="p">]</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<h1>Resampling</h1>
+<p>If <code>w</code> is our vector of weights, we want to sample <span class="math">\(k\)</span> elements of <code>w</code> in proportion to their values. The most obvious way to do this is with inverse transform sampling. Let <code>b = cumsum(w)</code>. For each random sample, we can pick a uniform <span class="math">\(u_i\)</span> between <span class="math">\(0\)</span> and <span class="math">\(W\)</span>, which corresponds to <code>searchsortedfirst(b, u_i)</code>.</p>
+<p>To lower the variance of this approach, we can use stratified sampling. Instead of letting each <span class="math">\(u_i\)</span> come from the full interval <span class="math">\([0,W]\)</span>, we can restrict each to a separate interval of size <span class="math">\(W/n\)</span>.</p>
+<p>An even lower variance approach is to sample a single uniform number in <span class="math">\([0,W]\)</span> and shift it to each of the stratified intervals. This is called <em>systematic resampling</em>.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">resample</span><span class="p">(</span><span class="n">w</span><span class="o">::</span><span class="kt">Vector</span><span class="p">{</span><span class="kt">Float64</span><span class="p">})</span>
+<span class="w">    </span><span class="n">u</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rand</span><span class="p">()</span>
+<span class="w">    </span><span class="n">ui</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[(</span><span class="n">u</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">length</span><span class="p">(</span><span class="n">w</span><span class="p">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">1</span><span class="o">:</span><span class="n">length</span><span class="p">(</span><span class="n">w</span><span class="p">)]</span>
+<span class="w">    </span><span class="n">bins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cumsum</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+<span class="w">    </span><span class="p">[</span><span class="n">searchsortedfirst</span><span class="p">(</span><span class="n">bins</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">ui</span><span class="p">]</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<h1>Proposing</h1>
+<p>We will assume a simple dynamics model where <span class="math">\(p(x_{t+1} | x_t) = \mathcal{N}(x_t + \delta, \Sigma_A)\)</span>. For the likelihood, we observe noisy distances to obstacles, so that an observation at time <span class="math">\(t\)</span> is distributed <span class="math">\(p(z_t | x_t, m) = \mathcal{N}(m - x_t, \Sigma_B)\)</span>.</p>
+<p>To find the posterior <span class="math">\(p(x_{t+1} | x_t, z_{t+1})\)</span>, it will be easier to work with the general case where <span class="math">\(A \sim \mathcal{N}(\mu_A, \Sigma_A)\)</span>,  <span class="math">\(B \sim \mathcal{N}(\mu_B, \Sigma_B)\)</span>, and  <span class="math">\(Z \sim \mathcal{N}(B - A, \Sigma_Z)\)</span>. Marginalizing out <span class="math">\(B\)</span> from the definition of <span class="math">\(Z\)</span> gives <span class="math">\(Z \sim \mathcal{N}(\mu_B - A, \Sigma_B + \Sigma_Z)\)</span>. Let <span class="math">\(\Sigma_B + \Sigma_Z = \Sigma_{BZ}\)</span> and <span class="math">\(A \circ B \coloneqq \text{Trace}(A^TB)\)</span>. By Bayes' rule:</p>
+<div class="math">$$
+\begin{align*}
+\log p(A | Z) &amp;= \log p(A) + \log p(Z | A) + c \\
+&amp;= -\frac{1}{2}(A - \mu_A)^T \Sigma_A^{-1} (A - \mu_A) -\frac{1}{2}(Z - \mu_B + A)^T (\Sigma_{BZ})^{-1} (Z - \mu_B + A) +c \\
+&amp;= -\frac{1}{2} AA^T \circ \Sigma_A^{-1} + A^T \Sigma_A^{-1} \mu_A
+-\frac{1}{2} AA^T \circ \Sigma_{BZ}^{-1} + A^T \Sigma_{BZ}^{-1} (\mu_B - Z) \\
+&amp;= -\frac{1}{2} AA^T \circ (\Sigma_A^{-1} + \Sigma_{BZ}^{-1}) + A^T (\Sigma_A^{-1} \mu_A + \Sigma_{BZ}^{-1} (\mu_B - Z))
+\end{align*} \\
+$$</div>
+<p>This shows that the posterior is Gaussian with natural parameters <span class="math">\((\Sigma_A^{-1} \mu_A + \Sigma_{BZ}^{-1} (\mu_B - Z),\, \Sigma_A^{-1} + \Sigma_{BZ}^{-1})\)</span>.</p>
+<p>For FastSLAM, <span class="math">\(\mu_A = x_t + \delta\)</span>, so <span class="math">\(p(x_{t+1} | x_t, z_{t+1})\)</span> has natural parameters</p>
+<div class="math">$$
+(\Sigma_A^{-1} (x_t + \delta) + (\Sigma_B + \Sigma_Z)^{-1} (\mu_B - z_{t+1}),\, \Sigma_A^{-1} + (\Sigma_B + \Sigma_Z)^{-1})
+$$</div>
+<p>Similarly, to update the obstacle distribution upon seeing <span class="math">\(x_{t+1}\)</span> and <span class="math">\(z_{t+1}\)</span>:
+</p>
+<div class="math">$$
+\begin{align*}
+\log p(M | x_{1:t+1}, z_{1:t+1}) &amp;= -\frac{1}{2} MM^T \circ (\Sigma_B^{-1} + \Sigma_Z^{-1}) + M^T (\Sigma_B^{-1} \mu_B + \Sigma_{Z}^{-1} (Z - x_{t+1})) + c
+\end{align*}
+$$</div>
+<p>For the importance weight, note that <span class="math">\(p(z_{t+1} | X_t, z_{1:t}) = \mathcal{N}(\mu_B - (x_t + \delta), \Sigma_B + \Sigma_Z)\)</span>.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">begin</span>
+<span class="n">ΣA</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Eye</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">ΛA</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inv</span><span class="p">(</span><span class="n">ΣA</span><span class="p">)</span>
+<span class="n">ΣZ</span><span class="w"> </span><span class="o">=</span><span class="w">  </span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="mi">6</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">Eye</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">ΛZ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">inv</span><span class="p">(</span><span class="n">ΣZ</span><span class="p">)</span>
+<span class="n">δ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SVector</span><span class="p">(</span><span class="mf">2.</span><span class="p">,</span><span class="mf">2.</span><span class="p">)</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">post_msg_x</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p">)</span>
+<span class="w">    </span><span class="n">ΣBZ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ΣZ</span>
+<span class="w">    </span><span class="p">(</span><span class="n">ΣBZ</span><span class="w"> </span><span class="o">\</span><span class="w"> </span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">z</span><span class="p">),</span><span class="w"> </span><span class="n">inv</span><span class="p">(</span><span class="n">ΣBZ</span><span class="p">))</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">post_msg_m</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ΛZ</span><span class="w"> </span><span class="o">\</span><span class="w"> </span><span class="p">(</span><span class="n">z</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">x</span><span class="p">),</span><span class="w"> </span><span class="n">ΛZ</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>post_msg_m (generic function with 1 method)
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">propose</span><span class="p">(</span><span class="n">p</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p">)</span>
+<span class="w">    </span><span class="n">post_x_msgs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sum</span><span class="p">(</span><span class="n">post_msg_x</span><span class="o">.</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p">))</span>
+<span class="w">    </span><span class="n">xmean</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">δ</span><span class="p">)</span>
+<span class="w">    </span><span class="n">prior_x_msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ΛA</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">xmean</span><span class="p">,</span><span class="w"> </span><span class="n">ΛA</span><span class="p">)</span>
+<span class="w">    </span><span class="n">xpost</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">meanform</span><span class="p">(</span><span class="n">prior_x_msg</span><span class="w"> </span><span class="o">.+</span><span class="w"> </span><span class="n">post_x_msgs</span><span class="p">)</span>
+<span class="w">    </span><span class="n">new_x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sample</span><span class="p">(</span><span class="n">xpost</span><span class="p">)</span>
+<span class="w">    </span><span class="n">w</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sum</span><span class="p">(</span><span class="n">importance</span><span class="o">.</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p">,</span><span class="w"> </span><span class="kt">Ref</span><span class="p">(</span><span class="n">xmean</span><span class="p">)))</span>
+<span class="w">    </span><span class="n">post_m_msgs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">post_msg_m</span><span class="o">.</span><span class="p">(</span><span class="kt">Ref</span><span class="p">(</span><span class="n">new_x</span><span class="p">),</span><span class="w"> </span><span class="n">z</span><span class="p">)</span>
+<span class="w">    </span><span class="n">mpost</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">meanform</span><span class="o">.</span><span class="p">(</span><span class="n">stdform</span><span class="o">.</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">m</span><span class="p">)</span><span class="w"> </span><span class="o">.+</span><span class="w"> </span><span class="n">post_m_msgs</span><span class="p">)</span>
+<span class="w">    </span><span class="n">Particle</span><span class="p">(</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">new_x</span><span class="p">,</span><span class="w"> </span><span class="n">mpost</span><span class="p">)</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">importance</span><span class="p">(</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p">,</span><span class="w"> </span><span class="n">xmean</span><span class="p">)</span>
+<span class="w">    </span><span class="n">logpdf</span><span class="p">(</span><span class="n">Distributions</span><span class="o">.</span><span class="n">MvNormal</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">xmean</span><span class="p">,</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ΣZ</span><span class="p">),</span><span class="w"> </span><span class="n">z</span><span class="p">)</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>importance (generic function with 1 method)
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">stdform</span><span class="p">((</span><span class="n">mu</span><span class="p">,</span><span class="w"> </span><span class="n">var</span><span class="p">))</span>
+<span class="w">    </span><span class="p">(</span><span class="n">var</span><span class="w"> </span><span class="o">\</span><span class="w"> </span><span class="n">mu</span><span class="p">,</span><span class="w"> </span><span class="n">inv</span><span class="p">(</span><span class="n">var</span><span class="p">))</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>stdform (generic function with 1 method)
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">meanform</span><span class="p">((</span><span class="n">prec_mu</span><span class="p">,</span><span class="w"> </span><span class="n">prec</span><span class="p">))</span>
+<span class="w">    </span><span class="p">(</span><span class="n">prec</span><span class="w"> </span><span class="o">\</span><span class="w"> </span><span class="n">prec_mu</span><span class="p">,</span><span class="w"> </span><span class="n">inv</span><span class="p">(</span><span class="n">prec</span><span class="p">))</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>meanform (generic function with 1 method)
+</code></pre></div>
+
+<h1>Fake Data</h1>
+<p>Here we generate the unknown, true trajectory that the robot takes by following our dynamics model.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">begin</span>
+<span class="n">RΣA</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sqrt</span><span class="p">(</span><span class="n">ΣA</span><span class="p">)</span>
+<span class="n">true_xs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cumsum</span><span class="p">(</span><span class="n">δ</span><span class="w"> </span><span class="o">.+</span><span class="w"> </span><span class="n">RΣA</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">),</span><span class="w"> </span><span class="n">dims</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<p>We'll also set up the true but unknown obstacle locations.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">true_ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">k</span><span class="p">);</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">begin</span>
+<span class="n">plot</span><span class="p">(</span><span class="n">true_xs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">:</span><span class="p">],</span><span class="w"> </span><span class="n">true_xs</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="o">:</span><span class="p">],</span><span class="w"> </span><span class="n">label</span><span class="o">=</span><span class="s">&quot;robot path&quot;</span><span class="p">)</span>
+<span class="n">scatter!</span><span class="p">(</span><span class="n">true_ms</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="o">:</span><span class="p">],</span><span class="w"> </span><span class="n">true_ms</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="o">:</span><span class="p">],</span><span class="w"> </span><span class="n">label</span><span class="o">=</span><span class="s">&quot;obstacles&quot;</span><span class="p">)</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<p><img alt="svg" src="/fastslam_files/fastslam_26_0.svg" /></p>
+<p>The displacement observations the robot sees along its trajectory look like this:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">begin</span>
+<span class="n">RΣZ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sqrt</span><span class="p">(</span><span class="n">ΣZ</span><span class="p">)</span>
+<span class="n">true_zs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[(</span><span class="n">true_ms</span><span class="w"> </span><span class="o">.-</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">RΣZ</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">k</span><span class="p">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">nestedview</span><span class="p">(</span><span class="n">true_xs</span><span class="p">)]</span>
+<span class="n">z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">flatview</span><span class="p">(</span><span class="n">ArrayOfSimilarArrays</span><span class="p">(</span><span class="n">true_zs</span><span class="p">));</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<p>To show the direction of time, lines will get fainter with time.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">timealpha</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reverse</span><span class="p">(</span><span class="mf">0.1</span><span class="w"> </span><span class="o">.+</span><span class="w"> </span><span class="p">((</span><span class="mi">1</span><span class="o">:</span><span class="n">size</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">))</span><span class="o">./</span><span class="n">size</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">)));</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">begin</span>
+<span class="n">plt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">plot</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="o">:</span><span class="p">],</span><span class="w"> </span><span class="n">z</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="o">:</span><span class="p">],</span><span class="w"> </span><span class="n">label</span><span class="o">=</span><span class="s">&quot;z1&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">alpha</span><span class="o">=</span><span class="n">timealpha</span><span class="p">)</span>
+<span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">2</span><span class="o">:</span><span class="n">k</span>
+<span class="w">    </span><span class="n">plot!</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="o">:</span><span class="p">],</span><span class="w"> </span><span class="n">z</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="o">:</span><span class="p">],</span><span class="w"> </span><span class="n">label</span><span class="o">=</span><span class="s">&quot;z</span><span class="si">$i</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">alpha</span><span class="o">=</span><span class="n">timealpha</span><span class="p">)</span>
+<span class="k">end</span>
+<span class="n">plt</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<p><img alt="svg" src="/fastslam_files/fastslam_31_0.svg" /></p>
+<h1>Simulating the Algorithm</h1>
+<div class="codehilite"><pre><span></span><code><span class="n">Base</span><span class="o">.:+</span><span class="p">(</span><span class="n">a</span><span class="o">::</span><span class="kt">Tuple</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="o">::</span><span class="kt">Tuple</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">.+</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="c"># So we can add distribution parameters</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">sz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">map</span><span class="p">(</span><span class="kt">SVector</span><span class="p">{</span><span class="mi">2</span><span class="p">},</span><span class="w"> </span><span class="n">eachslice</span><span class="p">(</span><span class="n">z</span><span class="p">;</span><span class="w"> </span><span class="n">dims</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">2</span><span class="p">)));</span><span class="w"> </span><span class="c"># Rewrites z as a matrix of SVec</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">steps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">accumulate</span><span class="p">(</span><span class="n">step</span><span class="p">,</span><span class="w"> </span><span class="n">eachslice</span><span class="p">(</span><span class="n">sz</span><span class="p">;</span><span class="n">dims</span><span class="o">=</span><span class="mi">1</span><span class="p">);</span><span class="w"> </span><span class="n">init</span><span class="o">=</span><span class="n">particles</span><span class="p">);</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">predicted</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">SVector</span><span class="p">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="kt">Float64</span><span class="p">}[</span><span class="n">mean</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="w"> </span><span class="n">p</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">steps</span><span class="p">];</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">flat_pred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">flatview</span><span class="p">(</span><span class="n">ArrayOfSimilarArrays</span><span class="p">(</span><span class="n">predicted</span><span class="p">));</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">begin</span>
+<span class="n">plot</span><span class="p">(</span><span class="n">true_xs</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">:</span><span class="p">],</span><span class="w"> </span><span class="n">true_xs</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="o">:</span><span class="p">],</span><span class="w"> </span><span class="n">label</span><span class="o">=</span><span class="s">&quot;robot path&quot;</span><span class="p">)</span>
+<span class="n">plot!</span><span class="p">(</span><span class="n">flat_pred</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="o">:</span><span class="p">],</span><span class="w"> </span><span class="n">flat_pred</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="o">:</span><span class="p">],</span><span class="w"> </span><span class="n">label</span><span class="o">=</span><span class="s">&quot;predictions&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">alpha</span><span class="o">=</span><span class="n">timealpha</span><span class="p">)</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<p><img alt="svg" src="/fastslam_files/fastslam_38_0.svg" /></p>
+<p>Even though the robot's trajectory is noisy, the observations allow us to track it quite accurately. </p>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
+
+    var configscript = document.createElement('script');
+    configscript.type = 'text/x-mathjax-config';
+    configscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    messageStyle: 'normal'," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        availableFonts: ['STIX', 'TeX']," +
+        "        preferredFont: 'STIX'," +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); " +
+        "if ('default' !== 'default') {" +
+            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+        "}";
+
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>

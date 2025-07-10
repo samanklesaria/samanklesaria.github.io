@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Synthetic Control</title>
+                        <link rel="stylesheet" href="/theme/css/main.css" />
+    <meta name="description" content="Synthetic Controls in Texas Prison Data This post uses a synthetic control design to study whether Texas's prison building boom in 1993 resulted..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="/">Sam's Blog</a></h1>
+                        <nav><ul>
+                                                <li><a href="/category/llms.html">llms</a></li>
+                                                <li><a href="/category/slam.html">slam</a></li>
+                                                <li class="active"><a href="/category/statistics.html">statistics</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="/synthetic-control.html" rel="bookmark"
+             title="Permalink to Synthetic Control">Synthetic Control</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2025-01-25T00:00:00-06:00">
+                Published: Sat 25 January 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
+                </address>
+        <p>In <a href="/category/statistics.html">statistics</a>.</p>
+        
+</footer><!-- /.post-info -->        <h1>Synthetic Controls in Texas Prison Data</h1>
+<p>This post uses a synthetic control design to study whether Texas's prison building boom in 1993 resulted in them incarcerating more prisoners than they would have if their rate of prison building had continued as normal. The analysis will build off the one in the book <a href="https://mixtape.scunning.com/">Causal Inference: The Mixtable</a>, but will make use of techniques from Gelman's <a href="https://arxiv.org/pdf/2011.01808">Bayesian workflow</a>.</p>
+<p>As in the <em>Mixtape</em> book, we'll express Texas's incarceration rates over time as a mixture of those of other states with comparable poverty, alcoholiosm and incarceration rates in '93. Then, we'll use this mixture of other states to construct a "synthetic" counterfactual Texas which, like the states in the mixture, didn't have a prison building boom after '93. We can compare the difference between the true and synthetic Texas over time. </p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">nn</span>
+<span class="kn">from</span> <span class="nn">gpytorch.means</span> <span class="kn">import</span> <span class="n">ConstantMean</span>
+<span class="kn">from</span> <span class="nn">gpytorch.kernels</span> <span class="kn">import</span> <span class="n">ScaleKernel</span><span class="p">,</span> <span class="n">RBFKernel</span>
+<span class="kn">from</span> <span class="nn">gpytorch.distributions</span> <span class="kn">import</span> <span class="n">MultivariateNormal</span>
+<span class="kn">from</span> <span class="nn">torch.distributions</span> <span class="kn">import</span> <span class="n">Normal</span>
+<span class="kn">from</span> <span class="nn">gpytorch.likelihoods.noise_models</span> <span class="kn">import</span> <span class="n">HomoskedasticNoise</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">zscore</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">texas</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_stata</span><span class="p">(</span><span class="s2">&quot;https://github.com/scunning1975/mixtape/raw/master/texas.dta&quot;</span><span class="p">)</span>
+<span class="n">texas</span> <span class="o">=</span> <span class="n">texas</span><span class="p">[</span><span class="n">texas</span><span class="o">.</span><span class="n">state</span> <span class="o">!=</span> <span class="s1">&#39;District of Columbia&#39;</span><span class="p">]</span>
+</code></pre></div>
+
+<p>Our endogenous variable <span class="math">\(y\)</span> will be the black male incarceration rate. I'll use a zscore for ease of training hyperparameters. </p>
+<div class="highlight"><pre><span></span><code><span class="n">texas</span><span class="p">[</span><span class="s1">&#39;incarceration_rate&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">texas</span><span class="o">.</span><span class="n">bmprison</span> <span class="o">/</span> <span class="n">texas</span><span class="o">.</span><span class="n">bmpop</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">texas</span><span class="p">[</span><span class="s1">&#39;incarceration_z&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">texas</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;year&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">incarceration_rate</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">zscore</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">texas</span><span class="p">[</span><span class="s1">&#39;poverty&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">texas</span><span class="p">[</span><span class="s1">&#39;poverty&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="mi">100</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">texas</span> <span class="o">=</span> <span class="n">texas</span><span class="o">.</span><span class="n">sort_values</span><span class="p">([</span><span class="s2">&quot;state&quot;</span><span class="p">,</span> <span class="s2">&quot;year&quot;</span><span class="p">])</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">texas</span><span class="p">[[</span><span class="s2">&quot;incarceration_z&quot;</span><span class="p">,</span> <span class="s2">&quot;poverty&quot;</span><span class="p">,</span> <span class="s2">&quot;alcohol&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+</code></pre></div>
+
+<p>Looking at the data shows a pretty sizeable increase in Texas's incarceration rate after '93 compared to other states, which lends credence to the hypothesis.</p>
+<div class="highlight"><pre><span></span><code><span class="n">years</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">texas</span><span class="o">.</span><span class="n">year</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">states</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">texas</span><span class="o">.</span><span class="n">state</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">texix</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">states</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;Texas&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">ix</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">ix</span> <span class="o">==</span> <span class="n">texix</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">years</span><span class="p">,</span> <span class="n">r</span><span class="p">[:,</span><span class="mi">0</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;C0&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">years</span><span class="p">,</span> <span class="n">r</span><span class="p">[:,</span><span class="mi">0</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;C1&quot;</span> <span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Synthetic_Control_files/Synthetic_Control_14_0.png"></p>
+<p>To construct our synthetic version of Texas, we'll fit a Gaussian process model relating state characteristics in 1993 (incarceration rate, poverty and alcoholism levels) to incarceration rates for other years. Then we'll apply the fitted model to Texas's characeristics to predict the counterfactual incarceration rate.</p>
+<div class="highlight"><pre><span></span><code><span class="n">X</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span><span class="mi">7</span><span class="p">,:])</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">Y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">data</span><span class="p">[:,:</span><span class="mi">7</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">class</span> <span class="nc">SynthControlModel</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">covar_module</span> <span class="o">=</span> <span class="n">ScaleKernel</span><span class="p">(</span><span class="n">RBFKernel</span><span class="p">(</span><span class="n">ard_num_dims</span><span class="o">=</span><span class="mi">3</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noise</span> <span class="o">=</span> <span class="n">HomoskedasticNoise</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">covar_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">covar_module</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">MultivariateNormal</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">covar_x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">covar_x</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">model</span> <span class="o">=</span> <span class="n">SynthControlModel</span><span class="p">()</span>
+</code></pre></div>
+
+<p>The following code fits the noise and lengthscale parameters by maximum likelihood estimation.</p>
+<div class="highlight"><pre><span></span><code><span class="n">opt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">200</span><span class="p">):</span>
+    <span class="n">opt</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="o">-</span><span class="n">model</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">log_prob</span><span class="p">(</span><span class="n">Y</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">20</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">loss</span><span class="o">.</span><span class="n">item</span><span class="p">())</span>
+    <span class="n">opt</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="mf">390.9499206542969</span>
+<span class="mf">221.37319946289062</span>
+<span class="mf">212.59107971191406</span>
+<span class="mf">211.1005401611328</span>
+<span class="mf">210.900634765625</span>
+<span class="mf">210.87908935546875</span>
+<span class="mf">210.87689208984375</span>
+<span class="mf">210.87579345703125</span>
+<span class="mf">210.87570190429688</span>
+<span class="mf">210.87567138671875</span>
+</code></pre></div>
+
+<p>The fitted noise and lengthscales seem reasonable.</p>
+<div class="highlight"><pre><span></span><code><span class="n">model</span><span class="o">.</span><span class="n">noise</span><span class="o">.</span><span class="n">noise</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>tensor([0.0906])
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">model</span><span class="o">.</span><span class="n">covar_module</span><span class="o">.</span><span class="n">base_kernel</span><span class="o">.</span><span class="n">lengthscale</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>tensor([[1.6206, 0.9185, 1.6307]])
+</code></pre></div>
+
+<p>Prediction with a Gaussian process is just a matter of cranking through the Gaussian conditioning equations. I'm avoiding gpytorch's high level interface here, as we'll need the additional flexibility that comes from doing this manually. </p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">test_X</span><span class="p">,</span> <span class="n">Y</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+        <span class="n">prior_x</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">prior_t</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">test_X</span><span class="p">)</span>
+        <span class="n">X_tk</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">covar_module</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">test_X</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">X_tk</span> <span class="o">@</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">prior_x</span><span class="o">.</span><span class="n">covariance_matrix</span><span class="p">,</span> <span class="n">Y</span><span class="p">)</span>
+        <span class="n">S</span> <span class="o">=</span> <span class="n">prior_t</span><span class="o">.</span><span class="n">covariance_matrix</span> <span class="o">-</span> <span class="n">X_tk</span> <span class="o">@</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">prior_x</span><span class="o">.</span><span class="n">covariance_matrix</span><span class="p">,</span> <span class="n">X_tk</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">MultivariateNormal</span><span class="p">(</span><span class="n">mu</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">S</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Here, then, is our counterfactual prediction for Texas's incarceration rate based on the training data from all the other states. There's a lot of uncertainty shown by the blue shading, but we can guess the general trend.</p>
+<div class="highlight"><pre><span></span><code><span class="n">non_texas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span> <span class="n">texix</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">X_no_texas</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">non_texas</span><span class="p">,</span> <span class="mi">7</span><span class="p">])</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">y_no_texas</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">non_texas</span><span class="p">,:,</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">X_texas</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span><span class="n">texix</span><span class="p">,</span> <span class="mi">7</span><span class="p">])</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">predictions</span> <span class="o">=</span> <span class="n">predict</span><span class="p">(</span><span class="n">X_no_texas</span><span class="p">,</span> <span class="n">X_texas</span><span class="p">,</span> <span class="n">y_no_texas</span><span class="p">)</span>
+<span class="n">lower</span><span class="p">,</span> <span class="n">upper</span> <span class="o">=</span> <span class="n">predictions</span><span class="o">.</span><span class="n">confidence_region</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">plt</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">years</span><span class="p">,</span> <span class="n">lower</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">upper</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">years</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="n">texix</span><span class="p">,:,</span><span class="mi">0</span><span class="p">]);</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1993</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">);</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Synthetic_Control_files/Synthetic_Control_34_0.png"></p>
+<p>Texas fits the model just fine pre-1993, but quickly deviates after its building boom. We can show just how atypical this lack of fit is using a randomization test. We'll collect the log likelihoods of each state's post '93 observations in the posterior predictive we obtained from fitting on the other states. The fraction of states with likelihoods below that of Texas gives us a p-value: the probability of seeing a fit as bad as Texas's if the treatment effect were zero.</p>
+<div class="highlight"><pre><span></span><code><span class="n">post_93</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span><span class="mi">8</span><span class="p">:,</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">state_probs</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">50</span><span class="p">):</span>
+    <span class="n">ixs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span> <span class="n">i</span><span class="p">)</span>
+    <span class="n">post_prob</span> <span class="o">=</span> <span class="n">predict</span><span class="p">(</span><span class="n">X</span><span class="p">[</span><span class="n">ixs</span><span class="p">],</span> <span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">],</span> <span class="n">post_93</span><span class="p">[</span><span class="n">ixs</span><span class="p">])</span><span class="o">.</span><span class="n">log_prob</span><span class="p">(</span><span class="n">post_93</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+    <span class="n">state_probs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">post_prob</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+<span class="n">state_probs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">state_probs</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">state_probs</span><span class="p">))</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">texix</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">state_probs</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="mf">0.02</span>
+</code></pre></div>
+
+<p>If we're okay with a 2% false positive rate, we can reject the null hypothesis that the treatment effect is zero. </p>
+<p>We can examine the contribution of top states towards our synthetic version of texas as follows:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">state_contrib</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+    <span class="n">X_kk</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">covar_module</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">X_no_texas</span><span class="p">,</span> <span class="n">X_no_texas</span><span class="p">)</span>
+    <span class="n">X_kt</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">covar_module</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">X_no_texas</span><span class="p">,</span> <span class="n">X_texas</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">X_kk</span><span class="p">,</span> <span class="n">X_kt</span><span class="p">)[:,</span><span class="mi">0</span><span class="p">]</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">cs</span> <span class="o">=</span> <span class="n">state_contrib</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">ixs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="o">-</span><span class="n">cs</span><span class="p">)[:</span><span class="mi">3</span><span class="p">]</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="n">non_texas</span><span class="p">][</span><span class="n">ixs</span><span class="p">],</span> <span class="n">cs</span><span class="p">[</span><span class="n">ixs</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()))</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>[(&#39;South Dakota&#39;, tensor(2.1369)),
+ (&#39;Virginia&#39;, tensor(1.6360)),
+ (&#39;Missouri&#39;, tensor(1.5237))]
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">similar_states</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">non_texas</span><span class="p">][</span><span class="n">ixs</span><span class="p">,:,</span><span class="mi">0</span><span class="p">]</span>
+</code></pre></div>
+
+<p>We can overlay the trajectory of the similar states themselves below:</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">similar_states</span><span class="p">:</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">years</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;C1&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">fill_between</span><span class="p">(</span><span class="n">years</span><span class="p">,</span> <span class="n">lower</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">upper</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">years</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="n">texix</span><span class="p">,:,</span><span class="mi">0</span><span class="p">]);</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1993</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">);</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Synthetic_Control_files/Synthetic_Control_47_0.png"></p>
+<p>Just because the Gaussian process model fits Texas worse than any other state, however, doesn't mean it's actually fitting the other states all that well. </p>
+<p>To see how well the model fits the other states, we can do some leave-one-out cross validation. Specifically, we can check that the observed incarceration distribution for past and future years is similar to that of samples from the leave-one-out posterior predictive distribution. Below, the orange line shows the observed distribution of incarceration rate z scores, while the blue lines are leave-one-out posterior predictive samples.</p>
+<div class="highlight"><pre><span></span><code><span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">49</span><span class="p">):</span>
+    <span class="n">ixs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">49</span><span class="p">),</span> <span class="n">i</span><span class="p">)</span>
+    <span class="n">post</span> <span class="o">=</span> <span class="n">predict</span><span class="p">(</span><span class="n">X_no_texas</span><span class="p">[</span><span class="n">ixs</span><span class="p">],</span> <span class="n">X_no_texas</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">],</span> <span class="n">y_no_texas</span><span class="p">[</span><span class="n">ixs</span><span class="p">])</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">Size</span><span class="p">([</span><span class="mi">20</span><span class="p">]))</span>
+    <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">post</span><span class="p">)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">20</span><span class="p">):</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;C0&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+<span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">y_no_texas</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;C1&#39;</span><span class="p">);</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Synthetic_Control_files/Synthetic_Control_51_0.png"></p>
+<p>The fit is pretty good, but the wiggle on the right side of the orange plot indicates that our data gives somewhat higher incarceration rates than the predictive posterior would suggest. Let's break this down by year.</p>
+<div class="highlight"><pre><span></span><code><span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="k">for</span> <span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="n">obs</span><span class="p">,</span> <span class="n">ax</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">permute</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)),</span> <span class="n">y_no_texas</span><span class="p">[:,</span><span class="mi">8</span><span class="p">:]</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">axs</span><span class="o">.</span><span class="n">ravel</span><span class="p">()):</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">20</span><span class="p">):</span>
+        <span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">dist</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;C0&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">obs</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;C1&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">);</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Synthetic_Control_files/Synthetic_Control_53_0.png"></p>
+<p>In earlier years, everything seems okay. But by '98, that extra little hump starts appearing on the right. While other states weren't increasing their rates as fast as Texas was, it does seem like the model isn't quite describing them correctly. </p>
+<p>We can validate this lack of fit further by checking probability-integral-transform values. The fraction of the leave-one-out posterior predictive distribution below each observation would be uniform under perfect caliration.</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">to_univariate</span><span class="p">(</span><span class="n">post</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">Normal</span><span class="p">(</span><span class="n">post</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span> <span class="n">post</span><span class="o">.</span><span class="n">covariance_matrix</span><span class="o">.</span><span class="n">ravel</span><span class="p">())</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">49</span><span class="p">):</span>
+    <span class="n">ixs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">49</span><span class="p">),</span> <span class="n">i</span><span class="p">)</span>
+    <span class="n">post</span> <span class="o">=</span> <span class="n">predict</span><span class="p">(</span><span class="n">X_no_texas</span><span class="p">[</span><span class="n">ixs</span><span class="p">],</span> <span class="n">X_no_texas</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">],</span> <span class="n">y_no_texas</span><span class="p">[</span><span class="n">ixs</span><span class="p">])</span>
+    <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">to_univariate</span><span class="p">(</span><span class="n">post</span><span class="p">)</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="n">y_no_texas</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]))</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="n">sns</span><span class="o">.</span><span class="n">displot</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">ravel</span><span class="p">());</span>
+</code></pre></div>
+
+<p><img alt="png" src="/Synthetic_Control_files/Synthetic_Control_58_0.png"></p>
+<p>The posterior predictive distributions seem to be quite under-dispersed relative to the observations. We need a better model! But I'll leave that to a future post. </p>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
+
+    var configscript = document.createElement('script');
+    configscript.type = 'text/x-mathjax-config';
+    configscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    messageStyle: 'normal'," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        availableFonts: ['STIX', 'TeX']," +
+        "        preferredFont: 'STIX'," +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); " +
+        "if ('default' !== 'default') {" +
+            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+        "}";
+
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Nearest Neighbor Gaussian Processes</title>
+                        <link rel="stylesheet" href="/theme/css/main.css" />
+    <meta name="description" content="Nearest Neighbor Gaussian Processes In a \(k\)-Nearest Neighbor Gaussian Process, we assume that the input points \(x\) are ordered in such a way..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="/">Sam's Blog</a></h1>
+                        <nav><ul>
+                                                <li><a href="/category/algorithms.html">algorithms</a></li>
+                                                <li class="active"><a href="/category/machine_learning.html">machine_learning</a></li>
+                                                <li><a href="/category/math.html">math</a></li>
+                                                <li><a href="/category/slam.html">slam</a></li>
+                                                <li><a href="/category/statistics.html">statistics</a></li>
+                                                <li><a href="/category/tools.html">tools</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="/nearest-neighbor-gaussian-processes.html" rel="bookmark"
+             title="Permalink to Nearest Neighbor Gaussian Processes">Nearest Neighbor Gaussian Processes</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2024-02-16T00:00:00-06:00">
+                Published: Fri 16 February 2024
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
+                </address>
+        <p>In <a href="/category/machine_learning.html">machine_learning</a>.</p>
+        
+</footer><!-- /.post-info -->        <h2>Nearest Neighbor Gaussian Processes</h2>
+<p>In a <em><span class="math">\(k\)</span>-Nearest Neighbor Gaussian Process</em>, we assume that the input points <span class="math">\(x\)</span> are ordered in such a way that <span class="math">\(f(x_i)\)</span> is independent of <span class="math">\(f(x_j)\)</span> whenever <span class="math">\(i &gt; j + k\)</span>. When <span class="math">\(k=2\)</span>, for example, this means we can generate the sequence of process values by sampling the first value, then sampling the second given the first, then the third given the first two, then the fourth given the second and third, and so on.</p>
+<div class="math">$$
+\begin{align*}
+f_1 &amp;\sim p(f_1) \\
+f_2 &amp;\sim p(f_2 | f_1) \\
+f_3 &amp;\sim p(f_3 | f_1, f_2)\\
+f_4 &amp;\sim p(f_4 | f_2, f_3) \\
+\dotsc
+\end{align*}
+$$</div>
+<p>
+The conditional distribution for <span class="math">\(f_i\)</span> with <span class="math">\(k\)</span>-predecessors in the set <span class="math">\(S\)</span> has mean <span class="math">\(K_{i, S}K_{S,S}^{-1} f_S\)</span> and variance <span class="math">\(K_{i, i} - K_{i, S}K_{S,S}^{-1} K_{i,S}\)</span>. This means we can write the generation procedure as
+</p>
+<div class="math">$$
+\begin{align*}
+f_1 &amp;= \eta_1 \\
+f_2 &amp;= K_{2, 1}K_{1,1}^{-1}f_1 + \eta_2 \\
+f_3 &amp;= K_{3, (2,1)}K_{(2,1),(2,1)}^{-1}f_{(2,1)} + \eta_3 \\
+f_4 &amp;= K_{4, (3,2)}K_{(3,2), (3,2)}^{-1}f_{(3,2)} + \eta_3 \\
+\dotsc
+\end{align*}
+$$</div>
+<p>
+where <span class="math">\(\eta_i \sim \mathcal{N}(0, K_{i, i} - K_{i, S}K_{S,S}^{-1} K_{i,S})\)</span>.
+In matrix form, this means
+</p>
+<div class="math">$$
+\begin{align*}
+f &amp;= Bf + \eta \\
+f &amp;= (I - B)^{-1}\eta
+\end{align*}
+$$</div>
+<p>
+where <span class="math">\(B\)</span> is the strictly lower triangular matrix that comes from stacking zero-padded rows of the form <span class="math">\(K_{i, S}K_{SS}^{-1}\)</span>. This shows that <span class="math">\(f\)</span> has a precision matrix of the form <span class="math">\(UU^T\)</span> where <span class="math">\(L=(I - B)^TF^{-1/2}\)</span> and <span class="math">\(F\)</span> is diagonal.</p>
+<h2>Implementation</h2>
+<div class="codehilite"><pre><span></span><code><span class="k">using</span><span class="w"> </span><span class="n">KernelFunctions</span><span class="p">,</span><span class="w"> </span><span class="n">LinearAlgebra</span><span class="p">,</span><span class="w"> </span><span class="n">SparseArrays</span><span class="p">,</span><span class="w"> </span><span class="n">AbstractGPs</span>
+</code></pre></div>
+
+<p>We assume that <code>pts</code> are in order, and that each point is independent of all the previous ones given the previous <code>k</code>.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">make_B</span><span class="p">(</span><span class="n">pts</span><span class="o">::</span><span class="kt">AbstractVector</span><span class="p">{</span><span class="kt">T</span><span class="p">},</span><span class="w"> </span><span class="n">k</span><span class="o">::</span><span class="kt">Int</span><span class="p">,</span><span class="w"> </span><span class="n">kern</span><span class="o">::</span><span class="kt">Kernel</span><span class="p">)</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="p">{</span><span class="kt">T</span><span class="p">}</span>
+<span class="w">    </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">length</span><span class="p">(</span><span class="n">pts</span><span class="p">)</span>
+<span class="w">    </span><span class="n">js</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">Int</span><span class="p">[]</span>
+<span class="w">    </span><span class="n">is</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">Int</span><span class="p">[]</span>
+<span class="w">    </span><span class="n">vals</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">T</span><span class="p">[]</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">1</span><span class="o">:</span><span class="n">n</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">            </span><span class="n">ns</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">T</span><span class="p">[]</span>
+<span class="w">        </span><span class="k">else</span>
+<span class="w">            </span><span class="n">ns</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pts</span><span class="p">[</span><span class="n">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">k</span><span class="p">)</span><span class="o">:</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+<span class="w">        </span><span class="k">end</span>
+<span class="w">        </span><span class="n">row</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kernelmatrix</span><span class="p">(</span><span class="n">kern</span><span class="p">,</span><span class="w"> </span><span class="n">ns</span><span class="p">)</span><span class="w"> </span><span class="o">\</span><span class="w"> </span><span class="n">kern</span><span class="o">.</span><span class="p">(</span><span class="n">ns</span><span class="p">,</span><span class="w"> </span><span class="n">pts</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+<span class="w">        </span><span class="n">start_ix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">max</span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="w">        </span><span class="n">col_ixs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">start_ix</span><span class="o">:</span><span class="p">(</span><span class="n">start_ix</span><span class="o">+</span><span class="n">length</span><span class="p">(</span><span class="n">row</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+<span class="w">        </span><span class="n">append!</span><span class="p">(</span><span class="n">js</span><span class="p">,</span><span class="w"> </span><span class="n">col_ixs</span><span class="p">)</span>
+<span class="w">        </span><span class="n">append!</span><span class="p">(</span><span class="n">is</span><span class="p">,</span><span class="w"> </span><span class="n">fill</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="p">(</span><span class="n">col_ixs</span><span class="p">)))</span>
+<span class="w">        </span><span class="n">append!</span><span class="p">(</span><span class="n">vals</span><span class="p">,</span><span class="w"> </span><span class="n">row</span><span class="p">)</span>
+<span class="w">    </span><span class="k">end</span>
+<span class="w">    </span><span class="n">sparse</span><span class="p">(</span><span class="n">is</span><span class="p">,</span><span class="w"> </span><span class="n">js</span><span class="p">,</span><span class="w"> </span><span class="n">vals</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<p>To the understand the form of the B matrix described above more clearly, consider its form in a 2-nearest neighbor Gaussian Process.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">pts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">3.5</span><span class="p">,</span><span class="w"> </span><span class="mf">4.2</span><span class="p">,</span><span class="w"> </span><span class="mf">5.9</span><span class="p">,</span><span class="w"> </span><span class="mf">8.0</span><span class="p">];</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">kern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SqExponentialKernel</span><span class="p">();</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">B</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make_B</span><span class="p">(</span><span class="n">pts</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">kern</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>6×6 SparseMatrixCSC{Float64, Int64} with 9 stored entries:
+   ⋅          ⋅          ⋅          ⋅          ⋅         ⋅ 
+  0.606531    ⋅          ⋅          ⋅          ⋅         ⋅ 
+ -0.242002   0.471434    ⋅          ⋅          ⋅         ⋅ 
+   ⋅        -0.184647   0.842651    ⋅          ⋅         ⋅ 
+   ⋅          ⋅        -0.331424   0.495153    ⋅         ⋅ 
+   ⋅          ⋅          ⋅        -0.0267458  0.116556   ⋅
+</code></pre></div>
+
+<p>The <span class="math">\(F\)</span> matrix can be constructed analogously.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">make_F</span><span class="p">(</span><span class="n">pts</span><span class="o">::</span><span class="kt">AbstractVector</span><span class="p">{</span><span class="kt">T</span><span class="p">},</span><span class="w"> </span><span class="n">k</span><span class="o">::</span><span class="kt">Int</span><span class="p">,</span><span class="w"> </span><span class="n">kern</span><span class="o">::</span><span class="kt">Kernel</span><span class="p">)</span><span class="w"> </span><span class="k">where</span><span class="w"> </span><span class="p">{</span><span class="kt">T</span><span class="p">}</span>
+<span class="w">    </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">length</span><span class="p">(</span><span class="n">pts</span><span class="p">)</span>
+<span class="w">    </span><span class="n">vals</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">T</span><span class="p">[]</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">1</span><span class="o">:</span><span class="n">n</span>
+<span class="w">        </span><span class="n">prior</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kern</span><span class="p">(</span><span class="n">pts</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">pts</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">            </span><span class="n">push!</span><span class="p">(</span><span class="n">vals</span><span class="p">,</span><span class="w"> </span><span class="n">prior</span><span class="p">)</span>
+<span class="w">        </span><span class="k">else</span>
+<span class="w">            </span><span class="n">ns</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pts</span><span class="p">[</span><span class="n">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">k</span><span class="p">)</span><span class="o">:</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+<span class="w">            </span><span class="n">ki</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kern</span><span class="o">.</span><span class="p">(</span><span class="n">ns</span><span class="p">,</span><span class="w"> </span><span class="n">pts</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+<span class="w">            </span><span class="n">push!</span><span class="p">(</span><span class="n">vals</span><span class="p">,</span><span class="w"> </span><span class="n">prior</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">dot</span><span class="p">(</span><span class="n">ki</span><span class="p">,</span><span class="w"> </span><span class="n">kernelmatrix</span><span class="p">(</span><span class="n">kern</span><span class="p">,</span><span class="w"> </span><span class="n">ns</span><span class="p">)</span><span class="w"> </span><span class="o">\</span><span class="w"> </span><span class="n">ki</span><span class="p">))</span>
+<span class="w">        </span><span class="k">end</span>
+<span class="w">    </span><span class="k">end</span>
+<span class="w">    </span><span class="n">Diagonal</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">F</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make_F</span><span class="p">(</span><span class="n">pts</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">kern</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>6×6 Diagonal{Float64, Vector{Float64}}:
+ 1.0   ⋅         ⋅         ⋅         ⋅         ⋅ 
+  ⋅   0.632121   ⋅         ⋅         ⋅         ⋅ 
+  ⋅    ⋅        0.857581   ⋅         ⋅         ⋅ 
+  ⋅    ⋅         ⋅        0.356873   ⋅         ⋅ 
+  ⋅    ⋅         ⋅         ⋅        0.901874   ⋅ 
+  ⋅    ⋅         ⋅         ⋅         ⋅        0.987169
+</code></pre></div>
+
+<p>The associated covariance matrix has the form <span class="math">\((I-B)^{-1}F(I-B)^{-1}\)</span>. We can compare this approximation to the full (non nearest-neighbor) covariance matrix.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">L</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">I</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">B</span><span class="p">)</span><span class="w"> </span><span class="o">\</span><span class="w"> </span><span class="n">sqrt</span><span class="p">(</span><span class="n">F</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>6×6 Matrix{Float64}:
+  1.0          0.0          0.0        0.0        0.0      0.0
+  0.606531     0.79506      0.0        0.0        0.0      0.0
+  0.0439369    0.374819     0.926056   0.0        0.0      0.0
+ -0.0749706    0.169036     0.780342   0.597388   0.0      0.0
+ -0.0516836   -0.0405252    0.0794716  0.295798   0.94967  0.0
+ -0.00401888  -0.00924444  -0.011608   0.0184994  0.11069  0.993564
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">L</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">L</span><span class="o">&#39;</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>6×6 Matrix{Float64}:
+  1.0          0.606531     0.0439369  -0.0749706    -0.0516836  -0.00401888
+  0.606531     1.0          0.324652    0.0889216    -0.0635677  -0.00978746
+  0.0439369    0.324652     1.0         0.782705      0.0561348  -0.0143912
+ -0.0749706    0.0889216    0.782705    1.0           0.235746    0.000731802
+ -0.0516836   -0.0635677    0.0561348   0.235746      1.0         0.110251
+ -0.00401888  -0.00978746  -0.0143912   0.000731802   0.110251    1.0
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">kernelmatrix</span><span class="p">(</span><span class="n">kern</span><span class="p">,</span><span class="w"> </span><span class="n">pts</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>6×6 Matrix{Float64}:
+ 1.0          0.606531     0.0439369   0.00597602   6.11357e-6   2.28973e-11
+ 0.606531     1.0          0.324652    0.0889216    0.000497955  1.523e-8
+ 0.0439369    0.324652     1.0         0.782705     0.0561348    4.00653e-5
+ 0.00597602   0.0889216    0.782705    1.0          0.235746     0.000731802
+ 6.11357e-6   0.000497955  0.0561348   0.235746     1.0          0.110251
+ 2.28973e-11  1.523e-8     4.00653e-5  0.000731802  0.110251     1.0
+</code></pre></div>
+
+<p>The two are pretty close!</p>
+<h2>Interface</h2>
+<p>To make this usable with Julia's AbstractGPs library, we'll add a new method for the <code>posterior</code> function.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span> <span class="kt">NearestNeighbors</span>
+<span class="w">    </span><span class="n">k</span><span class="o">::</span><span class="kt">Int</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span> <span class="kt">InvRoot</span><span class="p">{</span><span class="kt">A</span><span class="p">}</span>
+<span class="w">    </span><span class="n">U</span><span class="o">::</span><span class="kt">A</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">AbstractGPs</span><span class="o">.</span><span class="n">diag_Xt_invA_X</span><span class="p">(</span><span class="n">A</span><span class="o">::</span><span class="kt">InvRoot</span><span class="p">,</span><span class="w"> </span><span class="n">X</span><span class="o">::</span><span class="kt">AbstractVecOrMat</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">AbstractGPs</span><span class="o">.</span><span class="n">diag_At_A</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">U</span><span class="o">&#39;</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">X</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">AbstractGPs</span><span class="o">.</span><span class="n">posterior</span><span class="p">(</span><span class="n">nn</span><span class="o">::</span><span class="kt">NearestNeighbors</span><span class="p">,</span><span class="w"> </span><span class="n">fx</span><span class="o">::</span><span class="kt">AbstractGPs</span><span class="o">.</span><span class="n">FiniteGP</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="o">::</span><span class="kt">AbstractVector</span><span class="p">)</span>
+<span class="w">    </span><span class="n">kern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fx</span><span class="o">.</span><span class="n">f</span><span class="o">.</span><span class="n">kernel</span>
+<span class="w">    </span><span class="n">F</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make_F</span><span class="p">(</span><span class="n">fx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">nn</span><span class="o">.</span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="n">kern</span><span class="p">)</span>
+<span class="w">    </span><span class="n">B</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">make_B</span><span class="p">(</span><span class="n">fx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">nn</span><span class="o">.</span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="n">kern</span><span class="p">)</span>
+<span class="w">    </span><span class="n">U</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UpperTriangular</span><span class="p">((</span><span class="n">I</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">B</span><span class="p">)</span><span class="o">&#39;</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">inv</span><span class="p">(</span><span class="n">sqrt</span><span class="p">(</span><span class="n">F</span><span class="p">)))</span>
+<span class="w">    </span><span class="n">δ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">mean</span><span class="p">(</span><span class="n">fx</span><span class="p">)</span>
+<span class="w">    </span><span class="n">α</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">U</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">U</span><span class="o">&#39;</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">δ</span><span class="p">)</span>
+<span class="w">    </span><span class="n">C</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">InvRoot</span><span class="p">(</span><span class="n">U</span><span class="p">)</span>
+<span class="w">    </span><span class="n">AbstractGPs</span><span class="o">.</span><span class="n">PosteriorGP</span><span class="p">(</span><span class="n">fx</span><span class="o">.</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">α</span><span class="o">=</span><span class="n">α</span><span class="p">,</span><span class="w"> </span><span class="n">C</span><span class="o">=</span><span class="n">C</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="o">=</span><span class="n">fx</span><span class="o">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">δ</span><span class="o">=</span><span class="n">δ</span><span class="p">))</span>
+<span class="k">end</span>
+</code></pre></div>
+
+<p>Here's how we use it:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sin</span><span class="o">.</span><span class="p">(</span><span class="n">pts</span><span class="p">);</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">fx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GP</span><span class="p">(</span><span class="n">kern</span><span class="p">)(</span><span class="n">pts</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">);</span>
+</code></pre></div>
+
+<p>Note that the nearest neighbor approximation requires a noise-free GP.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">post</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">posterior</span><span class="p">(</span><span class="n">NearestNeighbors</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span><span class="w"> </span><span class="n">fx</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">);</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">using</span><span class="w"> </span><span class="n">CairoMakie</span><span class="p">,</span><span class="w"> </span><span class="n">AbstractGPsMakie</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">plot</span><span class="p">(</span><span class="mi">1</span><span class="o">:</span><span class="mf">0.01</span><span class="o">:</span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="n">post</span><span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/nearest_neighbor_gps_files/nearest_neighbor_gps_29_0.png" /></p>
+<h2>Optimizing Hyperparameters</h2>
+<p>The last thing necessary to make this technique usable in practice is to ensure it works with autodifferentiation so that we can optimize hyperparameters like lengthscales.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">using</span><span class="w"> </span><span class="n">ForwardDiff</span><span class="p">,</span><span class="w"> </span><span class="n">ParameterHandling</span><span class="p">,</span><span class="w"> </span><span class="n">Optim</span><span class="p">,</span><span class="w"> </span><span class="n">Zygote</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">initial_params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">var</span><span class="o">=</span><span class="n">positive</span><span class="p">(</span><span class="mf">1.0</span><span class="p">),</span><span class="w"> </span><span class="n">lengthscale</span><span class="o">=</span><span class="n">positive</span><span class="p">(</span><span class="mf">1.0</span><span class="p">));</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">flat_initial_params</span><span class="p">,</span><span class="w"> </span><span class="n">unflatten</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ParameterHandling</span><span class="o">.</span><span class="n">value_flatten</span><span class="p">(</span><span class="n">initial_params</span><span class="p">);</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">build_gp</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+<span class="w">    </span><span class="n">k2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">params</span><span class="o">.</span><span class="n">var</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">with_lengthscale</span><span class="p">(</span><span class="n">kern</span><span class="p">,</span><span class="w"> </span><span class="n">params</span><span class="o">.</span><span class="n">lengthscale</span><span class="p">)</span>
+<span class="w">    </span><span class="n">GP</span><span class="p">(</span><span class="n">k2</span><span class="p">)(</span><span class="n">pts</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="n">objective</span><span class="p">(</span><span class="n">flat_params</span><span class="p">)</span>
+<span class="w">    </span><span class="n">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">unflatten</span><span class="p">(</span><span class="n">flat_params</span><span class="p">)</span>
+<span class="w">    </span><span class="n">fx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">build_gp</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+<span class="w">    </span><span class="o">-</span><span class="n">logpdf</span><span class="p">(</span><span class="n">fx</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">)</span>
+<span class="k">end</span><span class="p">;</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">training_results</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Optim</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span>
+<span class="w">    </span><span class="n">objective</span><span class="p">,</span>
+<span class="w">    </span><span class="n">θ</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">only</span><span class="p">(</span><span class="n">Zygote</span><span class="o">.</span><span class="n">gradient</span><span class="p">(</span><span class="n">objective</span><span class="p">,</span><span class="w"> </span><span class="n">θ</span><span class="p">)),</span>
+<span class="w">    </span><span class="n">flat_initial_params</span><span class="p">,</span>
+<span class="w">    </span><span class="n">BFGS</span><span class="p">(</span>
+<span class="w">        </span><span class="n">alphaguess</span><span class="o">=</span><span class="n">Optim</span><span class="o">.</span><span class="n">LineSearches</span><span class="o">.</span><span class="n">InitialStatic</span><span class="p">(</span><span class="n">scaled</span><span class="o">=</span><span class="nb">true</span><span class="p">),</span>
+<span class="w">        </span><span class="n">linesearch</span><span class="o">=</span><span class="n">Optim</span><span class="o">.</span><span class="n">LineSearches</span><span class="o">.</span><span class="n">BackTracking</span><span class="p">(),</span>
+<span class="w">    </span><span class="p">),</span>
+<span class="w">    </span><span class="n">inplace</span><span class="o">=</span><span class="nb">false</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code> * Status: success
+
+ * Candidate solution
+    Final objective value:     4.130829e+00
+
+ * Found with
+    Algorithm:     BFGS
+
+ * Convergence measures
+    |x - x&#39;|               = 2.86e-07 ≰ 0.0e+00
+    |x - x&#39;|/|x&#39;|          = 4.80e-07 ≰ 0.0e+00
+    |f(x) - f(x&#39;)|         = 2.06e-12 ≰ 0.0e+00
+    |f(x) - f(x&#39;)|/|f(x&#39;)| = 4.98e-13 ≰ 0.0e+00
+    |g(x)|                 = 4.43e-09 ≤ 1.0e-08
+
+ * Work counters
+    Seconds run:   0  (vs limit Inf)
+    Iterations:    11
+    f(x) calls:    18
+    ∇f(x) calls:   12
+</code></pre></div>
+
+<p>With optimized parameters, we get much less uncertainty in our predictions.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">plot</span><span class="p">(</span><span class="mi">1</span><span class="o">:</span><span class="mf">0.01</span><span class="o">:</span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="n">posterior</span><span class="p">(</span><span class="n">NearestNeighbors</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span>
+<span class="w">    </span><span class="n">build_gp</span><span class="p">(</span><span class="n">unflatten</span><span class="p">(</span><span class="n">training_results</span><span class="o">.</span><span class="n">minimizer</span><span class="p">)),</span><span class="w"> </span><span class="n">y</span><span class="p">))</span>
+</code></pre></div>
+
+<p><img alt="png" src="/nearest_neighbor_gps_files/nearest_neighbor_gps_38_0.png" /></p>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
+
+    var configscript = document.createElement('script');
+    configscript.type = 'text/x-mathjax-config';
+    configscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    messageStyle: 'normal'," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        availableFonts: ['STIX', 'TeX']," +
+        "        preferredFont: 'STIX'," +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); " +
+        "if ('default' !== 'default') {" +
+            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+        "}";
+
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>
