@@ -18,7 +18,8 @@ AUTHOR_FEED_RSS = None
 MARKDOWN = {
     'extensions': [
         'fenced_code',
-        'codehilite'
+        'codehilite',
+        'tables'
     ],
     'extension_configs': {
         'codehilite': {'guess_lang': False}
@@ -30,8 +31,6 @@ LINKS = ()
 
 # Social widget
 SOCIAL = ()
-
-DEFAULT_PAGINATION = 10
 
 # Uncomment following line if you want document-relative URLs when developing
 # RELATIVE_URLS = True

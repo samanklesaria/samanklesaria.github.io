@@ -2,15 +2,16 @@
 title: Hop Lists
 date: 10/05/2024
 category: algorithms
+summary: *Hop Lists* are a novel retroactive set data-structure that allow for a branching timeline.
 ---
 
 ### Introduction
 
 *Hop Lists* are a novel retroactive set data-structure that allow for a branching timeline. Each hop list node $h_t$ is associated with a specific time $t$ and a randomly chosen height $L_t$. The interface consists of three methods:
 
-- $\text{current}(h_t)$ gets the set of elements we would see at time $t$. 
-- $\text{advance}(h_t)$ creates a new node $h_{t+1}$ allowing queries about the set at time $t+1$. 
-- $\text{push}(h_t, v)$ pushes the value $v$ into the set at time $t$. This value will now appear in the sets associated with all future times $t' >t$. 
+- $\text{current}(h_t)$ gets the set of elements we would see at time $t$.
+- $\text{advance}(h_t)$ creates a new node $h_{t+1}$ allowing queries about the set at time $t+1$.
+- $\text{push}(h_t, v)$ pushes the value $v$ into the set at time $t$. This value will now appear in the sets associated with all future times $t' >t$.
 
 Hop lists nodes store four fields: a set of underlying type $S$, a pointer to a predecessor node with heigh at least $L_t$, a list of the most recent nodes at each height, and a list of pointers to specific future nodes.
 
@@ -30,7 +31,7 @@ end
 Hop lists maintain the **Predecessor Property**:
 *If hop node $h_t$ has predecessor $h_s$, then $h_t$'s set must store all the elements pushed at times in the interval $(s, t]$*.
 
-This means we can find $\text{current}(h_t)$ by taking the union of $h_t$'s ancestors. 
+This means we can find $\text{current}(h_t)$ by taking the union of $h_t$'s ancestors.
 
 ```julia
 # Iteration jumps back through `pred` edges
@@ -42,7 +43,7 @@ Base.eltype(::Type{HopNode{S}}) where {S} = HopNode{S}
 current(h::HopNode) = mapreduce(a -> a.set, union, h)
 ```
 
-When we create a new hop node $h_{t'} = \text{advance}(h_t)$, we will set the predecessor to be `h_t.levels[l]` where $l = L_{t'} \sim \text{Geom}(0.5)$. To ensure that we maintain the *predecessor property*, we must take the the union of all the predecessor sets we find this way and store them in the new node's set. The new `levels` list should remove all entries below $L_t$ and add $h_t$. 
+When we create a new hop node $h_{t'} = \text{advance}(h_t)$, we will set the predecessor to be `h_t.levels[l]` where $l = L_{t'} \sim \text{Geom}(0.5)$. To ensure that we maintain the *predecessor property*, we must take the the union of all the predecessor sets we find this way and store them in the new node's set. The new `levels` list should remove all entries below $L_t$ and add $h_t$.
 
 ```julia
 function advance(h::HopNode)
@@ -79,7 +80,7 @@ function getpred(l::LinkedList{Pair{A,Int}}, n::Int) where {A}
 end
 ```
 
-For example, if we inserted 1 at time 1, 2 at time 2, and so on up to 6, we might get a HopNode structure that looks like this The black arrows here correspond to `pred` pointers, the x axis corresponds to time, and the $y$ axis gives the height $L_t$ of each node $h_t$. 
+For example, if we inserted 1 at time 1, 2 at time 2, and so on up to 6, we might get a HopNode structure that looks like this The black arrows here correspond to `pred` pointers, the x axis corresponds to time, and the $y$ axis gives the height $L_t$ of each node $h_t$.
 
 ![example]({attach}/Hop-Lists_files/hoplist_example.png)
 
@@ -95,7 +96,7 @@ function Base.push!(t::HopNode{S}, v) where {S}
     end
 end
 ```
-We still need to create these `succs` pointers in the first place. Each node should have an element of `succs` pointing to the closest future node with a higher height if one exists. 
+We still need to create these `succs` pointers in the first place. Each node should have an element of `succs` pointing to the closest future node with a higher height if one exists.
 
 To fit these requirements, we can modify the `advance` method as follows:
 
@@ -117,7 +118,7 @@ With the `succs` pointers visualized in red, the previous example looks as follo
 
 ![example2]({attach}Hop-Lists_files/hoplist_example_2.png)
 
-Note that `advance` can be called twice on the same node $h_t$, producing a branching timeline. Updates to $h_t$ will be propagated to both possible futures. This is why we need `succs` to be a vector rather than simply an optional pointer. 
+Note that `advance` can be called twice on the same node $h_t$, producing a branching timeline. Updates to $h_t$ will be propagated to both possible futures. This is why we need `succs` to be a vector rather than simply an optional pointer.
 
 ### Average Time and Space Complexity
 
@@ -125,11 +126,11 @@ If the size of our timeline is $n$, we'll have on average $n$ nodes with height 
 
 The average time complexity for `push` can be found analogously. The `push` operation follows `succ` pointers, where the  successor to a node is the closest future node with a higher height, if one exists. As traversing each `succ` pointer takes us to a higher height, the time complexity of `push` is just the largest height of any node in our timeline, which on average is also $O(\log n)$.
 
-The same logic allows us to find space complexity. Say we store at most $c$ elements in each time-slot. We know that the set associated with any time $t$ will be replicated at most $\log n$ times. So we use at most $cn \log n = O(n \log n)$ space for the `set` fields. For the `levels` field, each HopNode creates a single linked list node for its `levels` list, so this contributes $O(n)$ space. Each node's `succs` field will contain at most one element if the timeline does not branch, so once again we get a linear space contribution. This gives total space complexity $O(n \log n)$. 
+The same logic allows us to find space complexity. Say we store at most $c$ elements in each time-slot. We know that the set associated with any time $t$ will be replicated at most $\log n$ times. So we use at most $cn \log n = O(n \log n)$ space for the `set` fields. For the `levels` field, each HopNode creates a single linked list node for its `levels` list, so this contributes $O(n)$ space. Each node's `succs` field will contain at most one element if the timeline does not branch, so once again we get a linear space contribution. This gives total space complexity $O(n \log n)$.
 
 ### Concentration Bounds
 
-We know from the previous section that the time it takes to insert an element is at most the maximum height of any node in the timeline. The probability that the maximum height of any node in a timeline is above $k$ is 
+We know from the previous section that the time it takes to insert an element is at most the maximum height of any node in the timeline. The probability that the maximum height of any node in a timeline is above $k$ is
 $$
 \begin{align*}
 &1 - \prod_{i=1}^n P(h_i \text{ has height below $k$}) \\
@@ -144,7 +145,7 @@ But $\lim_{n \to \infty} \left(1 - \frac{1}{n^2}\right)^n = 1$. So the probabili
 
 
 
-To bound the number of backward hops taken by `current` queries, we can find the probability it takes $\leq k$ hops to iterate backwards from a node $h_n$ with height $1$. We can lower bound this by the probability that it takes $\leq k/L$ hops to get to a node with height 2, times the probability it takes $\leq k/L$ hops to get to a node with height 3, and so on up to the maximum height $L$. This is 
+To bound the number of backward hops taken by `current` queries, we can find the probability it takes $\leq k$ hops to iterate backwards from a node $h_n$ with height $1$. We can lower bound this by the probability that it takes $\leq k/L$ hops to get to a node with height 2, times the probability it takes $\leq k/L$ hops to get to a node with height 3, and so on up to the maximum height $L$. This is
 $$
 (1 - 2^{-k/L})^L
 $$
@@ -152,13 +153,13 @@ For $k = 2L\log_2 L$, we get the probability
 $$
 \left(1 - \frac{1}{L^2}\right)^L
 $$
-As $L \to \infty$ this converges to $1$, meaning that the probability a `current` query takes more than $2 L \log_2L$ time falls to zero. 
+As $L \to \infty$ this converges to $1$, meaning that the probability a `current` query takes more than $2 L \log_2L$ time falls to zero.
 
 
 
 ### Height-Free Variant
 
-We can construct a variant of the data structure described that does not use a `levels` list. Instead, when we create a new hop node $h_{t'} = \text{advance}(h_t)$, we will set the predecessor by sampling $n \sim \text{Geom}(0.5)$ and then taking $n$ predecessor hops back from $h_t$. Specifically, we would have 
+We can construct a variant of the data structure described that does not use a `levels` list. Instead, when we create a new hop node $h_{t'} = \text{advance}(h_t)$, we will set the predecessor by sampling $n \sim \text{Geom}(0.5)$ and then taking $n$ predecessor hops back from $h_t$. Specifically, we would have
 
 ```julia
 function advance(t::HopList2)
@@ -182,7 +183,7 @@ X_0 &= 0 \\
 X_t &= \max(0, X_{t-1} + 1 - G_t)
 \end{align*}
 $$
-where $G_t \sim \text{Geom}(0.5)$. Simulating samples from this stochastic process seems to indicate that $X_t$ scales as $\sqrt{t}$ rather than $\log t$ as in the original structure. But insertions into the height-free variant seem to be much faster than those into the original structure in practice. Thorough analysis of why this is the case remains to be done.  
+where $G_t \sim \text{Geom}(0.5)$. Simulating samples from this stochastic process seems to indicate that $X_t$ scales as $\sqrt{t}$ rather than $\log t$ as in the original structure. But insertions into the height-free variant seem to be much faster than those into the original structure in practice. Thorough analysis of why this is the case remains to be done.
 
 
 

@@ -25,3 +25,7 @@ content/%: notebooks/%
 
 clean:
 	rm -rf _notebooks content output
+
+publish: main
+	ghp-import output -b gh-pages
+	git push git@github.com:samanklesaria/samanklesaria.github.io.git gh-pages:main

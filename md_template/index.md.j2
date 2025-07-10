@@ -2,6 +2,7 @@
 title: {{ nb.metadata.get('title', resources['metadata']['name']) }}
 date: {{ nb.metadata.get('date', '11/11/2020') }}
 category: {{ nb.metadata.get('category') }}
+summary: {{ nb.metadata.get('summary', None) }}
 ---
 
 {% extends 'markdown/index.md.j2' %}

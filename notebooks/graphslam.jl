@@ -2,6 +2,7 @@
 # v0.20.11
 
 #> [frontmatter]
+#> summary = "Tracking a robot's motion with maximum likelihood estimation."
 #> title = "Graph SLAM"
 #> date = "07/22/2024"
 #> category = "slam"

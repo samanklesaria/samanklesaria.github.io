@@ -2,9 +2,12 @@
 title: Diagnosing Lack of Independence in Exogenous Variables
 date: 05/06/2024
 category: statistics
+summary: This post outlines a simple workflow for diagnosing lack of independence in `statsmodels`.
 ---
 
-While performing linear regression with `statsmodels`, you might occasionally find that your exogenous variables aren't independent, giving you a error about a singular matrix. To figure out exactly which variables are colinear, I tend to use the following recipe:
+While performing linear regression with `statsmodels`, you might occasionally find that your exogenous variables aren't independent, giving you a error about a singular matrix.
+
+To figure out exactly which variables are colinear, I tend to use the following recipe:
 
 1. Take the SVD of the design matrix $X = QSV^T$.
 2. Find a column of $V$ that corresponds to a zero singular value.
