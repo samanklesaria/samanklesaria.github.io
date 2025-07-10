@@ -6,7 +6,7 @@
                         <meta name="generator" content="Pelican" />
                         <title>Nearest Neighbor Gaussian Processes</title>
                         <link rel="stylesheet" href="/theme/css/main.css" />
-    <meta name="description" content="Nearest Neighbor Gaussian Processes In a \(k\)-Nearest Neighbor Gaussian Process, we assume that the input points \(x\) are ordered in such a way..." />
+    <meta name="description" content="In a k-Nearest Neighbor Gaussian Process, we assume that the input points \(x\) are ordered in such a way that \(f(x_i)\) is independent of..." />
         </head>
 
         <body id="index" class="home">
@@ -40,8 +40,7 @@
                 </address>
         <p>In <a href="/category/machine_learning.html">machine_learning</a>.</p>
         
-</footer><!-- /.post-info -->        <h2>Nearest Neighbor Gaussian Processes</h2>
-<p>In a <em><span class="math">\(k\)</span>-Nearest Neighbor Gaussian Process</em>, we assume that the input points <span class="math">\(x\)</span> are ordered in such a way that <span class="math">\(f(x_i)\)</span> is independent of <span class="math">\(f(x_j)\)</span> whenever <span class="math">\(i &gt; j + k\)</span>. When <span class="math">\(k=2\)</span>, for example, this means we can generate the sequence of process values by sampling the first value, then sampling the second given the first, then the third given the first two, then the fourth given the second and third, and so on.</p>
+</footer><!-- /.post-info -->        <p>In a <em><span class="math">\(k\)</span>-Nearest Neighbor Gaussian Process</em>, we assume that the input points <span class="math">\(x\)</span> are ordered in such a way that <span class="math">\(f(x_i)\)</span> is independent of <span class="math">\(f(x_j)\)</span> whenever <span class="math">\(i &gt; j + k\)</span>. When <span class="math">\(k=2\)</span>, for example, this means we can generate the sequence of process values by sampling the first value, then sampling the second given the first, then the third given the first two, then the fourth given the second and third, and so on.</p>
 <div class="math">$$
 \begin{align*}
 f_1 &amp;\sim p(f_1) \\
@@ -233,7 +232,7 @@ where <span class="math">\(B\)</span> is the strictly lower triangular matrix th
 <div class="codehilite"><pre><span></span><code><span class="n">plot</span><span class="p">(</span><span class="mi">1</span><span class="o">:</span><span class="mf">0.01</span><span class="o">:</span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="n">post</span><span class="p">)</span>
 </code></pre></div>
 
-<p><img alt="png" src="/nearest_neighbor_gps_files/nearest_neighbor_gps_29_0.png" /></p>
+<p><img alt="png" src="/nearest_neighbor_gps_files/nearest_neighbor_gps_28_0.png" /></p>
 <h2>Optimizing Hyperparameters</h2>
 <p>The last thing necessary to make this technique usable in practice is to ensure it works with autodifferentiation so that we can optimize hyperparameters like lengthscales.</p>
 <div class="codehilite"><pre><span></span><code><span class="k">using</span><span class="w"> </span><span class="n">ForwardDiff</span><span class="p">,</span><span class="w"> </span><span class="n">ParameterHandling</span><span class="p">,</span><span class="w"> </span><span class="n">Optim</span><span class="p">,</span><span class="w"> </span><span class="n">Zygote</span>
@@ -297,7 +296,7 @@ where <span class="math">\(B\)</span> is the strictly lower triangular matrix th
 <span class="w">    </span><span class="n">build_gp</span><span class="p">(</span><span class="n">unflatten</span><span class="p">(</span><span class="n">training_results</span><span class="o">.</span><span class="n">minimizer</span><span class="p">)),</span><span class="w"> </span><span class="n">y</span><span class="p">))</span>
 </code></pre></div>
 
-<p><img alt="png" src="/nearest_neighbor_gps_files/nearest_neighbor_gps_38_0.png" /></p>
+<p><img alt="png" src="/nearest_neighbor_gps_files/nearest_neighbor_gps_37_0.png" /></p>
 <script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
     var align = "center",
         indent = "0em",

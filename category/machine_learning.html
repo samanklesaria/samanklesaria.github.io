@@ -146,12 +146,37 @@
 <div class="codehilite"><pre><span></span><code><span class="n">Markdown</span><span class="p">(</span><span class="n">get_topics</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">to_markdown</span><span class="p">())</span>
 </code></pre></div>
 
-<p>|    | category                                                                                                                        |   n_docs |
-|---:|:--------------------------------------------------------------------------------------------------------------------------------|---------:|
-|  0 | Computer Graphics                                                                                                               |      706 |
-|  3 | Space Exploration and Development                                                                                               |      706 |
-|  2 | Debates about the existence of God and the nature of human reason, with a focus on criticizing Christian beliefs and practices. |      632 |
-|  1 | Social Commentary/Philosophy                                                                                                    |      613 |</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;"></th>
+<th style="text-align: left;">category</th>
+<th style="text-align: right;">n_docs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">Computer Graphics</td>
+<td style="text-align: right;">706</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td style="text-align: left;">Space Exploration and Development</td>
+<td style="text-align: right;">706</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td style="text-align: left;">Debates about the existence of God and the nature of human reason, with a focus on criticizing Christian beliefs and practices.</td>
+<td style="text-align: right;">632</td>
+</tr>
+<tr>
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">Social Commentary/Philosophy</td>
+<td style="text-align: right;">613</td>
+</tr>
+</tbody>
+</table>
 <p>Sounds about right!</p>                    </article>
                 </aside><!-- /#featured -->
                     <section id="content" class="body">
@@ -342,8 +367,8 @@
                 </address>
         <p>In <a href="/category/machine_learning.html">machine_learning</a>.</p>
         
-</footer><!-- /.post-info -->                        <h2>Nearest Neighbor Gaussian Processes</h2>
-<p>In a <em><span class="math">\(k\)</span>-Nearest Neighbor Gaussian Process</em>, we assume that the input points <span class="math">\(x\)</span> are ordered in such a way that <span class="math">\(f(x_i)\)</span> is independent of <span class="math">\(f(x_j)\)</span> whenever <span class="math">\(i &gt; j + k\)</span>. When <span class="math">\(k=2\)</span>, for example, this means we can generate the sequence of process …</p><script type='text/javascript'>if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+</footer><!-- /.post-info -->                        <p>In a <em>k-Nearest Neighbor Gaussian Process</em>, we assume that the input points <span class="math">\(x\)</span> are ordered in such a way that <span class="math">\(f(x_i)\)</span> is independent of <span class="math">\(f(x_j)\)</span> whenever...</p>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
     var align = "center",
         indent = "0em",
         linebreak = "false";
@@ -512,8 +537,7 @@
         <p>In <a href="/category/machine_learning.html">machine_learning</a>.</p>
         
 </footer><!-- /.post-info -->                        <p>Say you're trying to maximize a likelihood <span class="math">\(p_{\theta}(x)\)</span>, but you only have an unnormalized version <span class="math">\(\hat{p_{\theta}}\)</span> for which <span class="math">\(p_{\theta}(x) = \frac{\hat{p_\theta}(x)}{N_\theta}\)</span>. How do you pick <span class="math">\(\theta\)</span>? Well, you can rely on the magic of self normalized importance sampling.</p>
-<div class="math">$$
-\int …</div><script type='text/javascript'>if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
     var align = "center",
         indent = "0em",
         linebreak = "false";

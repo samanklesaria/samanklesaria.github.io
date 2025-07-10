@@ -6,7 +6,7 @@
                         <meta name="generator" content="Pelican" />
                         <title>Diagnosing Lack of Independence in Exogenous Variables</title>
                         <link rel="stylesheet" href="/theme/css/main.css" />
-    <meta name="description" content="While performing linear regression with statsmodels, you might occasionally find that your exogenous variables aren't independent, giving you a..." />
+    <meta name="description" content="This post outlines a simple workflow for diagnosing lack of independence in statsmodels." />
         </head>
 
         <body id="index" class="home">
@@ -40,7 +40,8 @@
                 </address>
         <p>In <a href="/category/statistics.html">statistics</a>.</p>
         
-</footer><!-- /.post-info -->        <p>While performing linear regression with <code>statsmodels</code>, you might occasionally find that your exogenous variables aren't independent, giving you a error about a singular matrix. To figure out exactly which variables are colinear, I tend to use the following recipe:</p>
+</footer><!-- /.post-info -->        <p>While performing linear regression with <code>statsmodels</code>, you might occasionally find that your exogenous variables aren't independent, giving you a error about a singular matrix.</p>
+<p>To figure out exactly which variables are colinear, I tend to use the following recipe:</p>
 <ol>
 <li>Take the SVD of the design matrix <span class="math">\(X = QSV^T\)</span>.</li>
 <li>Find a column of <span class="math">\(V\)</span> that corresponds to a zero singular value.</li>
