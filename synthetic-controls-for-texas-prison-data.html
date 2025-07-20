@@ -4,8 +4,9 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Sam's Blog - statistics</title>
+                        <title>Synthetic Controls for Texas Prison Data</title>
                         <link rel="stylesheet" href="/theme/css/main.css" />
+    <meta name="description" content="None" />
         </head>
 
         <body id="index" class="home">
@@ -20,10 +21,15 @@
                                                 <li><a href="/category/tools.html">tools</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="/synthetic-controls-for-texas-prison-data.html" rel="bookmark"
+             title="Permalink to Synthetic Controls for Texas Prison Data">Synthetic Controls for Texas Prison Data</a></h1>
+      </header>
 
-                <aside id="featured" class="body">
-                    <article>
-                        <h1 class="entry-title"><a href="/synthetic-controls-for-texas-prison-data.html">Synthetic Controls for Texas Prison Data</a></h1>
+      <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-01-25T00:00:00-06:00">
                 Published: Sat 25 January 2025
@@ -34,7 +40,7 @@
                 </address>
         <p>In <a href="/category/statistics.html">statistics</a>.</p>
         
-</footer><!-- /.post-info --><p>This post uses a synthetic control design to study whether Texas's prison building boom in 1993 resulted in them incarcerating more prisoners than they would have if their rate of prison building had continued as normal. The analysis will build off the one in the book <a href="https://mixtape.scunning.com/">Causal Inference: The Mixtable</a>, but will make use of techniques from Gelman's <a href="https://arxiv.org/pdf/2011.01808">Bayesian workflow</a>.</p>
+</footer><!-- /.post-info -->        <p>This post uses a synthetic control design to study whether Texas's prison building boom in 1993 resulted in them incarcerating more prisoners than they would have if their rate of prison building had continued as normal. The analysis will build off the one in the book <a href="https://mixtape.scunning.com/">Causal Inference: The Mixtable</a>, but will make use of techniques from Gelman's <a href="https://arxiv.org/pdf/2011.01808">Bayesian workflow</a>.</p>
 <p>As in the <em>Mixtape</em> book, we'll express Texas's incarceration rates over time as a mixture of those of other states with comparable poverty, alcoholiosm and incarceration rates in '93. Then, we'll use this mixture of other states to construct a "synthetic" counterfactual Texas which, like the states in the mixture, didn't have a prison building boom after '93. We can compare the difference between the true and synthetic Texas over time. </p>
 <div class="codehilite"><pre><span></span><code><span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
@@ -339,165 +345,11 @@
     (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
     (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
 }
-</script>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/synthetic-controls-in-texas-prison-data.html" rel="bookmark"
-                               title="Permalink to Synthetic Controls in Texas Prison Data">Synthetic Controls in Texas Prison Data</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-01-25T00:00:00-06:00">
-                Published: Sat 25 January 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/statistics.html">statistics</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This post uses a synthetic control design to study whether Texas's prison building boom in 1993 resulted in them incarcerating more prisoners than they would have if their rate of prison building had continued as normal. The analysis will build off the one in the book <a href="https://mixtape.scunning.com/">Causal Inference: The Mixtable …</a></p>
-                        <a class="readmore" href="/synthetic-controls-in-texas-prison-data.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/matching-in-observational-studies.html" rel="bookmark"
-                               title="Permalink to Matching in Observational Studies">Matching in Observational Studies</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-01-09T00:00:00-06:00">
-                Published: Thu 09 January 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/statistics.html">statistics</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>A 'matching' quasi-experimental design controls for confounder variables <span class="math">\(x\)</span> by estimating what the control outcomes <span class="math">\(y\)</span> would be if the control population had the same values of <span class="math">\(x\)</span> as the treatment population. To do this, we regress outcomes in the control population on <span class="math">\(x\)</span>, and apply this regression model to …</p><script type='text/javascript'>if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
-    var align = "center",
-        indent = "0em",
-        linebreak = "false";
-
-    if (false) {
-        align = (screen.width < 768) ? "left" : align;
-        indent = (screen.width < 768) ? "0em" : indent;
-        linebreak = (screen.width < 768) ? 'true' : linebreak;
-    }
-
-    var mathjaxscript = document.createElement('script');
-    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
-    mathjaxscript.type = 'text/javascript';
-    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
-
-    var configscript = document.createElement('script');
-    configscript.type = 'text/x-mathjax-config';
-    configscript[(window.opera ? "innerHTML" : "text")] =
-        "MathJax.Hub.Config({" +
-        "    config: ['MMLorHTML.js']," +
-        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
-        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
-        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
-        "    displayAlign: '"+ align +"'," +
-        "    displayIndent: '"+ indent +"'," +
-        "    showMathMenu: true," +
-        "    messageStyle: 'normal'," +
-        "    tex2jax: { " +
-        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
-        "        displayMath: [ ['$$','$$'] ]," +
-        "        processEscapes: true," +
-        "        preview: 'TeX'," +
-        "    }, " +
-        "    'HTML-CSS': { " +
-        "        availableFonts: ['STIX', 'TeX']," +
-        "        preferredFont: 'STIX'," +
-        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
-        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
-        "    }, " +
-        "}); " +
-        "if ('default' !== 'default') {" +
-            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-        "}";
-
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
-}
 </script>
-                        <a class="readmore" href="/matching-in-observational-studies.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
+      </div><!-- /.entry-content -->
 
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/diagnosing-lack-of-independence-in-exogenous-variables.html" rel="bookmark"
-                               title="Permalink to Diagnosing Lack of Independence in Exogenous Variables">Diagnosing Lack of Independence in Exogenous Variables</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-05-06T00:00:00-05:00">
-                Published: Mon 06 May 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/statistics.html">statistics</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This post outlines a simple workflow for diagnosing lack of independence in <code>statsmodels</code>.</p>
-                        <a class="readmore" href="/diagnosing-lack-of-independence-in-exogenous-variables.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/sparse-variational-gaussian-processes.html" rel="bookmark"
-                               title="Permalink to Sparse Variational Gaussian Processes">Sparse Variational Gaussian Processes</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2021-09-20T00:00:00-05:00">
-                Published: Mon 20 September 2021
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/statistics.html">statistics</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This notebook introduces <em>Fully Independent Training Conditional</em> (FITC) sparse variational Gaussian process model. You shouldn't need any prior knowledge about Gaussian processes- it's enough to know how to condition and marginalize finite dimensional Gaussian distributions. I'll assume you know about variational inference and Pyro, though.</p>
-<div class="codehilite"><pre><span></span><code><span class="kn">import</span> <span class="nn">pyro</span>
-<span class="kn">import</span> <span class="nn">pyro.distributions …</span></code></pre></div>
-                        <a class="readmore" href="/sparse-variational-gaussian-processes.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-                    </ol><!-- /#posts-list -->
-                    </section><!-- /#content -->
+    </article>
+  </section>
                 <section id="extras" class="body">
                 </section><!-- /#extras -->
 

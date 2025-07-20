@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                        <meta name="generator" content="Pelican" />
+                        <title>Sparse Variational Gaussian Processes</title>
+                        <link rel="stylesheet" href="/theme/css/main.css" />
+    <meta name="description" content="This notebook introduces Fully Independent Training Conditional (FITC) sparse variational Gaussian process model. You shouldn't need any prior..." />
+        </head>
+
+        <body id="index" class="home">
+                <header id="banner" class="body">
+                        <h1><a href="/">Sam's Blog</a></h1>
+                        <nav><ul>
+                                                <li><a href="/category/algorithms.html">algorithms</a></li>
+                                                <li><a href="/category/machine_learning.html">machine_learning</a></li>
+                                                <li><a href="/category/math.html">math</a></li>
+                                                <li><a href="/category/slam.html">slam</a></li>
+                                                <li class="active"><a href="/category/statistics.html">statistics</a></li>
+                                                <li><a href="/category/tools.html">tools</a></li>
+                        </ul></nav>
+                </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="/sparse-variational-gaussian-processes.html" rel="bookmark"
+             title="Permalink to Sparse Variational Gaussian Processes">Sparse Variational Gaussian Processes</a></h1>
+      </header>
+
+      <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2021-09-20T00:00:00-05:00">
+                Published: Mon 20 September 2021
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
+                </address>
+        <p>In <a href="/category/statistics.html">statistics</a>.</p>
+        
+</footer><!-- /.post-info -->        <p>This notebook introduces <em>Fully Independent Training Conditional</em> (FITC) sparse variational Gaussian process model. You shouldn't need any prior knowledge about Gaussian processes- it's enough to know how to condition and marginalize finite dimensional Gaussian distributions. I'll assume you know about variational inference and Pyro, though.</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">import</span> <span class="nn">pyro</span>
+<span class="kn">import</span> <span class="nn">pyro.distributions</span> <span class="k">as</span> <span class="nn">dist</span>
+<span class="kn">from</span> <span class="nn">pyro</span> <span class="kn">import</span> <span class="n">poutine</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">pyro.infer</span> <span class="kn">import</span> <span class="n">SVI</span><span class="p">,</span> <span class="n">Trace_ELBO</span><span class="p">,</span> <span class="n">Predictive</span>
+<span class="kn">from</span> <span class="nn">torch.distributions.transforms</span> <span class="kn">import</span> <span class="n">LowerCholeskyTransform</span>
+<span class="kn">import</span> <span class="nn">gpytorch</span> <span class="k">as</span> <span class="nn">gp</span>
+</code></pre></div>
+
+<p>Say we observe some data <span class="math">\(x_1, x_2, \dotsc\)</span>. </p>
+<div class="codehilite"><pre><span></span><code><span class="n">xs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">50</span><span class="p">)</span>
+</code></pre></div>
+
+<p>Assume there's an unknown function <span class="math">\(f\)</span> that maps each data point <span class="math">\(x_i\)</span> to an unknown value <span class="math">\(f_i\)</span>. </p>
+<div class="codehilite"><pre><span></span><code><span class="n">fs</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">torch</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">xs</span><span class="p">)</span>
+</code></pre></div>
+
+<p>And each <span class="math">\(f_i\)</span> is associated with an observed noisy version <span class="math">\(y_i\)</span>. </p>
+<div class="codehilite"><pre><span></span><code><span class="n">ys</span> <span class="o">=</span> <span class="n">fs</span> <span class="o">+</span> <span class="mf">0.4</span><span class="o">*</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">xs</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">);</span>
+</code></pre></div>
+
+<p><img alt="png" src="/{attach}sparsegp/output_8_0.png" /></p>
+<p>Say we have some additional inputs <span class="math">\(x_1^\ast, x_2^\ast, \dotsc\)</span>
+and we want to estimate the associated <span class="math">\(f^\ast_1, f^\ast_2, \dotsc\)</span>. We'll assume that the <span class="math">\(f_i\)</span> and <span class="math">\(f^\ast\)</span>, along with a latent vector <span class="math">\(u\)</span> of outouts at known inputs <span class="math">\(z\)</span>, are all jointly Gaussian. The <span class="math">\(u_i\)</span> are known as <em>inducing points</em>. We'll ensure that the conditional covariance structure is sparse, however: <span class="math">\(f_i\)</span> will be conditionally independent given <span class="math">\(u\)</span>. This will keep the computation of the posterior tractable, even when we have a large number of training points <span class="math">\(f\)</span>.</p>
+<p>Specifically, say
+</p>
+<div class="math">$$
+\begin{bmatrix} u \\ f \\ f^* \end{bmatrix} \sim \mathcal{N}\left(0, \begin{bmatrix} K_{uu}  &amp; K_{uf} &amp; K_{u*} \\ K_{fu} &amp; D_{ff} &amp; K_{fu}K_{uu}^{-1}K_{u*} \\ K_{*u} &amp; K_{*u}K_{uu}^{-1}K_{uf} &amp; K_{**} \end{bmatrix} \right)
+$$</div>
+<p>The expressions for conditionally independent covariances keep popping up, so We'll abbreviate <span class="math">\(K_{au}K_{uu}^{-1}K_{ub}\)</span> as <span class="math">\(Q_{ab}\)</span>. 
+Using the standard Gaussian conditioning formula, we find that </p>
+<div class="math">$$
+\begin{bmatrix} f \\ f^* \end{bmatrix} \,  \bigg \vert \, u \sim \mathcal{N} \left(
+\begin{bmatrix} K_{fu}K_{uu}^{-1}u \\ K_{*u}K_{uu}^{-1}u \end{bmatrix}
+, \begin{bmatrix}  D_{ff} - Q_{ff} &amp; Q_{f*} \\ Q_{*f} &amp; K_{**} - Q_{**}\end{bmatrix} \right)
+$$</div>
+<p>We'll choose <span class="math">\(D_{ff}\)</span> so that <span class="math">\(D_{ff} - Q_{ff}\)</span> is diagonal. Specifically, we'll let <span class="math">\(D_{ff} = Q_{ff} + \text{Diag}(I - Q_{ff})\)</span>.</p>
+<p>It remains to choose the dense covariances <span class="math">\(K_{uu}\)</span>. We'll choose a covariance structure that makes <span class="math">\(u_i\)</span> and <span class="math">\(u_j\)</span> close when <span class="math">\(z_i\)</span> and <span class="math">\(z_j\)</span> are. </p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">kernel</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="o">*</span><span class="p">((</span><span class="n">a</span><span class="p">[:,</span><span class="kc">None</span><span class="p">]</span> <span class="o">-</span> <span class="n">b</span><span class="p">[</span><span class="kc">None</span><span class="p">,:])</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">z</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">k_uu</span> <span class="o">=</span> <span class="n">kernel</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+<span class="n">k_uu_chol</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">k_uu</span><span class="p">)</span>
+<span class="n">k_uu_inv</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cholesky_inverse</span><span class="p">(</span><span class="n">k_uu_chol</span><span class="p">)</span>
+<span class="n">k_fu</span> <span class="o">=</span> <span class="n">kernel</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
+<span class="n">k_ff_given_u</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">-</span> <span class="p">(</span><span class="n">k_fu</span> <span class="o">@</span> <span class="n">k_uu_inv</span> <span class="o">@</span> <span class="n">k_fu</span><span class="o">.</span><span class="n">T</span><span class="p">))</span> <span class="o">+</span> <span class="mf">1e-5</span>
+<span class="n">conditioner</span> <span class="o">=</span> <span class="n">k_fu</span> <span class="o">@</span> <span class="n">k_uu_inv</span>
+</code></pre></div>
+
+<p>This gives us a fully generative prior for the function values <span class="math">\(f\)</span> and inducing points <span class="math">\(u\)</span>.</p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="n">obs</span><span class="p">):</span>
+    <span class="n">u</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s2">&quot;u&quot;</span><span class="p">,</span> <span class="n">dist</span><span class="o">.</span><span class="n">MultivariateNormal</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">k_uu_inv</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">precision_matrix</span><span class="o">=</span> <span class="n">k_uu_inv</span><span class="p">))</span>
+    <span class="k">with</span> <span class="n">pyro</span><span class="o">.</span><span class="n">plate</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">):</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s2">&quot;f&quot;</span><span class="p">,</span> <span class="n">dist</span><span class="o">.</span><span class="n">Normal</span><span class="p">(</span><span class="n">conditioner</span> <span class="o">@</span> <span class="n">u</span><span class="p">,</span> <span class="n">k_ff_given_u</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">pyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s2">&quot;obs&quot;</span><span class="p">,</span> <span class="n">dist</span><span class="o">.</span><span class="n">Normal</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="mf">0.16</span><span class="p">),</span> <span class="n">obs</span><span class="o">=</span><span class="n">obs</span><span class="p">)</span> 
+</code></pre></div>
+
+<p>We'll assume that the posterior over <span class="math">\(u\)</span> given our observations <span class="math">\(y\)</span> is Gaussian as well.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">lower_cholesky</span> <span class="o">=</span> <span class="n">LowerCholeskyTransform</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">guide</span><span class="p">(</span><span class="n">obs</span><span class="p">):</span>
+    <span class="n">M</span> <span class="o">=</span> <span class="n">k_uu_inv</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">param</span><span class="p">(</span><span class="s2">&quot;m&quot;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">M</span><span class="p">))</span>
+    <span class="n">S</span> <span class="o">=</span> <span class="n">lower_cholesky</span><span class="p">(</span><span class="n">pyro</span><span class="o">.</span><span class="n">param</span><span class="p">(</span><span class="s2">&quot;S&quot;</span><span class="p">,</span> <span class="n">k_uu_chol</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">pyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s2">&quot;u&quot;</span><span class="p">,</span> <span class="n">dist</span><span class="o">.</span><span class="n">MultivariateNormal</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">scale_tril</span><span class="o">=</span><span class="n">S</span><span class="p">))</span>
+</code></pre></div>
+
+<p>This guide only covers <span class="math">\(u\)</span>, not <span class="math">\(f\)</span>. The conditional distribution of <span class="math">\(f\)</span> given <span class="math">\(u\)</span> will be the same as in the prior because it's independent of <span class="math">\(y\)</span>. To let the model know that the associated guide has the same conditional distribution for <span class="math">\(f\)</span>, we use Pyro's <code>block</code> function. As <span class="math">\(y\)</span> here is Normally distributed about <span class="math">\(f\)</span>, we could analytically marginalize out <span class="math">\(f\)</span>. But we'll keep things simple and use samples of <span class="math">\(f\)</span> instead. </p>
+<div class="codehilite"><pre><span></span><code><span class="n">marginalized_model</span> <span class="o">=</span> <span class="n">poutine</span><span class="o">.</span><span class="n">block</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">hide</span><span class="o">=</span><span class="s2">&quot;f&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<h2>Training</h2>
+<p>We can fit the parameters in our variational approximation to maximize the ELBO using a standard Pyro training loop.</p>
+<div class="codehilite"><pre><span></span><code><span class="n">adam</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">({</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">0.03</span><span class="p">})</span>
+<span class="n">svi</span> <span class="o">=</span> <span class="n">SVI</span><span class="p">(</span><span class="n">marginalized_model</span><span class="p">,</span> <span class="n">guide</span><span class="p">,</span> <span class="n">adam</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="n">Trace_ELBO</span><span class="p">())</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">pyro</span><span class="o">.</span><span class="n">clear_param_store</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1500</span><span class="p">):</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">svi</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">ys</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">j</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>8269.271677017212
+926.9810304641724
+341.00060176849365
+297.3144989013672
+317.0104932785034
+215.36338233947754
+176.66253185272217
+205.85192108154297
+285.5180616378784
+201.31714820861816
+234.66797637939453
+252.92035484313965
+237.8198699951172
+184.29428958892822
+169.9394235610962
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">pred</span> <span class="o">=</span> <span class="n">Predictive</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">guide</span><span class="o">=</span><span class="n">guide</span><span class="p">,</span> <span class="n">num_samples</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">samples</span> <span class="o">=</span> <span class="n">pred</span><span class="p">(</span><span class="kc">None</span><span class="p">)[</span><span class="s1">&#39;f&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span><span class="mi">10</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">samples</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">);</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">pyro</span><span class="o">.</span><span class="n">param</span><span class="p">(</span><span class="s2">&quot;m&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">xs</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">ys</span><span class="o">.</span><span class="n">numpy</span><span class="p">());</span>
+</code></pre></div>
+
+<p><img alt="png" src="/{attach}sparsegp/output_28_0.png" /></p>
+<h1>Using GPytorch</h1>
+<p>This approach to inference has is also available in pre-packaged from from the GPytorch library. </p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span> <span class="nc">GPModel</span><span class="p">(</span><span class="n">gp</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">ApproximateGP</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_inducing</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="n">variational_strategy</span> <span class="o">=</span> <span class="n">gp</span><span class="o">.</span><span class="n">variational</span><span class="o">.</span><span class="n">VariationalStrategy</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="n">num_inducing</span><span class="p">),</span>
+            <span class="n">gp</span><span class="o">.</span><span class="n">variational</span><span class="o">.</span><span class="n">CholeskyVariationalDistribution</span><span class="p">(</span><span class="n">num_inducing_points</span><span class="o">=</span><span class="n">num_inducing</span><span class="p">))</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">variational_strategy</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mean_module</span> <span class="o">=</span> <span class="n">gp</span><span class="o">.</span><span class="n">means</span><span class="o">.</span><span class="n">ConstantMean</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">covar_module</span> <span class="o">=</span> <span class="n">gp</span><span class="o">.</span><span class="n">kernels</span><span class="o">.</span><span class="n">ScaleKernel</span><span class="p">(</span><span class="n">gp</span><span class="o">.</span><span class="n">kernels</span><span class="o">.</span><span class="n">RBFKernel</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_module</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">covar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">covar_module</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">gp</span><span class="o">.</span><span class="n">distributions</span><span class="o">.</span><span class="n">MultivariateNormal</span><span class="p">(</span><span class="n">mean</span><span class="p">,</span> <span class="n">covar</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">gp_model</span> <span class="o">=</span> <span class="n">GPModel</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">guide</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="n">pyro</span><span class="o">.</span><span class="n">module</span><span class="p">(</span><span class="s2">&quot;gp&quot;</span><span class="p">,</span> <span class="n">gp_model</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">pyro</span><span class="o">.</span><span class="n">plate</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">):</span>
+        <span class="n">pyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s2">&quot;f&quot;</span><span class="p">,</span> <span class="n">gp_model</span><span class="o">.</span><span class="n">pyro_guide</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">pyro</span><span class="o">.</span><span class="n">plate</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">):</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s2">&quot;f&quot;</span><span class="p">,</span> <span class="n">gp_model</span><span class="o">.</span><span class="n">pyro_model</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">pyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s2">&quot;obs&quot;</span><span class="p">,</span> <span class="n">dist</span><span class="o">.</span><span class="n">Normal</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="mf">1.</span><span class="p">),</span> <span class="n">obs</span><span class="o">=</span><span class="n">y</span><span class="p">)</span> 
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">gp_model</span><span class="o">.</span><span class="n">train</span><span class="p">();</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">adam</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">({</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">0.03</span><span class="p">})</span>
+<span class="n">svi</span> <span class="o">=</span> <span class="n">SVI</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">guide</span><span class="p">,</span> <span class="n">adam</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="n">Trace_ELBO</span><span class="p">(</span><span class="n">retain_graph</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">pyro</span><span class="o">.</span><span class="n">clear_param_store</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1000</span><span class="p">):</span>
+    <span class="n">gp_model</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">svi</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">j</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>108.06522274017334
+70.28253173828125
+71.7653317451477
+70.8886947631836
+72.2854871749878
+77.09591293334961
+66.6847620010376
+71.59606075286865
+63.947476387023926
+79.98937606811523
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">gp_model</span><span class="o">.</span><span class="n">eval</span><span class="p">();</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">pred</span> <span class="o">=</span> <span class="n">Predictive</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">guide</span><span class="o">=</span><span class="n">guide</span><span class="p">,</span> <span class="n">num_samples</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">pred</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="kc">None</span><span class="p">)[</span><span class="s1">&#39;f&#39;</span><span class="p">]</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">z</span> <span class="o">=</span> <span class="n">gp_model</span><span class="o">.</span><span class="n">variational_strategy</span><span class="o">.</span><span class="n">inducing_points</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+<span class="n">m</span> <span class="o">=</span> <span class="n">gp_model</span><span class="o">.</span><span class="n">variational_strategy</span><span class="o">.</span><span class="n">_variational_distribution</span><span class="o">.</span><span class="n">variational_mean</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span><span class="mi">10</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">samples</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">xs</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">ys</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>&lt;matplotlib.collections.PathCollection at 0x7fbb1d882790&gt;
+</code></pre></div>
+
+<p><img alt="png" src="/{attach}sparsegp/output_41_1.png" /></p>
+<h1>Using a non-Gaussian Likelihood</h1>
+<p>We don't always need <span class="math">\(y\)</span> to be a version of <span class="math">\(f\)</span> with added noise. We can use an arbitrary stochastic function of <span class="math">\(f\)</span>. For example, say we observe discrete count data instead. We'd like our likelihood to be Poisson. </p>
+<div class="codehilite"><pre><span></span><code><span class="n">gp_model</span> <span class="o">=</span> <span class="n">GPModel</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">pyro</span><span class="o">.</span><span class="n">plate</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">):</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s2">&quot;f&quot;</span><span class="p">,</span> <span class="n">gp_model</span><span class="o">.</span><span class="n">pyro_model</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">pyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s2">&quot;obs&quot;</span><span class="p">,</span> <span class="n">dist</span><span class="o">.</span><span class="n">Poisson</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">softplus</span><span class="p">(</span><span class="n">f</span><span class="p">)),</span> <span class="n">obs</span><span class="o">=</span><span class="n">y</span><span class="p">)</span> 
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">latent_fs</span> <span class="o">=</span> <span class="n">xs</span><span class="o">**</span><span class="mi">2</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">ys</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">Poisson</span><span class="p">(</span><span class="n">latent_fs</span><span class="p">)</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">latent_fs</span><span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/{attach}sparsegp/output_48_1.png" /></p>
+<div class="codehilite"><pre><span></span><code><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/{attach}sparsegp/output_49_1.png" /></p>
+<div class="codehilite"><pre><span></span><code><span class="n">gp_model</span><span class="o">.</span><span class="n">train</span><span class="p">();</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">adam</span> <span class="o">=</span> <span class="n">pyro</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">({</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">0.03</span><span class="p">})</span>
+<span class="n">svi</span> <span class="o">=</span> <span class="n">SVI</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">guide</span><span class="p">,</span> <span class="n">adam</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="n">Trace_ELBO</span><span class="p">(</span><span class="n">retain_graph</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">pyro</span><span class="o">.</span><span class="n">clear_param_store</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1000</span><span class="p">):</span>
+    <span class="n">gp_model</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">svi</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">j</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>5798.9597454071045
+1725.3109169006348
+924.9359188079834
+664.2655711174011
+546.4507675170898
+516.206377029419
+475.42826652526855
+491.79768562316895
+444.60411643981934
+447.5388412475586
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">gp_model</span><span class="o">.</span><span class="n">eval</span><span class="p">();</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">pred</span> <span class="o">=</span> <span class="n">Predictive</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">guide</span><span class="o">=</span><span class="n">guide</span><span class="p">,</span> <span class="n">num_samples</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">pred</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="kc">None</span><span class="p">)[</span><span class="s1">&#39;f&#39;</span><span class="p">]</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span><span class="mi">10</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">F</span><span class="o">.</span><span class="n">softplus</span><span class="p">(</span><span class="n">samples</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">)</span>
+</code></pre></div>
+
+<p><img alt="png" src="/{attach}sparsegp/output_56_1.png" /></p>
+<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+
+    var mathjaxscript = document.createElement('script');
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
+
+    var configscript = document.createElement('script');
+    configscript.type = 'text/x-mathjax-config';
+    configscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    messageStyle: 'normal'," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'TeX'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        availableFonts: ['STIX', 'TeX']," +
+        "        preferredFont: 'STIX'," +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); " +
+        "if ('default' !== 'default') {" +
+            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+        "}";
+
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script>
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+                <section id="extras" class="body">
+                </section><!-- /#extras -->
+
+                <footer id="contentinfo" class="body">
+                        <address id="about" class="vcard body">
+                                Proudly powered by <a rel="nofollow" href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a rel="nofollow" href="https://www.python.org/">Python</a>.
+                        </address><!-- /#about -->
+
+                        <p>The theme is by <a rel="nofollow" href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                </footer><!-- /#contentinfo -->
+
+        </body>
+</html>
