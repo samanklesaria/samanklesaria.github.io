@@ -75,7 +75,7 @@ md"The following code averages the decision probability over quasi Monte Carlo s
 # ╔═╡ 9a4bc5c3-5560-494f-b039-e18a631c4d30
 """If θ are the true params, what is the probability we'll be able to make
 a reject/accept decision after n observations for each arm?"""
-function decision_prob(θ, n, k; m=80)
+function decision_prob(θ, n, k, prior_means, prior_precs; m=80)
 	X = [ones(k,1) StatsModels.ContrastsMatrix(DummyCoding(), 1:k).matrix]
 	dists = Binomial.(n, logistic.(X * θ))
 	samples = QuasiMonteCarlo.sample(m, k, SobolSample())
@@ -84,15 +84,15 @@ function decision_prob(θ, n, k; m=80)
 		function gh(t)
 			y = logistic.(X * t)
 			vals = succs .* (y .- 1) .+ (n .- succs) .* y
-			g = [sum(vals); vals[2:end]] .+ t
-			H = I + sum(zip(y, eachrow(X))) do (yi, r)
+			g = [sum(vals); vals[2:end]] .+ (t .- prior_means) .* prior_precs
+			H = Diagonal(prior_precs) + sum(zip(y, eachrow(X))) do (yi, r)
 				n * yi * (1 - yi) * Symmetric(r * r')
 			end
 			g, H
 		end
 		mode, H = newton(gh, Vector(θ))
 		covar = inv(H)
-		c = cdf.(Normal.(mode, diag(covar)), 1.1)
+		c = cdf.(Normal.(mode[2:end], diag(covar)[2:end]), log(1.1))
 		Float32(all(c .> 0.95) | any(c .< 0.05))
 	end
 end;
@@ -106,11 +106,17 @@ md"We also need to average the decision probability over our prior for θ."
 function avg_decision_prob(total_n, k, m=80)
 	n = div(total_n, k)
 	samples = QuasiMonteCarlo.sample(m, k, SobolSample())
-	full_priors = [priors; fill(priors[3], k-2)]
+	if k == 2
+		full_priors = priors[1:2]
+	else
+		full_priors = [priors; fill(priors[3], k-3)]
+	end
+	prior_means = mean.(full_priors)
+	prior_precs = 1 ./ var.(full_priors)
 	prior_samples = stack([quantile.(p, c) for (p,c) in
 								  zip(full_priors, eachrow(samples))])
 	mean(eachrow(prior_samples)) do θ
-		decision_prob(θ, n, k)
+		decision_prob(θ, n, k, prior_means, prior_precs)
 	end
 end;
 
@@ -125,7 +131,7 @@ ax = Axis(f[1, 1],
 		  yminorticks = IntervalsBetween(5),
 		  title="Sample Size Requirements",
 		  xlabel="samples", ylabel="decision probability")
-ns = 60:20:600
+ns = 100:100:5000
 for k in 2:5
 	probs = avg_decision_prob.(ns, k)
 	lines!(ax, ns, probs, label="$k arms")
