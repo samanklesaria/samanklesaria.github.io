@@ -10,7 +10,7 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ 41aa7c1e-6c89-11f0-20b5-23544b4b168d
-using LogExpFunctions, LinearAlgebra, Distributions, QuasiMonteCarlo, CairoMakie, StatsModels
+using LogExpFunctions, LinearAlgebra, Distributions, QuasiMonteCarlo, CairoMakie, StatsModels, PythonCall
 
 # ╔═╡ 3e88594e-537a-41cd-9565-dcf9b2b39da5
 md"""
@@ -19,11 +19,11 @@ This post highlights a Bayesian approach to sample size estimation in A/B/n test
 
 # ╔═╡ beee3790-7dfe-4726-bb59-603ae1bf0d82
 md"""
-We'll start with a prior over the response rates of each message. Choosing an independent prior over the rates for each message would be overly naive: all the messages will likely give very similar response rates, so if we know the rate for one message, we'll have a good guess about the rates for other messages too. Instead, we'll choose one message to be a baseline, giving it a response rate prior centered at 7%. We'll sample independent factors of this baseline to give the response rates for the other messages.
+We'll start with a prior over the response rates of each message. Choosing an independent prior over the rates for each message would be overly naive: all the messages will likely give very similar response rates, so if we know the rate for one message, we'll have a good guess about the rates for other messages too. Instead, we'll choose one message to be a baseline, giving it a response rate prior centered at 7%. We'll sample independent multiples of this baseline to give the response rates for the other messages.
 """
 
 # ╔═╡ 5f496107-c477-4a7f-b9bb-f4b2b78aeb07
-priors = [Normal(logit(0.07), 0.5), Normal(log(1.1), log(1.3)), Normal(0, log(1.3))];
+priors = [Normal(logit(0.07), 0.5), Normal(0, log(1.3))];
 
 # ╔═╡ 8a93d462-96f2-4996-9c5b-bbf58607649b
 function plot_prior(p, transform, title)
@@ -39,10 +39,7 @@ end;
 plot_prior(priors[1], logistic, "Control success probability")
 
 # ╔═╡ da816f56-f783-4d5e-b498-00786888ed45
-plot_prior(priors[2], exp, "Odds ratio for best arm")
-
-# ╔═╡ 5ac507db-76b1-477a-8d4f-6c1f166a9658
-plot_prior(priors[3], exp, "Odds ratio for other arms")
+plot_prior(priors[2], exp, "Odds ratio")
 
 # ╔═╡ b8f0b297-73d8-4348-8627-781f339d8302
 md"""
@@ -106,11 +103,7 @@ md"We also need to average the decision probability over our prior for θ."
 function avg_decision_prob(total_n, k, m=80)
 	n = div(total_n, k)
 	samples = QuasiMonteCarlo.sample(m, k, SobolSample())
-	if k == 2
-		full_priors = priors[1:2]
-	else
-		full_priors = [priors; fill(priors[3], k-3)]
-	end
+	full_priors = [priors; fill(priors[2], k-2)]
 	prior_means = mean.(full_priors)
 	prior_precs = 1 ./ var.(full_priors)
 	prior_samples = stack([quantile.(p, c) for (p,c) in
@@ -129,11 +122,94 @@ f = Figure()
 ax = Axis(f[1, 1],
 		  yminorgridvisible=true,
 		  yminorticks = IntervalsBetween(5),
-		  title="Sample Size Requirements",
+		  title="Sample Size Requirements for Correlated Priors",
 		  xlabel="samples", ylabel="decision probability")
 ns = 100:100:5000
 for k in 2:5
 	probs = avg_decision_prob.(ns, k)
+	lines!(ax, ns, probs, label="$k arms")
+end
+Legend(f[1, 2], ax)
+f
+end
+
+# ╔═╡ 4cfc8d2e-e496-4f0d-b76a-81bf8909b380
+md"""
+## Estimates From Independent Priors
+
+If we had used a simple Beta-Bernoulli model assuming the each of the message rate priors were independent, our estimates of required sample size would be slightly inflated. 
+
+Previously, we used a Normal prior over the log odds of getting a response. But with a Beta distribution, we'll want to model the probability of getting a response directly. Applying the logistic transformation to samples from a Normal distribution produces samples from a logit-normal distribution, which gives us the response probabilities we had in the first section.
+"""
+
+# ╔═╡ e9adbda4-c851-490b-bfed-4bb75e0f67e3
+qs = quantile(LogitNormal(params(priors[1])...), [0.05, 0.95]);
+
+# ╔═╡ 3d7d0e48-254d-4f63-aca7-76f479b2f597
+md"""
+We'll use the `preliz` python package to find a similar Beta distribution to use for our independent Beta prior. 
+"""
+
+# ╔═╡ b3b6e0ae-16ec-4a33-ab5f-b3f9d5e556e4
+pz = pyimport("preliz");
+
+# ╔═╡ 32e3fdb2-5f59-4eaf-b18e-08915515598a
+let 
+	dist = pz.Beta()
+	pz.maxent(dist, lower=qs[1], upper=qs[2], mass=0.9)
+	dist
+end
+
+# ╔═╡ a3d70575-f93c-4864-8826-73af63d1e966
+md"It seems like the Beta distribution parameters must comparable to our original setting are `5.49` and `55.4`."
+
+# ╔═╡ fc2a7300-961b-4215-bd8c-5796115b2ee3
+beta_prior = Beta(5.49, 55.4)
+
+# ╔═╡ 2346e92f-faff-45bc-aa6a-27d7836f1818
+md"""
+Once again, we can simulate the decision probability for different numbers of samples. The curve looks similar to what we observed above, but while 4k samples got us to 95% previously, it now gets us below 80%.
+"""
+
+# ╔═╡ c918ade2-15b2-457d-98a9-43de217d2913
+"""If p are the true params, what is the probability we'll be able to make
+a reject/accept decision after n observations for each arm?"""
+function indep_decision_prob(p, n, k, prior_a, prior_b; m=80)
+	dists = Binomial.(n, p)
+	samples = QuasiMonteCarlo.sample(m, k, SobolSample())
+	succs = stack([quantile.(d, s) for (d,s) in zip(dists, eachrow(samples))])
+	mean(eachrow(succs)) do succs
+		posts = Beta.(prior_a .+ succs, prior_b .+ (n .- succs))
+		ps = stack(rand.(posts, m))
+		c = mean(Float64.((ps[:, 2:end] ./ ps[:, 1]) .< 1.1); dims=1)
+		Float64(all(c .> 0.95) | any(c .< 0.05))
+	end
+end;
+
+# ╔═╡ 75df28d9-6cc7-4a41-a6bc-650173601a34
+"""What is the probability we'll be able to make a reject/accept decision after
+`total_n` observations equally divided among `k` arms?"""
+function avg_indep_decision_prob(total_n, k, m=80)
+	n = div(total_n, k)
+	samples = QuasiMonteCarlo.sample(m, k, SobolSample())
+	prior_params = params(beta_prior)
+	prior_samples = stack(quantile.(beta_prior, eachrow(samples)))
+	mean(eachrow(prior_samples)) do θ
+		indep_decision_prob(θ, n, k, prior_params[1], prior_params[1])
+	end
+end;
+
+# ╔═╡ 54873db1-dd99-435a-a0b7-88b1ea6dfa99
+let
+f = Figure()
+ax = Axis(f[1, 1],
+		  yminorgridvisible=true,
+		  yminorticks = IntervalsBetween(5),
+		  title="Sample Size Requirements For Independent Beta Priors",
+		  xlabel="samples", ylabel="decision probability")
+ns = 100:100:5000
+for k in 2:5
+	probs = avg_indep_decision_prob.(ns, k)
 	lines!(ax, ns, probs, label="$k arms")
 end
 Legend(f[1, 2], ax)
@@ -147,6 +223,7 @@ CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
+PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
 QuasiMonteCarlo = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
 StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
 
@@ -154,6 +231,7 @@ StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
 CairoMakie = "~0.15.2"
 Distributions = "~0.25.120"
 LogExpFunctions = "~0.3.29"
+PythonCall = "~0.9.26"
 QuasiMonteCarlo = "~0.3.3"
 StatsModels = "~0.7.4"
 """
@@ -164,7 +242,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "1d7126e248b6eedc5218acae9ba9347f2b00eab9"
+project_hash = "b3e8b74497b577a341ef774fa42dc4ef536439ea"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -396,6 +474,12 @@ version = "0.1.1"
 git-tree-sha1 = "f749037478283d372048690eb3b5f92a79432b34"
 uuid = "2569d6c7-a4a2-43d3-a901-331e8e4be471"
 version = "0.2.3"
+
+[[deps.CondaPkg]]
+deps = ["JSON3", "Markdown", "MicroMamba", "Pidfile", "Pkg", "Preferences", "Scratch", "TOML", "pixi_jll"]
+git-tree-sha1 = "93e81a68a84dba7e652e61425d982cd71a1a0835"
+uuid = "992eb4ea-22a4-4c89-a5bb-47a3300528ab"
+version = "0.2.29"
 
 [[deps.ConstructionBase]]
 git-tree-sha1 = "b4b092499347b18a015186eae3042f72267106cb"
@@ -833,6 +917,18 @@ git-tree-sha1 = "31e996f0a15c7b280ba9f76636b3ff9e2ae58c9a"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 version = "0.21.4"
 
+[[deps.JSON3]]
+deps = ["Dates", "Mmap", "Parsers", "PrecompileTools", "StructTypes", "UUIDs"]
+git-tree-sha1 = "411eccfe8aba0814ffa0fdf4860913ed09c34975"
+uuid = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+version = "1.14.3"
+
+    [deps.JSON3.extensions]
+    JSON3ArrowExt = ["ArrowTypes"]
+
+    [deps.JSON3.weakdeps]
+    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
+
 [[deps.JpegTurbo]]
 deps = ["CEnum", "FileIO", "ImageCore", "JpegTurbo_jll", "TOML"]
 git-tree-sha1 = "9496de8fb52c224a2e3f9ff403947674517317d9"
@@ -1024,6 +1120,12 @@ deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.6+0"
 
+[[deps.MicroMamba]]
+deps = ["Pkg", "Scratch", "micromamba_jll"]
+git-tree-sha1 = "011cab361eae7bcd7d278f0a7a00ff9c69000c51"
+uuid = "0b3b1443-0f03-428d-bdfb-f27f9c1191ea"
+version = "0.1.14"
+
 [[deps.Missings]]
 deps = ["DataAPI"]
 git-tree-sha1 = "ec4f7fbeab05d7747bdf98eb74d130a2a2ed298d"
@@ -1172,6 +1274,12 @@ git-tree-sha1 = "7d2f8f21da5db6a806faf7b9b292296da42b2810"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.8.3"
 
+[[deps.Pidfile]]
+deps = ["FileWatching", "Test"]
+git-tree-sha1 = "2d8aaf8ee10df53d0dfb9b8ee44ae7c04ced2b03"
+uuid = "fa939f87-e72e-5be4-a000-7fc836dbe307"
+version = "1.3.0"
+
 [[deps.Pixman_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "Libdl"]
 git-tree-sha1 = "db76b1ecd5e9715f3d043cec13b2ec93ce015d53"
@@ -1237,6 +1345,12 @@ version = "1.10.4"
 git-tree-sha1 = "1d36ef11a9aaf1e8b74dacc6a731dd1de8fd493d"
 uuid = "43287f4e-b6f4-7ad1-bb20-aadabca52c3d"
 version = "1.3.0"
+
+[[deps.PythonCall]]
+deps = ["CondaPkg", "Dates", "Libdl", "MacroTools", "Markdown", "Pkg", "Requires", "Serialization", "Tables", "UnsafePointers"]
+git-tree-sha1 = "f03464b21983fb5af2f8cea99106b8d8f48ac69d"
+uuid = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+version = "0.9.26"
 
 [[deps.QOI]]
 deps = ["ColorTypes", "FileIO", "FixedPointNumbers"]
@@ -1504,6 +1618,12 @@ version = "0.7.1"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
+[[deps.StructTypes]]
+deps = ["Dates", "UUIDs"]
+git-tree-sha1 = "159331b30e94d7b11379037feeb9b690950cace8"
+uuid = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
+version = "1.11.0"
+
 [[deps.StyledStrings]]
 uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
 version = "1.11.0"
@@ -1598,6 +1718,11 @@ version = "1.23.1"
     ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
     InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
     Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+
+[[deps.UnsafePointers]]
+git-tree-sha1 = "c81331b3b2e60a982be57c046ec91f599ede674a"
+uuid = "e17b2a0c-0bdf-430a-bd0c-3a23cae4ff39"
+version = "1.0.0"
 
 [[deps.WebP]]
 deps = ["CEnum", "ColorTypes", "FileIO", "FixedPointNumbers", "ImageCore", "libwebp_jll"]
@@ -1723,6 +1848,12 @@ git-tree-sha1 = "d2408cac540942921e7bd77272c32e58c33d8a77"
 uuid = "c5f90fcd-3b7e-5836-afba-fc50a0988cb2"
 version = "1.5.0+0"
 
+[[deps.micromamba_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
+git-tree-sha1 = "2ca2ac0b23a8e6b76752453e08428b3b4de28095"
+uuid = "f8abcde7-e9b7-5caa-b8af-a437887ae8e4"
+version = "1.5.12+0"
+
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
@@ -1738,6 +1869,12 @@ version = "2022.0.0+0"
 deps = ["Artifacts", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 version = "17.4.0+2"
+
+[[deps.pixi_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
+git-tree-sha1 = "f349584316617063160a947a82638f7611a8ef0f"
+uuid = "4d7b5844-a134-5dcd-ac86-c8f19cd51bed"
+version = "0.41.3+0"
 
 [[deps.x264_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1760,7 +1897,6 @@ version = "3.6.0+0"
 # ╠═8a93d462-96f2-4996-9c5b-bbf58607649b
 # ╠═8ac3f889-e80b-430e-8d38-0b719511a4dc
 # ╠═da816f56-f783-4d5e-b498-00786888ed45
-# ╠═5ac507db-76b1-477a-8d4f-6c1f166a9658
 # ╟─b8f0b297-73d8-4348-8627-781f339d8302
 # ╟─c67e2e73-1499-4663-9f91-21ad614e1553
 # ╠═981e8ec3-853d-460f-be0f-2dc20ddd9536
@@ -1770,5 +1906,16 @@ version = "3.6.0+0"
 # ╠═6956f7ec-8b99-40a5-9746-61319c7e2100
 # ╟─ca746241-c52b-4efc-9a84-451e7efe3ce9
 # ╠═875aa86b-4ad9-49b9-9ecf-6116184a220b
+# ╟─4cfc8d2e-e496-4f0d-b76a-81bf8909b380
+# ╠═e9adbda4-c851-490b-bfed-4bb75e0f67e3
+# ╟─3d7d0e48-254d-4f63-aca7-76f479b2f597
+# ╠═b3b6e0ae-16ec-4a33-ab5f-b3f9d5e556e4
+# ╠═32e3fdb2-5f59-4eaf-b18e-08915515598a
+# ╟─a3d70575-f93c-4864-8826-73af63d1e966
+# ╠═fc2a7300-961b-4215-bd8c-5796115b2ee3
+# ╟─2346e92f-faff-45bc-aa6a-27d7836f1818
+# ╠═c918ade2-15b2-457d-98a9-43de217d2913
+# ╠═75df28d9-6cc7-4a41-a6bc-650173601a34
+# ╠═54873db1-dd99-435a-a0b7-88b1ea6dfa99
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
