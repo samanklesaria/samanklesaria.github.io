@@ -4,8 +4,9 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Sam's Blog - statistics</title>
+                        <title>Frequentist Sample Size Estimation</title>
                         <link rel="stylesheet" href="/theme/css/main.css" />
+    <meta name="description" content="In the previous post, I showed a Bayesian method of sample size estimation for A/B/n testing. This post goes over the more conventional..." />
         </head>
 
         <body id="index" class="home">
@@ -20,10 +21,15 @@
                                                 <li><a href="/category/tools.html">tools</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="/frequentist-sample-size-estimation.html" rel="bookmark"
+             title="Permalink to Frequentist Sample Size Estimation">Frequentist Sample Size Estimation</a></h1>
+      </header>
 
-                <aside id="featured" class="body">
-                    <article>
-                        <h1 class="entry-title"><a href="/frequentist-sample-size-estimation.html">Frequentist Sample Size Estimation</a></h1>
+      <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-08-15T00:00:00-05:00">
                 Published: Fri 15 August 2025
@@ -34,7 +40,7 @@
                 </address>
         <p>In <a href="/category/statistics.html">statistics</a>.</p>
         
-</footer><!-- /.post-info --><p>In the previous post, I showed a Bayesian method of sample size estimation for A/B/n testing. This post goes over the more conventional frequentist method. </p>
+</footer><!-- /.post-info -->        <p>In the previous post, I showed a Bayesian method of sample size estimation for A/B/n testing. This post goes over the more conventional frequentist method. </p>
 <p>As before, here's the context. Say we're trying to test which variant of an email message generates the highest response rate. We consider <span class="math">\(k\)</span> different messages and send out <span class="math">\(n\)</span> emails for each message. After we wait for responses, we should be able to tell which message yielded the highest response rate as long as we set <span class="math">\(n\)</span> high enough. But we generally can't send out too many messages: say we're capped at <span class="math">\(N\)</span> total. How do we choose the highest <span class="math">\(k\)</span> that still allows us to confidently pick which message got the highest response rate?</p>
 <h2>Frequentist Two-Arm Estimation</h2>
 <p>If we only have two messages (or 'arms' in the standard terminology), we might naively use a t-test to see if the observed difference in mean response rates <span class="math">\(\hat{\delta}\)</span> was statistically significant. Let <span class="math">\(\hat{\sigma}\)</span> be the pooled standard deviation. Then if the true difference in mean response rates <span class="math">\(\delta\)</span> is zero (the null hypothesis), <span class="math">\(t = \frac{\sqrt{n}\hat{\delta}}{\sqrt{2}\hat{\sigma}}\)</span> will be T distributed with <span class="math">\(2n-2\)</span> dof. To get a false positive rate of <span class="math">\(\alpha\)</span>, we can reject the null hypothesis when <span class="math">\(t &gt; t_{1-\alpha}\)</span> where <span class="math">\(t_{1-\alpha}\)</span> gives the <span class="math">\(1-\alpha\)</span> quantile of the Student's t distribution. Under the alternative hypothesis that <span class="math">\(\delta = \delta_0 &gt; 0\)</span>, <span class="math">\(t\)</span> will actually come from a non-central t distribution (ignoring the differences in arm variance). We can see this because <span class="math">\(\sqrt{n}(\hat{\delta} - \delta_0)/\sqrt{2}\sigma\)</span> comes from a standard normal distribution, so <span class="math">\(\sqrt{n}\hat{\delta}/\sqrt{2}\sigma\)</span> is normal with mean <span class="math">\(\delta_0 \sqrt{n}\)</span>. This means that the power of our test will be the survival function of a <span class="math">\(2n-2\)</span> degree non-central T distribution with noncentrality parameter <span class="math">\(\delta_0 \sqrt{n}\)</span> evaluated at <span class="math">\(t_{1-\alpha}\)</span>. We can find the number of samples <span class="math">\(n\)</span> that produces a desired power <span class="math">\(\beta\)</span> with a simple binary search. This calculation is implemented within the <code>statsmodels</code> library as follows:</p>
@@ -175,248 +181,11 @@
     (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
     (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
 }
-</script>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/bayesian-power-analysis-for-abn-tests.html" rel="bookmark"
-                               title="Permalink to Bayesian Power Analysis for A/B/n Tests">Bayesian Power Analysis for A/B/n Tests</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-07-31T00:00:00-05:00">
-                Published: Thu 31 July 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/statistics.html">statistics</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This post highlights a Bayesian approach to sample size estimation in A/B/n testing. Say we're trying to test which variant of an email message generates the highest response rate from a population. We consider <span class="math">\(k\)</span> different messages and send out <span class="math">\(n\)</span> emails for each message. After we wait …</p><script type='text/javascript'>if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
-    var align = "center",
-        indent = "0em",
-        linebreak = "false";
-
-    if (false) {
-        align = (screen.width < 768) ? "left" : align;
-        indent = (screen.width < 768) ? "0em" : indent;
-        linebreak = (screen.width < 768) ? 'true' : linebreak;
-    }
-
-    var mathjaxscript = document.createElement('script');
-    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
-    mathjaxscript.type = 'text/javascript';
-    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
-
-    var configscript = document.createElement('script');
-    configscript.type = 'text/x-mathjax-config';
-    configscript[(window.opera ? "innerHTML" : "text")] =
-        "MathJax.Hub.Config({" +
-        "    config: ['MMLorHTML.js']," +
-        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
-        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
-        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
-        "    displayAlign: '"+ align +"'," +
-        "    displayIndent: '"+ indent +"'," +
-        "    showMathMenu: true," +
-        "    messageStyle: 'normal'," +
-        "    tex2jax: { " +
-        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
-        "        displayMath: [ ['$$','$$'] ]," +
-        "        processEscapes: true," +
-        "        preview: 'TeX'," +
-        "    }, " +
-        "    'HTML-CSS': { " +
-        "        availableFonts: ['STIX', 'TeX']," +
-        "        preferredFont: 'STIX'," +
-        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
-        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
-        "    }, " +
-        "}); " +
-        "if ('default' !== 'default') {" +
-            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-        "}";
-
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
-}
 </script>
-                        <a class="readmore" href="/bayesian-power-analysis-for-abn-tests.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
+      </div><!-- /.entry-content -->
 
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/synthetic-controls-for-texas-prison-data.html" rel="bookmark"
-                               title="Permalink to Synthetic Controls for Texas Prison Data">Synthetic Controls for Texas Prison Data</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-01-25T00:00:00-06:00">
-                Published: Sat 25 January 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/statistics.html">statistics</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This post uses a synthetic control design to study whether Texas's prison building boom in 1993 resulted in them incarcerating more prisoners than they would have if their rate of prison building had continued as normal. The analysis will build off the one in the book <a href="https://mixtape.scunning.com/">Causal Inference: The Mixtable …</a></p>
-                        <a class="readmore" href="/synthetic-controls-for-texas-prison-data.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/matching-in-observational-studies.html" rel="bookmark"
-                               title="Permalink to Matching in Observational Studies">Matching in Observational Studies</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2025-01-09T00:00:00-06:00">
-                Published: Thu 09 January 2025
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/statistics.html">statistics</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>A 'matching' quasi-experimental design controls for confounder variables <span class="math">\(x\)</span> by estimating what the control outcomes <span class="math">\(y\)</span> would be if the control population had the same values of <span class="math">\(x\)</span> as the treatment population. To do this, we regress outcomes in the control population on <span class="math">\(x\)</span>, and apply this regression model to …</p><script type='text/javascript'>if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
-    var align = "center",
-        indent = "0em",
-        linebreak = "false";
-
-    if (false) {
-        align = (screen.width < 768) ? "left" : align;
-        indent = (screen.width < 768) ? "0em" : indent;
-        linebreak = (screen.width < 768) ? 'true' : linebreak;
-    }
-
-    var mathjaxscript = document.createElement('script');
-    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
-    mathjaxscript.type = 'text/javascript';
-    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
-
-    var configscript = document.createElement('script');
-    configscript.type = 'text/x-mathjax-config';
-    configscript[(window.opera ? "innerHTML" : "text")] =
-        "MathJax.Hub.Config({" +
-        "    config: ['MMLorHTML.js']," +
-        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
-        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
-        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
-        "    displayAlign: '"+ align +"'," +
-        "    displayIndent: '"+ indent +"'," +
-        "    showMathMenu: true," +
-        "    messageStyle: 'normal'," +
-        "    tex2jax: { " +
-        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
-        "        displayMath: [ ['$$','$$'] ]," +
-        "        processEscapes: true," +
-        "        preview: 'TeX'," +
-        "    }, " +
-        "    'HTML-CSS': { " +
-        "        availableFonts: ['STIX', 'TeX']," +
-        "        preferredFont: 'STIX'," +
-        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
-        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
-        "    }, " +
-        "}); " +
-        "if ('default' !== 'default') {" +
-            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-        "}";
-
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
-}
-</script>
-                        <a class="readmore" href="/matching-in-observational-studies.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/diagnosing-lack-of-independence-in-exogenous-variables.html" rel="bookmark"
-                               title="Permalink to Diagnosing Lack of Independence in Exogenous Variables">Diagnosing Lack of Independence in Exogenous Variables</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-05-06T00:00:00-05:00">
-                Published: Mon 06 May 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/statistics.html">statistics</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This post outlines a simple workflow for diagnosing lack of independence in <code>statsmodels</code>.</p>
-                        <a class="readmore" href="/diagnosing-lack-of-independence-in-exogenous-variables.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/sparse-variational-gaussian-processes.html" rel="bookmark"
-                               title="Permalink to Sparse Variational Gaussian Processes">Sparse Variational Gaussian Processes</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2021-09-20T00:00:00-05:00">
-                Published: Mon 20 September 2021
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/statistics.html">statistics</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This notebook introduces <em>Fully Independent Training Conditional</em> (FITC) sparse variational Gaussian process model. You shouldn't need any prior knowledge about Gaussian processes- it's enough to know how to condition and marginalize finite dimensional Gaussian distributions. I'll assume you know about variational inference and Pyro, though.</p>
-<div class="codehilite"><pre><span></span><code><span class="kn">import</span> <span class="nn">pyro</span>
-<span class="kn">import</span> <span class="nn">pyro.distributions …</span></code></pre></div>
-                        <a class="readmore" href="/sparse-variational-gaussian-processes.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-                    </ol><!-- /#posts-list -->
-                    </section><!-- /#content -->
+    </article>
+  </section>
                 <section id="extras" class="body">
                 </section><!-- /#extras -->
 
