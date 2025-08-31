@@ -4,8 +4,9 @@
                         <meta charset="utf-8" />
                         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                         <meta name="generator" content="Pelican" />
-                        <title>Sam's Blog - tools</title>
+                        <title>ShapeCheck: Making PyTorch Code Self-Documenting with Runtime Shape Validation</title>
                         <link rel="stylesheet" href="/theme/css/main.css" />
+    <meta name="description" content="Writing neural networks often feels like juggling tensors in the dark. You know that attention_weights should be 4-dimensional, but PyTorch won't..." />
         </head>
 
         <body id="index" class="home">
@@ -20,10 +21,15 @@
                                                 <li class="active"><a href="/category/tools.html">tools</a></li>
                         </ul></nav>
                 </header><!-- /#banner -->
+  <section id="content" class="body">
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="/shapecheck-making-pytorch-code-self-documenting-with-runtime-shape-validation.html" rel="bookmark"
+             title="Permalink to ShapeCheck: Making PyTorch Code Self-Documenting with Runtime Shape Validation">ShapeCheck: Making PyTorch Code Self-Documenting with Runtime Shape Validation</a></h1>
+      </header>
 
-                <aside id="featured" class="body">
-                    <article>
-                        <h1 class="entry-title"><a href="/shapecheck-making-tensor-code-self-documenting-with-runtime-shape-validation.html">ShapeCheck: Making Tensor Code Self-Documenting with Runtime Shape Validation</a></h1>
+      <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-08-30T00:00:00-05:00">
                 Published: Sat 30 August 2025
@@ -34,8 +40,8 @@
                 </address>
         <p>In <a href="/category/tools.html">tools</a>.</p>
         
-</footer><!-- /.post-info --><p>Writing neural networks often feels like juggling tensors in the dark. You know that <code>attention_weights</code> should be 4-dimensional, but PyTorch won't tell you until your matrix multiplication explodes at runtime. What if your variable names could automatically validate tensor shapes?</p>
-<p>Meet <a href="https://github.com/samanklesaria/shapecheck"><strong>ShapeCheck</strong></a> – a Python decorator that brings Character AI's shape-suffix convention to life with automatic runtime validation.</p>
+</footer><!-- /.post-info -->        <p>Writing neural networks often feels like juggling tensors in the dark. You know that <code>attention_weights</code> should be 4-dimensional, but PyTorch won't tell you until your matrix multiplication explodes at runtime. What if your variable names could automatically validate tensor shapes?</p>
+<p>Meet <strong>ShapeCheck</strong> – a Python decorator that brings Character AI's shape-suffix convention to life with automatic runtime validation.</p>
 <h2>The Character AI Convention</h2>
 <p>At Character AI, engineers follow a simple but powerful naming convention: append dimension letters to tensor variable names. As Noam Shazeer explains in his <a href="https://medium.com/@NoamShazeer/shape-suffixes-good-coding-style-f836e72e24fd">Medium post</a>:</p>
 <blockquote>
@@ -66,36 +72,11 @@
 <div class="codehilite"><pre><span></span><code>AssertionError: Shape mismatch for key_BLH dimension L: expected 10 (from query_BLH), got 12
 </code></pre></div>
 
-<p>The magic happens through AST transformation. ShapeCheck parses your function, identifies shape-annotated variables, and injects validation code automatically. You write clean, readable code with meaningful names, and get bulletproof shape checking for free.</p>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+<p>The magic happens through AST transformation. ShapeCheck parses your function, identifies shape-annotated variables, and injects validation code automatically. You write clean, readable code with meaningful names, and get bulletproof shape checking for free.</p>
+      </div><!-- /.entry-content -->
 
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/jupyter-for-everything.html" rel="bookmark"
-                               title="Permalink to Jupyter for Everything">Jupyter for Everything</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-08-20T00:00:00-05:00">
-                Published: Thu 20 August 2020
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/tools.html">tools</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Forget vim or emacs of VSCode. <a href="https://jupyter.org/">Jupyter</a> is hands down the best editor out there. The literate programming support, complete with images and beautiful latex snippets? The inline visualizations of all kinds of data-types, from <a href="https://ipyleaflet.readthedocs.io/en/latest/api_reference/map.html">maps</a> to <a href="https://pythreejs.readthedocs.io/en/stable/examples/Geometries.html">meshes</a> to <a href="https://networkx.github.io/">graphs</a> and <a href="https://shapely.readthedocs.io/en/stable/">polygons</a>?  The <a href="https://ipywidgets.readthedocs.io/en/stable/examples/Using%20Interact.html">widgets</a> for interactively testing your code? It's …</p>
-                        <a class="readmore" href="/jupyter-for-everything.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-                    </ol><!-- /#posts-list -->
-                    </section><!-- /#content -->
+    </article>
+  </section>
                 <section id="extras" class="body">
                 </section><!-- /#extras -->
 

@@ -23,7 +23,63 @@
 
                 <aside id="featured" class="body">
                     <article>
-                        <h1 class="entry-title"><a href="/frequentist-sample-size-estimation.html">Frequentist Sample Size Estimation</a></h1>
+                        <h1 class="entry-title"><a href="/shapecheck-making-tensor-code-self-documenting-with-runtime-shape-validation.html">ShapeCheck: Making Tensor Code Self-Documenting with Runtime Shape Validation</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2025-08-30T00:00:00-05:00">
+                Published: Sat 30 August 2025
+        </abbr>
+
+                <address class="vcard author">
+                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
+                </address>
+        <p>In <a href="/category/tools.html">tools</a>.</p>
+        
+</footer><!-- /.post-info --><p>Writing neural networks often feels like juggling tensors in the dark. You know that <code>attention_weights</code> should be 4-dimensional, but PyTorch won't tell you until your matrix multiplication explodes at runtime. What if your variable names could automatically validate tensor shapes?</p>
+<p>Meet <a href="https://github.com/samanklesaria/shapecheck"><strong>ShapeCheck</strong></a> – a Python decorator that brings Character AI's shape-suffix convention to life with automatic runtime validation.</p>
+<h2>The Character AI Convention</h2>
+<p>At Character AI, engineers follow a simple but powerful naming convention: append dimension letters to tensor variable names. As Noam Shazeer explains in his <a href="https://medium.com/@NoamShazeer/shape-suffixes-good-coding-style-f836e72e24fd">Medium post</a>:</p>
+<blockquote>
+<p>"When known, the name of a tensor should end in a dimension-suffix composed of those letters, e.g. <code>input_token_id_BL</code> for a two-dimensional tensor with batch and length dimensions."</p>
+</blockquote>
+<p>This makes code self-documenting. Looking at <code>query_BLHK</code>, you immediately know it's a 4D tensor with batch, length, heads, and key dimensions.</p>
+<h2>From Convention to Validation</h2>
+<p>ShapeCheck takes this convention and makes it bulletproof. By analyzing your function's syntax tree, it automatically injects shape checks wherever you use suffixed variable names. Just prefix your function with <code>@shapecheck</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">shapecheck</span> <span class="kn">import</span> <span class="n">shapecheck</span>
+
+<span class="nd">@shapecheck</span>
+<span class="k">def</span> <span class="nf">attention</span><span class="p">(</span><span class="n">query_BLH</span><span class="p">,</span> <span class="n">key_BLH</span><span class="p">,</span> <span class="n">value_BLH</span><span class="p">):</span>
+    <span class="c1"># Automatic validation: all tensors must be 3D with matching B,L dimensions</span>
+    <span class="n">scores_BLL</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">query_BLH</span><span class="p">,</span> <span class="n">key_BLH</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">weights_BLL</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">scores_BLL</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">output_BLH</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">weights_BLL</span><span class="p">,</span> <span class="n">value_BLH</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">output_BLH</span>
+</code></pre></div>
+
+<p>When shapes don't match, ShapeCheck produces a clear error message describing the discrepency. For example:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">q</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+<span class="n">k</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+<span class="n">v</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">attention</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>AssertionError: Shape mismatch for key_BLH dimension L: expected 10 (from query_BLH), got 12
+</code></pre></div>
+
+<p>The magic happens through AST transformation. ShapeCheck parses your function, identifies shape-annotated variables, and injects validation code automatically. You write clean, readable code with meaningful names, and get bulletproof shape checking for free.</p>                    </article>
+                </aside><!-- /#featured -->
+                    <section id="content" class="body">
+                        <h1>Other articles</h1>
+                        <hr />
+                        <ol id="posts-list" class="hfeed">
+
+                <li><article class="hentry">
+                    <header>
+                        <h1><a href="/frequentist-sample-size-estimation.html" rel="bookmark"
+                               title="Permalink to Frequentist Sample Size Estimation">Frequentist Sample Size Estimation</a></h1>
+                    </header>
+
+                    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2025-08-15T00:00:00-05:00">
                 Published: Fri 15 August 2025
@@ -34,153 +90,11 @@
                 </address>
         <p>In <a href="/category/statistics.html">statistics</a>.</p>
         
-</footer><!-- /.post-info --><p>In the previous post, I showed a Bayesian method of sample size estimation for A/B/n testing. This post goes over the more conventional frequentist method. </p>
-<p>As before, here's the context. Say we're trying to test which variant of an email message generates the highest response rate. We consider <span class="math">\(k\)</span> different messages and send out <span class="math">\(n\)</span> emails for each message. After we wait for responses, we should be able to tell which message yielded the highest response rate as long as we set <span class="math">\(n\)</span> high enough. But we generally can't send out too many messages: say we're capped at <span class="math">\(N\)</span> total. How do we choose the highest <span class="math">\(k\)</span> that still allows us to confidently pick which message got the highest response rate?</p>
-<h2>Frequentist Two-Arm Estimation</h2>
-<p>If we only have two messages (or 'arms' in the standard terminology), we might naively use a t-test to see if the observed difference in mean response rates <span class="math">\(\hat{\delta}\)</span> was statistically significant. Let <span class="math">\(\hat{\sigma}\)</span> be the pooled standard deviation. Then if the true difference in mean response rates <span class="math">\(\delta\)</span> is zero (the null hypothesis), <span class="math">\(t = \frac{\sqrt{n}\hat{\delta}}{\sqrt{2}\hat{\sigma}}\)</span> will be T distributed with <span class="math">\(2n-2\)</span> dof. To get a false positive rate of <span class="math">\(\alpha\)</span>, we can reject the null hypothesis when <span class="math">\(t &gt; t_{1-\alpha}\)</span> where <span class="math">\(t_{1-\alpha}\)</span> gives the <span class="math">\(1-\alpha\)</span> quantile of the Student's t distribution. Under the alternative hypothesis that <span class="math">\(\delta = \delta_0 &gt; 0\)</span>, <span class="math">\(t\)</span> will actually come from a non-central t distribution (ignoring the differences in arm variance). We can see this because <span class="math">\(\sqrt{n}(\hat{\delta} - \delta_0)/\sqrt{2}\sigma\)</span> comes from a standard normal distribution, so <span class="math">\(\sqrt{n}\hat{\delta}/\sqrt{2}\sigma\)</span> is normal with mean <span class="math">\(\delta_0 \sqrt{n}\)</span>. This means that the power of our test will be the survival function of a <span class="math">\(2n-2\)</span> degree non-central T distribution with noncentrality parameter <span class="math">\(\delta_0 \sqrt{n}\)</span> evaluated at <span class="math">\(t_{1-\alpha}\)</span>. We can find the number of samples <span class="math">\(n\)</span> that produces a desired power <span class="math">\(\beta\)</span> with a simple binary search. This calculation is implemented within the <code>statsmodels</code> library as follows:</p>
-<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">statsmodels.stats</span> <span class="kn">import</span> <span class="n">power</span>
-<span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">brentq</span>
-<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">stats</span>
-<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
-<span class="n">sns</span><span class="o">.</span><span class="n">set_theme</span><span class="p">()</span>
-</code></pre></div>
-
-<div class="codehilite"><pre><span></span><code><span class="n">powers</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.85</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">]</span>
-</code></pre></div>
-
-<div class="codehilite"><pre><span></span><code><span class="n">freq_df_t</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
-    <span class="s1">&#39;samples&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span> <span class="o">*</span> <span class="n">power</span><span class="o">.</span><span class="n">tt_ind_solve_power</span><span class="p">(</span><span class="n">effect_size</span><span class="o">=</span><span class="n">delta</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span> <span class="n">power</span><span class="o">=</span><span class="n">p</span><span class="p">,</span> <span class="n">alternative</span><span class="o">=</span><span class="s1">&#39;larger&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">powers</span><span class="p">],</span>
-    <span class="s1">&#39;power&#39;</span><span class="p">:</span> <span class="n">powers</span><span class="p">,</span> <span class="s1">&#39;delta&#39;</span><span class="p">:</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;alpha&#39;</span><span class="p">:</span> <span class="n">alpha</span><span class="p">})</span>
-    <span class="k">for</span> <span class="n">delta</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.015</span><span class="p">,</span> <span class="mf">0.02</span><span class="p">]</span>
-    <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.15</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">]],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</code></pre></div>
-
-<div class="codehilite"><pre><span></span><code><span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">sns</span><span class="o">.</span><span class="n">relplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">freq_df_t</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s1">&#39;power&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;samples&#39;</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="s1">&#39;delta&#39;</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="s1">&#39;alpha&#39;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;line&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">ravel</span><span class="p">():</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">powers</span><span class="p">)</span>
-</code></pre></div>
-
-<p><img alt="png" src="/Frequentist_Sample_Size_Estimation_files/Frequentist_Sample_Size_Estimation_6_0.png" /></p>
-<p>This suggests we'd need a truly massive number of samples! Fortunately, things aren't as bad as they seem. We can use a Z-test instead.</p>
-<p>Say response rates are <span class="math">\(\theta_0\)</span> and <span class="math">\(\theta_1\)</span> with difference <span class="math">\(\delta\)</span>. The difference of observed arm means <span class="math">\(\hat{\delta}\)</span> will be approximately normal around <span class="math">\(\delta\)</span> with variance <span class="math">\(\frac{\theta_0(1-\theta_0) + \theta_1(1-\theta_1)}{n}\)</span>. Let <span class="math">\(\sigma_0^2 =2\theta_0(1-\theta_0)\)</span> and  <span class="math">\(\sigma_1^2 =\theta_0(1-\theta_0) + \theta_1(1-\theta_1)\)</span>.  if <span class="math">\(\delta = 0\)</span> and we reject when <span class="math">\(\hat{\delta} &gt; \frac{\sigma_0}{\sqrt{n}} z_{1 - \alpha}\)</span>, we'll have a false positive rate of <span class="math">\(\alpha\)</span>. If <span class="math">\(\delta = \delta_0\)</span>, on the other hand, then <span class="math">\(\hat{\delta} - \delta_0\)</span> will be normal with variance <span class="math">\(\sigma_1^2/n\)</span>, so rejecting if <span class="math">\(\hat{\delta} &gt; \delta_0 + \frac{\sigma_1}{\sqrt{n}} z_{1 - \beta}\)</span> would give us power <span class="math">\(\beta\)</span>. We can choose <span class="math">\(n\)</span> so that these critical values are the same.</p>
-<p>A little algebra tells us that <span class="math">\(n = \frac{(\sigma_0 z_{1 - \alpha} - \sigma_1 z_{1 - \beta})^2}{\delta_0^2}\)</span>. Once again, this is already implemented in <code>statsmodels</code>.</p>
-<div class="codehilite"><pre><span></span><code><span class="n">t</span> <span class="o">=</span> <span class="mf">0.04</span>
-</code></pre></div>
-
-<div class="codehilite"><pre><span></span><code><span class="n">freq_df_z</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
-    <span class="s1">&#39;samples&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span> <span class="o">*</span> <span class="n">power</span><span class="o">.</span><span class="n">normal_sample_size_one_tail</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span>
-                        <span class="n">std_null</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">t</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">t</span><span class="p">)),</span>
-                        <span class="n">std_alternative</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">t</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">t</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">t</span><span class="o">+</span><span class="n">d</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">t</span><span class="o">+</span><span class="n">d</span><span class="p">))))</span>
-                <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">powers</span><span class="p">],</span>
-    <span class="s1">&#39;power&#39;</span><span class="p">:</span> <span class="n">powers</span><span class="p">,</span> <span class="s1">&#39;delta&#39;</span><span class="p">:</span> <span class="n">d</span><span class="p">,</span> <span class="s1">&#39;alpha&#39;</span><span class="p">:</span> <span class="n">alpha</span><span class="p">})</span>
-    <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.015</span><span class="p">,</span> <span class="mf">0.02</span><span class="p">]</span>
-    <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.15</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">]],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</code></pre></div>
-
-<div class="codehilite"><pre><span></span><code><span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">sns</span><span class="o">.</span><span class="n">relplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">freq_df_z</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s1">&#39;power&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;samples&#39;</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="s1">&#39;delta&#39;</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="s1">&#39;alpha&#39;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;line&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">ravel</span><span class="p">():</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">powers</span><span class="p">)</span>
-</code></pre></div>
-
-<p><img alt="png" src="/Frequentist_Sample_Size_Estimation_files/Frequentist_Sample_Size_Estimation_10_0.png" /></p>
-<h2>Frequentist Multi-Arm Estimation</h2>
-<p>With more than two arms, we end up testing more than one null hypothesis. Specifically, we'll want to test the null hypothesis that arm <span class="math">\(i\)</span> has a higher mean than arm <span class="math">\(j\)</span> for every pair arms <span class="math">\(i,j\)</span>. We'll reject this hypothesis when <span class="math">\(\hat{\delta_{i,j}} &gt; c\)</span> for a specific value of <span class="math">\(c\)</span>. Our family-wise false positive rate <span class="math">\(1 - \alpha\)</span> must now cover the probability that we mistakenly reject any of these tests. If <span class="math">\(\hat{\delta}_{i,j} &gt; c\)</span> for any <span class="math">\(i,j\)</span>, it will also be true that <span class="math">\(\delta^\star &gt; c\)</span> where <span class="math">\(\delta^\star\)</span> is the largest observed difference in means between any pair of arms. We can show that <span class="math">\(\delta^\star\)</span> follows a known distribution.</p>
-<p>In general, if <span class="math">\(F\)</span> is a distribution's cdf, the joint probability that each of <span class="math">\(k\)</span> independent draws from the distribution are between <span class="math">\(a\)</span> and <span class="math">\(a+\delta\)</span> is given by <span class="math">\((F(a + \delta) - F(a))^k\)</span>. This makes the density at <span class="math">\(a\)</span> given by <span class="math">\(k f(a)(F(a + \delta) - F(a))^{k-1}\)</span>. We want to integrate over all <span class="math">\(a\)</span>: <span class="math">\(\int_{-\infty}^\infty k f(a)(F(a + \delta) - F(a))^{k-1}\, da\)</span>.</p>
-<p>This distribution over the largest difference within <span class="math">\(k\)</span> samples is known as the <em>Studentized range distribution</em> when <span class="math">\(F\)</span> is the cdf of a Student's t distribution. This is built into <code>scipy</code>! And because a normal distribution is just a Student's t distribution with infinite degrees of freedom, this covers a largest difference between normal samples as well, which I'll refer to as a <em>range distribution</em>.</p>
-<p>Say each of the per-arm differences are normal with approximately the same variance <span class="math">\(\sigma^2\)</span>. We can reject the null hypothesis that all the inter-arm differences are zero when <span class="math">\(\delta^\star &gt; \frac{\sigma}{\sqrt{n}} q_{1-\alpha}\)</span> to get a family-wise false positive rate of <span class="math">\(\alpha\)</span>, where <span class="math">\(q_{1-\alpha}\)</span> gives the <span class="math">\(1-\alpha\)</span> quantile of the range distribution. If we also reject when <span class="math">\(\delta^\star &gt; \delta_0 +  \frac{\sigma}{\sqrt{n}} q_{1-\beta}\)</span>, we'd have power <span class="math">\(\beta\)</span> when the true maximum difference is <span class="math">\(\delta_0\)</span>. Once again, we can solve for when these critical values are equal to find the necessary number of samples; unfortunately the algebra here isn't built into <code>statsmodels</code>, so we'll have to do it ourselves.</p>
-<div class="codehilite"><pre><span></span><code><span class="k">def</span> <span class="nf">range_sample_size</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">theta</span><span class="o">=</span><span class="mf">0.06</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="mf">0.015</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.90</span><span class="p">,</span> <span class="n">beta</span><span class="o">=</span><span class="mf">0.8</span><span class="p">):</span>
-    <span class="n">q0</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">studentized_range</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
-    <span class="n">q1</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">studentized_range</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">beta</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
-    <span class="n">theta1</span> <span class="o">=</span> <span class="n">theta</span> <span class="o">+</span> <span class="n">delta</span>
-    <span class="k">return</span> <span class="n">k</span> <span class="o">*</span> <span class="n">theta1</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">theta1</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">q1</span> <span class="o">-</span> <span class="n">q0</span><span class="p">)</span> <span class="o">/</span> <span class="n">delta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span>
-</code></pre></div>
-
-<div class="codehilite"><pre><span></span><code><span class="n">ks</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
-</code></pre></div>
-
-<div class="codehilite"><pre><span></span><code><span class="n">freq_df_q</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
-    <span class="s1">&#39;samples&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">range_sample_size</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="n">delta</span><span class="p">,</span> <span class="n">theta</span><span class="o">=</span><span class="n">theta</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">ks</span><span class="p">],</span>
-    <span class="s1">&#39;k&#39;</span><span class="p">:</span> <span class="n">ks</span><span class="p">,</span> <span class="s1">&#39;delta&#39;</span><span class="p">:</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;theta&#39;</span><span class="p">:</span> <span class="n">theta</span><span class="p">,</span> <span class="s1">&#39;alpha&#39;</span><span class="p">:</span> <span class="n">alpha</span><span class="p">})</span>
-    <span class="k">for</span> <span class="n">delta</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.015</span><span class="p">,</span> <span class="mf">0.02</span><span class="p">]</span>
-    <span class="k">for</span> <span class="n">theta</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">0.04</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">]</span>
-    <span class="k">for</span> <span class="n">alpha</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.15</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">]],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</code></pre></div>
-
-<div class="codehilite"><pre><span></span><code><span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">sns</span><span class="o">.</span><span class="n">relplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">freq_df_q</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;samples&#39;</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="s1">&#39;delta&#39;</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="s1">&#39;theta&#39;</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="s1">&#39;alpha&#39;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;line&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">ravel</span><span class="p">():</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">ks</span><span class="p">))</span>
-</code></pre></div>
-
-<p><img alt="png" src="/Frequentist_Sample_Size_Estimation_files/Frequentist_Sample_Size_Estimation_16_0.png" /></p>
-<div class="codehilite"><pre><span></span><code>
-</code></pre></div>
-
-<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
-    var align = "center",
-        indent = "0em",
-        linebreak = "false";
-
-    if (false) {
-        align = (screen.width < 768) ? "left" : align;
-        indent = (screen.width < 768) ? "0em" : indent;
-        linebreak = (screen.width < 768) ? 'true' : linebreak;
-    }
-
-    var mathjaxscript = document.createElement('script');
-    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
-    mathjaxscript.type = 'text/javascript';
-    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
-
-    var configscript = document.createElement('script');
-    configscript.type = 'text/x-mathjax-config';
-    configscript[(window.opera ? "innerHTML" : "text")] =
-        "MathJax.Hub.Config({" +
-        "    config: ['MMLorHTML.js']," +
-        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
-        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
-        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
-        "    displayAlign: '"+ align +"'," +
-        "    displayIndent: '"+ indent +"'," +
-        "    showMathMenu: true," +
-        "    messageStyle: 'normal'," +
-        "    tex2jax: { " +
-        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
-        "        displayMath: [ ['$$','$$'] ]," +
-        "        processEscapes: true," +
-        "        preview: 'TeX'," +
-        "    }, " +
-        "    'HTML-CSS': { " +
-        "        availableFonts: ['STIX', 'TeX']," +
-        "        preferredFont: 'STIX'," +
-        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
-        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
-        "    }, " +
-        "}); " +
-        "if ('default' !== 'default') {" +
-            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-        "}";
-
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
-}
-</script>                    </article>
-                </aside><!-- /#featured -->
-                    <section id="content" class="body">
-                        <h1>Other articles</h1>
-                        <hr />
-                        <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                        <p>In the previous post, I showed a Bayesian method of sample size estimation for A/B/n testing. This post goes over the more conventional frequentist method. </p>
+<p>As before, here's the context. Say we're trying to test which variant of an email message generates the highest response rate. We consider …</p>
+                        <a class="readmore" href="/frequentist-sample-size-estimation.html">read more</a>
+                    </div><!-- /.entry-content -->
+                </article></li>
 
                 <li><article class="hentry">
                     <header>
@@ -432,7 +346,9 @@
                 </address>
         <p>In <a href="/category/slam.html">slam</a>.</p>
         
-</footer><!-- /.post-info -->                        <p>Tracking a robot's motion with maximum likelihood estimation.</p>
+</footer><!-- /.post-info -->                        <p>For a robot to navigate autonomously, it needs to learn both its own location, as well as the locations of any potential obsticles around it, given its sensors' observations of the world. We'll create a probabilistic model of our environment and get a MAP estimate of these unknown quantities.</p>
+<ul>
+<li>Let …</li></ul>
                         <a class="readmore" href="/graph-slam.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
@@ -541,577 +457,14 @@
                         <a class="readmore" href="/finite-basis-gaussian-processes.html">read more</a>
                     </div><!-- /.entry-content -->
                 </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/finite-particle-approximations.html" rel="bookmark"
-                               title="Permalink to Finite Particle Approximations">Finite Particle Approximations</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-04-02T00:00:00-05:00">
-                Published: Tue 02 April 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/machine_learning.html">machine_learning</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Say you have a discrete distribution <span class="math">\(\pi\)</span> that you want to approximate with a small number of weighted particles. Intuitively, it seems like the the best choice of particles would be the outputs of highest probability under <span class="math">\(\pi\)</span>, and that the relative weights of these particles should be the same …</p><script type='text/javascript'>if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
-    var align = "center",
-        indent = "0em",
-        linebreak = "false";
-
-    if (false) {
-        align = (screen.width < 768) ? "left" : align;
-        indent = (screen.width < 768) ? "0em" : indent;
-        linebreak = (screen.width < 768) ? 'true' : linebreak;
-    }
-
-    var mathjaxscript = document.createElement('script');
-    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
-    mathjaxscript.type = 'text/javascript';
-    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
-
-    var configscript = document.createElement('script');
-    configscript.type = 'text/x-mathjax-config';
-    configscript[(window.opera ? "innerHTML" : "text")] =
-        "MathJax.Hub.Config({" +
-        "    config: ['MMLorHTML.js']," +
-        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
-        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
-        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
-        "    displayAlign: '"+ align +"'," +
-        "    displayIndent: '"+ indent +"'," +
-        "    showMathMenu: true," +
-        "    messageStyle: 'normal'," +
-        "    tex2jax: { " +
-        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
-        "        displayMath: [ ['$$','$$'] ]," +
-        "        processEscapes: true," +
-        "        preview: 'TeX'," +
-        "    }, " +
-        "    'HTML-CSS': { " +
-        "        availableFonts: ['STIX', 'TeX']," +
-        "        preferredFont: 'STIX'," +
-        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
-        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
-        "    }, " +
-        "}); " +
-        "if ('default' !== 'default') {" +
-            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-        "}";
-
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
-}
-</script>
-                        <a class="readmore" href="/finite-particle-approximations.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/nearest-neighbor-gaussian-processes.html" rel="bookmark"
-                               title="Permalink to Nearest Neighbor Gaussian Processes">Nearest Neighbor Gaussian Processes</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2024-02-16T00:00:00-06:00">
-                Published: Fri 16 February 2024
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/machine_learning.html">machine_learning</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>In a <em>k-Nearest Neighbor Gaussian Process</em>, we assume that the input points <span class="math">\(x\)</span> are ordered in such a way that <span class="math">\(f(x_i)\)</span> is independent of <span class="math">\(f(x_j)\)</span> whenever...</p>
-<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
-    var align = "center",
-        indent = "0em",
-        linebreak = "false";
-
-    if (false) {
-        align = (screen.width < 768) ? "left" : align;
-        indent = (screen.width < 768) ? "0em" : indent;
-        linebreak = (screen.width < 768) ? 'true' : linebreak;
-    }
-
-    var mathjaxscript = document.createElement('script');
-    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
-    mathjaxscript.type = 'text/javascript';
-    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
-
-    var configscript = document.createElement('script');
-    configscript.type = 'text/x-mathjax-config';
-    configscript[(window.opera ? "innerHTML" : "text")] =
-        "MathJax.Hub.Config({" +
-        "    config: ['MMLorHTML.js']," +
-        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
-        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
-        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
-        "    displayAlign: '"+ align +"'," +
-        "    displayIndent: '"+ indent +"'," +
-        "    showMathMenu: true," +
-        "    messageStyle: 'normal'," +
-        "    tex2jax: { " +
-        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
-        "        displayMath: [ ['$$','$$'] ]," +
-        "        processEscapes: true," +
-        "        preview: 'TeX'," +
-        "    }, " +
-        "    'HTML-CSS': { " +
-        "        availableFonts: ['STIX', 'TeX']," +
-        "        preferredFont: 'STIX'," +
-        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
-        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
-        "    }, " +
-        "}); " +
-        "if ('default' !== 'default') {" +
-            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-        "}";
-
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
-}
-</script>
-                        <a class="readmore" href="/nearest-neighbor-gaussian-processes.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/fast-slam.html" rel="bookmark"
-                               title="Permalink to Fast SLAM">Fast SLAM</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2023-10-30T00:00:00-05:00">
-                Published: Mon 30 October 2023
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/slam.html">slam</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This notebook looks at a technique for simultaneous localization (finding the position of a robot) and mapping (finding the positions of any obstacles), abbreviated as SLAM. In this model, the probability distribution for the robot's trajectory <span class="math">\(x_{1:t}\)</span> is represented with a set of weighted particles. Let the weight …</p><script type='text/javascript'>if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
-    var align = "center",
-        indent = "0em",
-        linebreak = "false";
-
-    if (false) {
-        align = (screen.width < 768) ? "left" : align;
-        indent = (screen.width < 768) ? "0em" : indent;
-        linebreak = (screen.width < 768) ? 'true' : linebreak;
-    }
-
-    var mathjaxscript = document.createElement('script');
-    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
-    mathjaxscript.type = 'text/javascript';
-    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
-
-    var configscript = document.createElement('script');
-    configscript.type = 'text/x-mathjax-config';
-    configscript[(window.opera ? "innerHTML" : "text")] =
-        "MathJax.Hub.Config({" +
-        "    config: ['MMLorHTML.js']," +
-        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
-        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
-        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
-        "    displayAlign: '"+ align +"'," +
-        "    displayIndent: '"+ indent +"'," +
-        "    showMathMenu: true," +
-        "    messageStyle: 'normal'," +
-        "    tex2jax: { " +
-        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
-        "        displayMath: [ ['$$','$$'] ]," +
-        "        processEscapes: true," +
-        "        preview: 'TeX'," +
-        "    }, " +
-        "    'HTML-CSS': { " +
-        "        availableFonts: ['STIX', 'TeX']," +
-        "        preferredFont: 'STIX'," +
-        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
-        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
-        "    }, " +
-        "}); " +
-        "if ('default' !== 'default') {" +
-            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-        "}";
-
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
-}
-</script>
-                        <a class="readmore" href="/fast-slam.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/mapping-with-gaussian-conditioning.html" rel="bookmark"
-                               title="Permalink to Mapping with Gaussian Conditioning">Mapping with Gaussian Conditioning</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2023-10-02T00:00:00-05:00">
-                Published: Mon 02 October 2023
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/slam.html">slam</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>For a robot to navigate autonomously, it needs to learn the locations of any potential obsticles around it. One of the standard ways to do this is with an algorithm known as EKF-Slam. Slam stands for "simultaneous localization and mapping", as the algorithm must simultaneously find out where the robot …</p>
-                        <a class="readmore" href="/mapping-with-gaussian-conditioning.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/conjugate-computation.html" rel="bookmark"
-                               title="Permalink to Conjugate Computation">Conjugate Computation</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2023-08-16T00:00:00-05:00">
-                Published: Wed 16 August 2023
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/machine_learning.html">machine_learning</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This post is about a technique that allows us to use variational message passing on models where the likelihood doesn't have a conjugate prior. There will be a lot of Jax code snippets to make everything as concrete as possible. </p>
-<h2>The Math</h2>
-<p>Say <span class="math">\(X\)</span> comes from a distribution with density …</p><script type='text/javascript'>if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
-    var align = "center",
-        indent = "0em",
-        linebreak = "false";
-
-    if (false) {
-        align = (screen.width < 768) ? "left" : align;
-        indent = (screen.width < 768) ? "0em" : indent;
-        linebreak = (screen.width < 768) ? 'true' : linebreak;
-    }
-
-    var mathjaxscript = document.createElement('script');
-    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
-    mathjaxscript.type = 'text/javascript';
-    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
-
-    var configscript = document.createElement('script');
-    configscript.type = 'text/x-mathjax-config';
-    configscript[(window.opera ? "innerHTML" : "text")] =
-        "MathJax.Hub.Config({" +
-        "    config: ['MMLorHTML.js']," +
-        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
-        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
-        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
-        "    displayAlign: '"+ align +"'," +
-        "    displayIndent: '"+ indent +"'," +
-        "    showMathMenu: true," +
-        "    messageStyle: 'normal'," +
-        "    tex2jax: { " +
-        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
-        "        displayMath: [ ['$$','$$'] ]," +
-        "        processEscapes: true," +
-        "        preview: 'TeX'," +
-        "    }, " +
-        "    'HTML-CSS': { " +
-        "        availableFonts: ['STIX', 'TeX']," +
-        "        preferredFont: 'STIX'," +
-        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
-        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
-        "    }, " +
-        "}); " +
-        "if ('default' !== 'default') {" +
-            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-        "}";
-
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
-}
-</script>
-                        <a class="readmore" href="/conjugate-computation.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/sparse-variational-gaussian-processes.html" rel="bookmark"
-                               title="Permalink to Sparse Variational Gaussian Processes">Sparse Variational Gaussian Processes</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2021-09-20T00:00:00-05:00">
-                Published: Mon 20 September 2021
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/statistics.html">statistics</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>This notebook introduces <em>Fully Independent Training Conditional</em> (FITC) sparse variational Gaussian process model. You shouldn't need any prior knowledge about Gaussian processes- it's enough to know how to condition and marginalize finite dimensional Gaussian distributions. I'll assume you know about variational inference and Pyro, though.</p>
-<div class="codehilite"><pre><span></span><code><span class="kn">import</span> <span class="nn">pyro</span>
-<span class="kn">import</span> <span class="nn">pyro.distributions …</span></code></pre></div>
-                        <a class="readmore" href="/sparse-variational-gaussian-processes.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/differential-equations-refresher.html" rel="bookmark"
-                               title="Permalink to Differential Equations Refresher">Differential Equations Refresher</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2021-04-01T00:00:00-05:00">
-                Published: Thu 01 April 2021
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/math.html">math</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>In my freshman year of college, I took an introductory differential equations class. That was nine years ago. I've forgotten pretty much everything, so I thought I'd review a little, trying to generalize the techniques along the way. I'll use <a href="">summation notation</a> throughout, and write <span class="math">\(\frac{\partial^n}{\partial x …</span></p><script type='text/javascript'>if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
-    var align = "center",
-        indent = "0em",
-        linebreak = "false";
-
-    if (false) {
-        align = (screen.width < 768) ? "left" : align;
-        indent = (screen.width < 768) ? "0em" : indent;
-        linebreak = (screen.width < 768) ? 'true' : linebreak;
-    }
-
-    var mathjaxscript = document.createElement('script');
-    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
-    mathjaxscript.type = 'text/javascript';
-    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
-
-    var configscript = document.createElement('script');
-    configscript.type = 'text/x-mathjax-config';
-    configscript[(window.opera ? "innerHTML" : "text")] =
-        "MathJax.Hub.Config({" +
-        "    config: ['MMLorHTML.js']," +
-        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
-        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
-        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
-        "    displayAlign: '"+ align +"'," +
-        "    displayIndent: '"+ indent +"'," +
-        "    showMathMenu: true," +
-        "    messageStyle: 'normal'," +
-        "    tex2jax: { " +
-        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
-        "        displayMath: [ ['$$','$$'] ]," +
-        "        processEscapes: true," +
-        "        preview: 'TeX'," +
-        "    }, " +
-        "    'HTML-CSS': { " +
-        "        availableFonts: ['STIX', 'TeX']," +
-        "        preferredFont: 'STIX'," +
-        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
-        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
-        "    }, " +
-        "}); " +
-        "if ('default' !== 'default') {" +
-            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-        "}";
-
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
-}
-</script>
-                        <a class="readmore" href="/differential-equations-refresher.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/fun-with-likelihood-ratios.html" rel="bookmark"
-                               title="Permalink to Fun with Likelihood Ratios">Fun with Likelihood Ratios</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2021-01-14T00:00:00-06:00">
-                Published: Thu 14 January 2021
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/machine_learning.html">machine_learning</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Say you're trying to maximize a likelihood <span class="math">\(p_{\theta}(x)\)</span>, but you only have an unnormalized version <span class="math">\(\hat{p_{\theta}}\)</span> for which <span class="math">\(p_{\theta}(x) = \frac{\hat{p_\theta}(x)}{N_\theta}\)</span>. How do you pick <span class="math">\(\theta\)</span>? Well, you can rely on the magic of self normalized importance sampling.</p>
-<script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
-    var align = "center",
-        indent = "0em",
-        linebreak = "false";
-
-    if (false) {
-        align = (screen.width < 768) ? "left" : align;
-        indent = (screen.width < 768) ? "0em" : indent;
-        linebreak = (screen.width < 768) ? 'true' : linebreak;
-    }
-
-    var mathjaxscript = document.createElement('script');
-    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
-    mathjaxscript.type = 'text/javascript';
-    mathjaxscript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/latest.js?config=TeX-AMS-MML_HTMLorMML';
-
-    var configscript = document.createElement('script');
-    configscript.type = 'text/x-mathjax-config';
-    configscript[(window.opera ? "innerHTML" : "text")] =
-        "MathJax.Hub.Config({" +
-        "    config: ['MMLorHTML.js']," +
-        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'none' } }," +
-        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
-        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
-        "    displayAlign: '"+ align +"'," +
-        "    displayIndent: '"+ indent +"'," +
-        "    showMathMenu: true," +
-        "    messageStyle: 'normal'," +
-        "    tex2jax: { " +
-        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
-        "        displayMath: [ ['$$','$$'] ]," +
-        "        processEscapes: true," +
-        "        preview: 'TeX'," +
-        "    }, " +
-        "    'HTML-CSS': { " +
-        "        availableFonts: ['STIX', 'TeX']," +
-        "        preferredFont: 'STIX'," +
-        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
-        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
-        "    }, " +
-        "}); " +
-        "if ('default' !== 'default') {" +
-            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
-                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
-                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
-                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
-                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
-                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
-            "});" +
-        "}";
-
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(configscript);
-    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
-}
-</script>
-                        <a class="readmore" href="/fun-with-likelihood-ratios.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
-
-                <li><article class="hentry">
-                    <header>
-                        <h1><a href="/jupyter-for-everything.html" rel="bookmark"
-                               title="Permalink to Jupyter for Everything">Jupyter for Everything</a></h1>
-                    </header>
-
-                    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-08-20T00:00:00-05:00">
-                Published: Thu 20 August 2020
-        </abbr>
-
-                <address class="vcard author">
-                        By                                 <a class="url fn" href="/author/sam-anklesaria.html">Sam Anklesaria</a>
-                </address>
-        <p>In <a href="/category/tools.html">tools</a>.</p>
-        
-</footer><!-- /.post-info -->                        <p>Forget vim or emacs of VSCode. <a href="https://jupyter.org/">Jupyter</a> is hands down the best editor out there. The literate programming support, complete with images and beautiful latex snippets? The inline visualizations of all kinds of data-types, from <a href="https://ipyleaflet.readthedocs.io/en/latest/api_reference/map.html">maps</a> to <a href="https://pythreejs.readthedocs.io/en/stable/examples/Geometries.html">meshes</a> to <a href="https://networkx.github.io/">graphs</a> and <a href="https://shapely.readthedocs.io/en/stable/">polygons</a>?  The <a href="https://ipywidgets.readthedocs.io/en/stable/examples/Using%20Interact.html">widgets</a> for interactively testing your code? It's …</p>
-                        <a class="readmore" href="/jupyter-for-everything.html">read more</a>
-                    </div><!-- /.entry-content -->
-                </article></li>
                     </ol><!-- /#posts-list -->
+  <nav>
+    <ul>
+      <li>Page 1 / 2</li>
+        <li><a href="/author/sam-anklesaria2.html">&rang;</a></li>
+        <li><a href="/author/sam-anklesaria2.html">&Rang;</a></li>
+    </ul>
+  </nav>
                     </section><!-- /#content -->
                 <section id="extras" class="body">
                 </section><!-- /#extras -->
