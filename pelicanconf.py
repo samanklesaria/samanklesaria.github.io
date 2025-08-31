@@ -1,6 +1,7 @@
 AUTHOR = 'Sam Anklesaria'
 SITENAME = "Sam's Blog"
 SITEURL = ""
+DEFAULT_PAGINATION = 10
 
 PATH = "content"
 
