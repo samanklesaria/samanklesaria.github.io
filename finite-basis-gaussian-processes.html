@@ -161,7 +161,7 @@ This lets the mean simplify to
 <div class="codehilite"><pre><span></span><code><span class="n">opt_m</span><span class="p">,</span><span class="w"> </span><span class="n">opt_C</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nd">@btime</span><span class="w"> </span><span class="n">mean_and_cov</span><span class="p">(</span><span class="n">posterior</span><span class="p">(</span><span class="o">$</span><span class="n">fx</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">y</span><span class="p">)(</span><span class="o">$</span><span class="n">x2</span><span class="p">));</span>
 </code></pre></div>
 
-<div class="codehilite"><pre><span></span><code>  6.546 ms (28 allocations: 61.13 MiB)
+<div class="codehilite"><pre><span></span><code>  6.330 ms (28 allocations: 61.13 MiB)
 </code></pre></div>
 
 <p>To compare against the implementation that uses a function-space perspective, we'll use a bit of a hack: by adding a <code>ZeroKernel</code> to our <code>FiniteBasis</code> kernel, we get a kernel for which our custom <code>posterior</code> method won't be called.</p>
@@ -171,13 +171,13 @@ This lets the mean simplify to
 <div class="codehilite"><pre><span></span><code><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nd">@btime</span><span class="w"> </span><span class="n">mean_and_cov</span><span class="p">(</span><span class="n">posterior</span><span class="p">(</span><span class="o">$</span><span class="n">fx2</span><span class="p">,</span><span class="w"> </span><span class="o">$</span><span class="n">y</span><span class="p">)(</span><span class="o">$</span><span class="n">x2</span><span class="p">));</span>
 </code></pre></div>
 
-<div class="codehilite"><pre><span></span><code>  418.642 ms (74 allocations: 457.83 MiB)
+<div class="codehilite"><pre><span></span><code>  419.824 ms (74 allocations: 457.83 MiB)
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code><span class="n">max</span><span class="p">(</span><span class="n">maximum</span><span class="p">(</span><span class="n">abs</span><span class="o">.</span><span class="p">(</span><span class="n">opt_C</span><span class="w"> </span><span class="o">.-</span><span class="w"> </span><span class="n">C</span><span class="p">)),</span><span class="w"> </span><span class="n">maximum</span><span class="p">(</span><span class="n">abs</span><span class="o">.</span><span class="p">(</span><span class="n">opt_m</span><span class="w"> </span><span class="o">.-</span><span class="w"> </span><span class="n">m</span><span class="p">)))</span>
 </code></pre></div>
 
-<div class="codehilite"><pre><span></span><code>8.098854920035592e-12
+<div class="codehilite"><pre><span></span><code>8.390843575512008e-12
 </code></pre></div>
 
 <p>Our optimized technique produces the same results!</p>
@@ -225,7 +225,7 @@ This lets the mean simplify to
 <div class="codehilite"><pre><span></span><code><span class="n">max</span><span class="p">(</span><span class="n">maximum</span><span class="p">(</span><span class="n">abs</span><span class="o">.</span><span class="p">(</span><span class="n">m2</span><span class="w"> </span><span class="o">.-</span><span class="w"> </span><span class="n">ff_m</span><span class="p">)),</span><span class="w"> </span><span class="n">maximum</span><span class="p">(</span><span class="n">abs</span><span class="o">.</span><span class="p">(</span><span class="n">C2</span><span class="w"> </span><span class="o">.-</span><span class="w"> </span><span class="n">ff_C</span><span class="p">)))</span>
 </code></pre></div>
 
-<div class="codehilite"><pre><span></span><code>0.0054356182214654325
+<div class="codehilite"><pre><span></span><code>0.0002827053066312146
 </code></pre></div>
 
 <p>Even with only 100 samples, we get a pretty close approximation!</p>
