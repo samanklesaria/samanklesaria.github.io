@@ -1,7 +1,7 @@
 AUTHOR = 'Sam Anklesaria'
 SITENAME = "Sam's Blog"
 SITEURL = ""
-DEFAULT_PAGINATION = 10
+DEFAULT_PAGINATION = 6
 
 PATH = "content"
 
@@ -27,11 +27,13 @@ MARKDOWN = {
     }
 }
 
+
 # Blogroll
 LINKS = ()
 
 # Social widget
 SOCIAL = ()
+
 
 # Uncomment following line if you want document-relative URLs when developing
 # RELATIVE_URLS = True
