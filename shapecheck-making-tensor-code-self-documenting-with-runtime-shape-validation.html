@@ -41,7 +41,7 @@
         <p>In <a href="/category/tools.html">tools</a>.</p>
         
 </footer><!-- /.post-info -->        <p>Writing neural networks often feels like juggling tensors in the dark. You know that <code>attention_weights</code> should be 4-dimensional, but PyTorch won't tell you until your matrix multiplication explodes at runtime. What if your variable names could automatically validate tensor shapes?</p>
-<p>Meet <a href="https://github.com/samanklesaria/shapecheck"><strong>ShapeCheck</strong></a> – a Python decorator that brings Character AI's shape-suffix convention to life with automatic runtime validation.</p>
+<p>Meet <a href="https://github.com/samanklesaria/shapecheck"><strong>ShapeCheck</strong></a> – a Python decorator that brings Character AI's shape-suffix convention to life with automatic runtime validation. Pip install <code>shapecheck</code> to get started!</p>
 <h2>The Character AI Convention</h2>
 <p>At Character AI, engineers follow a simple but powerful naming convention: append dimension letters to tensor variable names. As Noam Shazeer explains in his <a href="https://medium.com/@NoamShazeer/shape-suffixes-good-coding-style-f836e72e24fd">Medium post</a>:</p>
 <blockquote>
@@ -73,6 +73,8 @@
 </code></pre></div>
 
 <p>The magic happens through AST transformation. ShapeCheck parses your function, identifies shape-annotated variables, and injects validation code automatically. You write clean, readable code with meaningful names, and get bulletproof shape checking for free.</p>
+<h2>Available in Julia too!</h2>
+<p>The Julia version is called <code>SizeCheck</code>. It's available on <a href="https://github.com/samanklesaria/SizeCheck">GitHub</a> and can be installed via <code>Pkg.add("SizeCheck")</code>.</p>
       </div><!-- /.entry-content -->
 
     </article>
