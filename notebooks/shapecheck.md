@@ -7,7 +7,7 @@ category: tools
 
 Writing neural networks often feels like juggling tensors in the dark. You know that `attention_weights` should be 4-dimensional, but PyTorch won't tell you until your matrix multiplication explodes at runtime. What if your variable names could automatically validate tensor shapes?
 
-Meet [**ShapeCheck**](https://github.com/samanklesaria/shapecheck) – a Python decorator that brings Character AI's shape-suffix convention to life with automatic runtime validation.
+Meet [**ShapeCheck**](https://github.com/samanklesaria/shapecheck) – a Python decorator that brings Character AI's shape-suffix convention to life with automatic runtime validation. Pip install `shapecheck` to get started!
 
 ## The Character AI Convention
 
@@ -48,3 +48,7 @@ AssertionError: Shape mismatch for key_BLH dimension L: expected 10 (from query_
 ```
 
 The magic happens through AST transformation. ShapeCheck parses your function, identifies shape-annotated variables, and injects validation code automatically. You write clean, readable code with meaningful names, and get bulletproof shape checking for free.
+
+## Available in Julia too!
+
+The Julia version is called `SizeCheck`. It's available on [GitHub](https://github.com/samanklesaria/SizeCheck) and can be installed via `Pkg.add("SizeCheck")`.
