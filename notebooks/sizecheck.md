@@ -1,5 +1,5 @@
 ---
-title: ShapeCheck: Making Tensor Code Self-Documenting with Runtime Shape Validation
+title: Sizecheck: Making Tensor Code Self-Documenting with Runtime Shape Validation
 date: 8/30/2025
 category: tools
 ---
@@ -7,11 +7,11 @@ category: tools
 
 Writing neural networks often feels like juggling tensors in the dark. You know that `attention_weights` should be 4-dimensional, but PyTorch won't tell you until your matrix multiplication explodes at runtime. What if your variable names could automatically validate tensor shapes?
 
-Meet [**ShapeCheck**](https://github.com/samanklesaria/shapecheck) – a Python decorator that brings Character AI's shape-suffix convention to life with automatic runtime validation. Pip install `shapecheck` to get started!
+Meet [**sizecheck**](https://github.com/samanklesaria/sizecheck) – a Python decorator that for automatic runtime validation. Pip install `sizecheck` to get started!
 
-## The Character AI Convention
+## The Shape Suffix Convention
 
-At Character AI, engineers follow a simple but powerful naming convention: append dimension letters to tensor variable names. As Noam Shazeer explains in his [Medium post](https://medium.com/@NoamShazeer/shape-suffixes-good-coding-style-f836e72e24fd):
+When writing PyTorch or NumPy code, it's common to use naming conventions that indicate tensor shapes, as Noam Shazeer explains in his [Medium post](https://medium.com/@NoamShazeer/shape-suffixes-good-coding-style-f836e72e24fd):
 
 > "When known, the name of a tensor should end in a dimension-suffix composed of those letters, e.g. `input_token_id_BL` for a two-dimensional tensor with batch and length dimensions."
 
@@ -19,7 +19,7 @@ This makes code self-documenting. Looking at `query_BLHK`, you immediately know 
 
 ## From Convention to Validation
 
-ShapeCheck takes this convention and makes it bulletproof. By analyzing your function's syntax tree, it automatically injects shape checks wherever you use suffixed variable names. Just prefix your function with `@shapecheck`:
+Sizecheck verifies that your tensors actually have the shapes you expect them to have. By analyzing your function's syntax tree, it automatically injects shape checks wherever you use suffixed variable names. Just prefix your function with `@shapecheck`:
 
 ```python
 import torch
@@ -49,6 +49,8 @@ AssertionError: Shape mismatch for key_BLH dimension L: expected 10 (from query_
 
 The magic happens through AST transformation. ShapeCheck parses your function, identifies shape-annotated variables, and injects validation code automatically. You write clean, readable code with meaningful names, and get bulletproof shape checking for free.
 
+Additionally, shape dimensions are stored as local variables within each function. If local variable is named `score_BLL`, for example, then the variables `B` and `L` will automatically be assigned its first and second shape indices. 
+
 ## Available in Julia too!
 
-The Julia version is called `SizeCheck`. It's available on [GitHub](https://github.com/samanklesaria/SizeCheck) and can be installed via `Pkg.add("SizeCheck")`.
+The Julia version is called `SizeCheck.jl`. It's available on [GitHub](https://github.com/samanklesaria/SizeCheck) and can be installed via `Pkg.add("SizeCheck")`.
