@@ -93,13 +93,13 @@ We get $(-b/a - \lambda)(-\lambda) + c/a =0$. Multiply by $a$ to get $a\lambda^2
 
 So far, we've seen differential equations of the form $u' - Au = 0$. But what if the right hand side is some $q(t)$ instead? We can use *integrating factors* to solve this. Multiply both sides by $e^{-At}$:
 $$
-e^{-At}u' - e^{-At}Au = a^{-At}q(t)
+e^{-At}u' - e^{-At}Au = e^{-At}q(t)
 $$
 By the product rule, the left hand side is just the derivative of $e^{-At}u$. This lets its integrate both sides from $0$ to $T$.  
 $$
-e^{-AT}u - u(0) = \int_0^T a^{-At}q(t)\, dt
+e^{-AT}u - u(0) = \int_0^T e^{-At}q(t)\, dt
 $$
-Multiply by $e^{-AT}$ to get $u = e^{-AT}u(0) + \int_0^T a^{-A(T-t)}q(t)\, dt$.
+Multiply by $e^{AT}$ to get $u = e^{AT}u(0) + \int_0^T e^{A(T-t)}q(t)\, dt$.
 
 Conceptually, we're adding up a bunch of different copies of our homogenous equation $y'=Ay$, but with different starting conditions $q(t)$ and shifted forward in time. 
 
