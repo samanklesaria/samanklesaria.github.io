@@ -14,12 +14,12 @@ using DataFrames, PythonCall, CSV, Dates, DataFramesMeta, RecursiveArrayTools, S
 
 # ╔═╡ 7c0d0eb8-c3f9-11f0-9cf4-13a71d7d2e13
 md"""
-I recently came across a dataset of container ship movement between Tallinn and Helsinki on Kaggle. In this notebook, we'll try to classify whether a given ship's trajectory seems similar to those of the container ships, or whether we're looking at something else (perhaps a pirate). 
+I recently came across a dataset of container ship movement between Tallinn and Helsinki on Kaggle. In this notebook, we'll try to classify whether a given ship's trajectory seems similar to those of the container ships, or whether we're looking at something else (perhaps a pirate).
 """
 
 # ╔═╡ b6f4f4ae-9873-4681-8707-9d396c6b2a2b
 md"""
-I'll start by loading the ship tracking data, taking zscores of the latitude and longitude, and normalizing timing information for each trajectory. We can identify rows belonging to the same ship's trajectory by the ship's International Maritime Organization code (IMO) and its actual arrival time (ATA). For simplicity, we'll just consider 2k samples of trajectories leaving Helsinki for the time being. 
+I'll start by loading the ship tracking data, taking zscores of the latitude and longitude, and normalizing timing information for each trajectory. We can identify rows belonging to the same ship's trajectory by the ship's International Maritime Organization code (IMO) and its actual arrival time (ATA). For simplicity, we'll just consider 2k samples of trajectories leaving Helsinki for the time being.
 """
 
 # ╔═╡ b2c9de3f-9286-4996-bba9-1f590976c336
@@ -48,7 +48,7 @@ end
 df, groups = load_ship_data();
 
 # ╔═╡ 3b041470-5f5a-4507-bf46-3936e4e060df
-md"Below, I've plotted the trajectories with color marking the passage of time." 
+md"Below, I've plotted the trajectories with color marking the passage of time."
 
 # ╔═╡ 13cd20f2-def7-4aba-bb82-74dc8ebc3cd7
 scatter(df[!, :long], df[!, :lat], color=df[!, :nt], markersize=2, alpha=0.4)
@@ -58,19 +58,19 @@ md"## The Model"
 
 # ╔═╡ 3f08a185-7acc-4a23-97c3-811320d181c0
 md"""
-It seems like there's more than one standard way of moving between these ports. I make out three different routes; trajectories seem to be scattered around a central curve for each route. 
+It seems like there's more than one standard way of moving between these ports. I make out three different routes; trajectories seem to be scattered around a central curve for each route.
 
-We can model this behavior with a mixture of Gaussian processes. For each of the three different routes above ($i=1,2,3$), we'll assume a function $f_i$ mapping time to lattitude and longitude values was sampled from a Gaussian Process prior.  Container ships will trajectories will always be close to one of these routes- we just don't know which one. We'll also assume that other (non-container) ships follow trajectories sampled independently from the same Gaussian Process prior. To tell if a given trajectory seems to be that of a container ship, we just need to check whether it more closely resembles the posterior mixture of container routes or prior over all possible ship trajectories. 
+We can model this behavior with a mixture of Gaussian processes. For each of the three different routes above ($i=1,2,3$), we'll assume a function $f_i$ mapping time to lattitude and longitude values was sampled from a Gaussian Process prior.  Container ships will trajectories will always be close to one of these routes- we just don't know which one. We'll also assume that other (non-container) ships follow trajectories sampled independently from the same Gaussian Process prior. To tell if a given trajectory seems to be that of a container ship, we just need to check whether it more closely resembles the posterior mixture of container routes or prior over all possible ship trajectories.
 
 Specifically, let $y$ refer to the observed trajectories and $y'$ refer to the new trajectory we're trying to classify. Say $B=0$ if $y'$ is a container ship and $B=1$ otherwise. We want to learn the posterior odds that $B=1$ given  $y$ and $y'$, which is just $\frac{P(y' | y, B=1)P(B=1)}{P(y' | y, B=O)P(B=O)}$. When $B=1$, we can get the likelihood of $y'$ by integrating over samples $f$ from the posterior GP mixture $\int P(y' | f)P(f | y) \, df$. When $B=0$, we can get the likelihood by integrating over samples $g$ from the prior GP: $\int P(y' | g)P(g) \, dg$.
 
-We don't know a priori what fraction of the ships in the region are container ships, but to be conservative, we'll give equal prior probabiliy to $B=0$ and $B=1$. 
+We don't know a priori what fraction of the ships in the region are container ships, but to be conservative, we'll give equal prior probabiliy to $B=0$ and $B=1$.
 """
 
 # ╔═╡ 8039f259-72b0-4f67-a422-c6511110d40d
 md"""
 ## Modeling Sub-Trajectories
-Ideally, we'd like to identify out-of-distribution ships without having to observe their full port-to-port trajectories. To do this, we can marginalize the likelihood of a trajectory snippet over possible offsets in time. 
+Ideally, we'd like to identify out-of-distribution ships without having to observe their full port-to-port trajectories. To do this, we can marginalize the likelihood of a trajectory snippet over possible offsets in time.
 """
 
 # ╔═╡ 0f561227-bff5-45ad-adda-2e2f8522d92d
@@ -81,8 +81,8 @@ end
 
 # ╔═╡ 4714b6df-935b-42d7-813a-a37459a02bea
 function ok_prob(t, gp, y1p, y2p, y1, y2)
-	"""Find the posterior probability that a ship with longitude/latitude trajectory pairs (`y1`, `y2`) at times `t` is a container ship (with trajectories coming from posterior GPs `y1p` and `y2p`) rather than some other kind of ship (with trajectories coming from prior `gp`). 
-	"""
+    """Find the posterior probability that a ship with longitude/latitude trajectory pairs (`y1`, `y2`) at times `t` is a container ship (with trajectories coming from posterior GPs `y1p` and `y2p`) rather than some other kind of ship (with trajectories coming from prior `gp`).
+    """
     logistic(marginal_logprob(y1p, y1, t) + marginal_logprob(y2p, y2, t) -
              marginal_logprob(gp, y1, t) - marginal_logprob(gp, y2, t))
 end
@@ -90,21 +90,21 @@ end
 # ╔═╡ 500a7868-5e05-4417-80cc-1216a3aaffaf
 md"""
 ## Approximating Posterior GP Mixtures
-We can't compute the posterior of a mixture of Gaussian processes analytically. But we can approximate it with mean field variational inference. 
+We can't compute the posterior of a mixture of Gaussian processes analytically. But we can approximate it with mean field variational inference.
 """
 
 # ╔═╡ 6c80d272-10cd-41af-8205-fdc990b87324
 md"""
-Let $z_i$ be a 1-hot vector giving the route chosen in trajetory $i$. I assume $z_i \sim \text{Categorical}(\pi)$, and $\pi \sim \text{Dirichlet}(\alpha_0)$. The variational posterior for $\pi$ will be Dirichlet with parameters $\alpha$. 
+Let $z_i$ be a 1-hot vector giving the route chosen in trajetory $i$. I assume $z_i \sim \text{Categorical}(\pi)$, and $\pi \sim \text{Dirichlet}(\alpha_0)$. The variational posterior for $\pi$ will be Dirichlet with parameters $\alpha$.
 """
 
 # ╔═╡ 75c7e8df-0aed-4479-8272-6bc915af2da5
 md"""
-For the likelihood, I'll introduce inducing inputs $c$ and outputs $u_k$ for each route and assume that $u_k = f_k(c)$ and $p(y_i | u_k, z_{ik})  = \mathcal{N}(K_{yu} K_{uu}^{-1}u, Q_{yy})$ where $Q_{yy} = \text{diag}(K_{yy} - K_{yu}K_{uu}^{-1}K_{uy}) + \sigma^2I$ (the Fully Indepenent Training Conditional assumption). Let $A = K_{yu}K_{uu}^{-1}$ and $Q = \Lambda^{-1}$. We can pre-calculate the kernel matrices and store them in a separate `KernelMats` struct for each trajectory. If we were more concered with performance, we would avoid finding $K_{uu}^{-1}$ explicitly, but this is good enough for a blog post. 
+For the likelihood, I'll introduce inducing inputs $c$ and outputs $u_k$ for each route and assume that $u_k = f_k(c)$ and $p(y_i | u_k, z_{ik})  = \mathcal{N}(K_{yu} K_{uu}^{-1}u, Q_{yy})$ where $Q_{yy} = \text{diag}(K_{yy} - K_{yu}K_{uu}^{-1}K_{uy}) + \sigma^2I$ (the Fully Indepenent Training Conditional assumption). Let $A = K_{yu}K_{uu}^{-1}$ and $Q = \Lambda^{-1}$. We can pre-calculate the kernel matrices and store them in a separate `KernelMats` struct for each trajectory. If we were more concered with performance, we would avoid finding $K_{uu}^{-1}$ explicitly, but this is good enough for a blog post.
 """
 
 # ╔═╡ b7d41f74-87a9-456c-8546-139bded9461e
-σ=0.03; # Variation among trajectories using the same route.
+σ = 0.03; # Variation among trajectories using the same route.
 
 # ╔═╡ 10bb57a5-56be-410b-87c5-b25b2da2f2fa
 struct KernelMats
@@ -136,7 +136,7 @@ The variational posterior for inducing points $u_k$ will be normal with mean $m_
 # ╔═╡ 8f13abd1-f3bc-4a2e-8f0c-424bda14817b
 struct VComp
     S_inv::PDMat{Float64,Matrix{Float64}}
-	m1::Vector{Float64}
+    m1::Vector{Float64}
     m2::Vector{Float64}
 end
 
@@ -144,7 +144,7 @@ end
 md"""
 Now to figure out the variational updates. We'll start by deriving the component update for $q(z_i)$. From the mean field assumption, we know the ELBO is maximized when $\log q(z_{ik}) = E_q \log p(y_i | u_k) + E_q \log p(z_{ik}) + \text{const}$. As the approximate posterior over $\pi$ is Dirichlet, $E_q \log p(z_{ik}) = E_q \pi_k = \psi(\alpha_k) - \psi(\sum_j \alpha_j)$. It remains to find
 
-$E_q \log p(y_i | u_k) =-\frac{1}{2} E_q (y-Au_k)\Lambda (y-Au_k) + \frac{1}{2} \log |\Lambda|$ 
+$E_q \log p(y_i | u_k) =-\frac{1}{2} E_q (y-Au_k)\Lambda (y-Au_k) + \frac{1}{2} \log |\Lambda|$
 
 Expanding the quadratic term lets us compute the expectation:
 
@@ -159,7 +159,7 @@ md"We can eliminate terms like $\psi(\sum_j \alpha _j)$ and $\log | \Lambda |$ w
 
 # ╔═╡ e5450c37-b14e-435b-8cf6-f82e4d19860c
 function responsibilities(y1, y2, c::Vector{KernelMats}, o, alpha)
-	"Calculate r_ik for seeing `(y1, y2)` for each component in `o`"
+    "Calculate r_ik for seeing `(y1, y2)` for each component in `o`"
     Vector{Float64}[
         softmax(Float64[isnothing(og) ? -Inf64 : let
             μ1 = cn.A * og.m1
@@ -267,15 +267,15 @@ pi = rand(π_prior);
 
 # ╔═╡ 4bd2d3e6-f388-4b4e-9ceb-6e477c972566
 (true_f, y1_N, y2_N, x_N) = let
-	x_T = LinRange(0, 1, T)
-	true_f = [rand(rng, gp(x_T), 2) for _ in 1:3]
+    x_T = LinRange(0, 1, T)
+    true_f = [rand(rng, gp(x_T), 2) for _ in 1:3]
     noise = [σ .* randn(T, 2) for _ in 1:N]
     z = rand(rng, Distributions.Categorical(pi), N)
-	y_T2N = stack(true_f[z] .+ noise)
-	y1_N = eachcol(y_T2N[:, 1, :])
+    y_T2N = stack(true_f[z] .+ noise)
+    y1_N = eachcol(y_T2N[:, 1, :])
     y2_N = eachcol(y_T2N[:, 2, :])
-	x_N = [x_T for _ in 1:N]
-	(true_f, y1_N, y2_N, x_N)
+    x_N = [x_T for _ in 1:N]
+    (true_f, y1_N, y2_N, x_N)
 end;
 
 # ╔═╡ 50e89b85-3836-465a-aed1-7a0606a45375
@@ -288,9 +288,9 @@ To kick off variational inference, we'll need to guess starting parameters for $
 
 # ╔═╡ 913d896a-381d-4bbf-a361-a83c11103204
 o_guess = let
-	f = gp(c_U, σ^2)
-	K_UU_inv = inv(PDMat(kern.(c_U', c_U)))
-	Union{Nothing,VComp}[VComp(K_UU_inv, rand(rng, f), rand(rng, f)) for _ in 1:3]
+    f = gp(c_U, σ^2)
+    K_UU_inv = inv(PDMat(kern.(c_U', c_U)))
+    Union{Nothing,VComp}[VComp(K_UU_inv, rand(rng, f), rand(rng, f)) for _ in 1:3]
 end;
 
 # ╔═╡ 51a5a104-6015-49e7-bfaf-a38d99edc055
@@ -298,7 +298,7 @@ _, c, o = fit_mixture(kern, π_prior.alpha, x_N, y1_N, y2_N, c_U, o_guess; iters
 
 # ╔═╡ cab11ff0-8b49-4573-a83d-27a37e269dde
 md"""
-We can visualize how well the mixtures were recovered during inference by plotting a circle at our GP predictions over time. The radius of each circle will be the standard deviation of our posterior uncertainty at that point. I will draw the true synthetically generated functions as well for comparison. 
+We can visualize how well the mixtures were recovered during inference by plotting a circle at our GP predictions over time. The radius of each circle will be the standard deviation of our posterior uncertainty at that point. I will draw the true synthetically generated functions as well for comparison.
 """
 
 # ╔═╡ edb186bc-d040-4da6-8206-ea22649de03d
@@ -312,7 +312,7 @@ function plot_example(o, kern, c_U, true_f)
         σ = sqrt.(diag(inv(c[1].Λ)) .+ invquad(on.S_inv, c[1].A'))
         poly!(ax, Circle.(μ, σ), alpha=0.2)
     end
-	for i in 1:3
+    for i in 1:3
         lines!(ax, true_f[i][:, 1], true_f[i][:, 2])
     end
     f

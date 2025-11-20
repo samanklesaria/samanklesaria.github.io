@@ -1,5 +1,7 @@
 module PlutoNB
 
+__precompile__()
+
 using Pluto: ServerSession, SessionActions, frontmatter
 using JSON
 using Base64
