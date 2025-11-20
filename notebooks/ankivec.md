@@ -22,8 +22,18 @@ To search the vector database, use the form "vec: [your query here]" in Anki's u
 
 ## Why ChromaDB?
 
-I started trying to use [sqlite-vec](https://alexgarcia.xyz/sqlite-vec/installation.html), modifying Anki's internal sqlite database. Unfortunately, I found it was too easy to corrupt the database this way. Eventually, I figured it was best to keep the embedding database separate, and switched to ChromaDB. 
+I started trying to use [sqlite-vec](https://alexgarcia.xyz/sqlite-vec/installation.html), modifying Anki's internal sqlite database. Unfortunately, Anki doesn't like other processes modifying its database, and frequently warns mistakenly about corruption issues. Eventually, I figured it was easiest to keep the embedding database separate, and switched to ChromaDB. 
 
 ## Why Ollama?
 
 If I'm already using ChromaDB, why use Ollama? ChromaDB has its own embedding models built in! Unfortunately, they're super slow compared to Ollama's. For the `all-minilm` model that ChromaDB uses by default, Ollama's version is about 2.72x faster on my Mac. Even if you jump through the necessary hoops to get MPS acceleration for ChromaDB, Ollama is still over twice as fast. Yes, this makes installation a bit more complicated, but it's worth it, and makes it easier to swap in other embedding choices. You can run the benchmarks yourself from the [repository](https://github.com/samanklesaria/ankivec).
+
+## How do dependencies get installed?
+
+Anki's launcher uses a bundled version of `uv` to download its dependencies. I piggybacked on this to install my own dependencies (ollama and chromadb).
+
+- When the addon is initialized, it checks where Anki's copy of `uv` is located. On a Mac, this is within the application bundle itself. 
+- Next, it `uv sync`s its own directory using this bundled `uv` instance.
+- Finally, it adds the addon directory to the Python path before importing any modules. 
+
+This avoids the usual headaches of vendoring in all the transitive dependencies of an Anki addon. Just let `uv` handle it for you!
