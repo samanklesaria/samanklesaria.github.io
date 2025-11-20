@@ -118,16 +118,16 @@ We get <span class="math">\((-b/a - \lambda)(-\lambda) + c/a =0\)</span>. Multip
 <p>So far, we've seen differential equations of the form <span class="math">\(u' - Au = 0\)</span>. But what if the right hand side is some <span class="math">\(q(t)\)</span> instead? We can use <em>integrating factors</em> to solve this. Multiply both sides by <span class="math">\(e^{-At}\)</span>:
 </p>
 <div class="math">$$
-e^{-At}u' - e^{-At}Au = a^{-At}q(t)
+e^{-At}u' - e^{-At}Au = e^{-At}q(t)
 $$</div>
 <p>
 By the product rule, the left hand side is just the derivative of <span class="math">\(e^{-At}u\)</span>. This lets its integrate both sides from <span class="math">\(0\)</span> to <span class="math">\(T\)</span>.<br />
 </p>
 <div class="math">$$
-e^{-AT}u - u(0) = \int_0^T a^{-At}q(t)\, dt
+e^{-AT}u - u(0) = \int_0^T e^{-At}q(t)\, dt
 $$</div>
 <p>
-Multiply by <span class="math">\(e^{-AT}\)</span> to get <span class="math">\(u = e^{-AT}u(0) + \int_0^T a^{-A(T-t)}q(t)\, dt\)</span>.</p>
+Multiply by <span class="math">\(e^{AT}\)</span> to get <span class="math">\(u = e^{AT}u(0) + \int_0^T e^{A(T-t)}q(t)\, dt\)</span>.</p>
 <p>Conceptually, we're adding up a bunch of different copies of our homogenous equation <span class="math">\(y'=Ay\)</span>, but with different starting conditions <span class="math">\(q(t)\)</span> and shifted forward in time. </p>
 <h2>Partial Differential Equations</h2>
 <p>With partial differential equations (where we can be differentiating with respect to multiple different variables), the simple finite dimensional vector spaces we’ve been using won’t be as useful. We’ll have to use an infinite dimensional basis. </p>
