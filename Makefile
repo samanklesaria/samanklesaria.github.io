@@ -28,4 +28,4 @@ clean:
 
 publish: main
 	ghp-import output -b gh-pages
-	git push git@github.com:samanklesaria/samanklesaria.github.io.git gh-pages:main
+	git push git@github.com:samanklesaria/samanklesaria.github.io.git gh-pages

@@ -25,30 +25,31 @@ function process_cell(cell)
 end
 
 get_logs(logs) = [Dict(
-    "output_type"=> "stream",
-    "name"=>"stdout",
-    "text"=>[l["msg"][1] for l in logs])]
+    "output_type" => "stream",
+    "name" => "stdout",
+    "text" => [l["msg"][1] for l in logs])]
 
 const cell_out = Dict(
     "execution_count" => 1, "metadata" => Dict(), "output_type" => "execute_result")
 
+mimestr(mime::MIME{T}) where {T} = T
+
 get_execution_result(body::Vector, mime::MIME"image/svg+xml") = [
-    merge(cell_out, Dict("data" => Dict(mime => [decode(body, "UTF-8")])))]
+    merge(cell_out, Dict("data" => Dict(mimestr(mime) => [decode(body, "UTF-8")])))]
 
 get_execution_result(body::Vector, mime::MIME"image/png") = [
-    merge(cell_out, Dict("data" => Dict(mime => base64encode(body))))]
+    merge(cell_out, Dict("data" => Dict(mimestr(mime) => base64encode(body))))]
 
 get_execution_result(body::String, mime) = isempty(body) ? [] : [
-    merge(cell_out, Dict("data" => Dict(mime => [body])))]
+    merge(cell_out, Dict("data" => Dict(mimestr(mime) => [body])))]
 
 function get_execution_result(body, mime::MIME"application/vnd.pluto.tree+object")
     reduce(vcat, [get_execution_result(b[2]...) for b in body[:elements]])
 end
 
-SESSION = ServerSession()
 
 function jl2nb(in_path::AbstractString, out_path::AbstractString)
-
+    SESSION = ServerSession()
     nb = SessionActions.open(SESSION, in_path; run_async=false)
     order = nb.cell_order
     nbcells = map(order) do cell_uuid
