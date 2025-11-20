@@ -10,7 +10,7 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ 91bcbe7a-cc42-4918-b468-8adefae479db
-using DataFrames, PythonCall, CSV, Dates, DataFramesMeta, RecursiveArrayTools, StatsBase, CairoMakie, Distributions, SpecialFunctions, PDMats, LinearAlgebra, SizeCheck, KernelFunctions, AbstractGPs, LogExpFunctions
+using DataFrames, PythonCall, CSV, Dates, DataFramesMeta, RecursiveArrayTools, StatsBase, CairoMakie, Distributions, SpecialFunctions, PDMats, LinearAlgebra, SizeCheck, KernelFunctions, AbstractGPs, LogExpFunctions, Random
 
 # ╔═╡ 7c0d0eb8-c3f9-11f0-9cf4-13a71d7d2e13
 md"""
@@ -126,7 +126,7 @@ end
         end for n in 1:N
     ]
     (K_UU_inv, c)
-end
+end;
 
 # ╔═╡ 9c3811d3-58eb-476d-97e4-93f85a3719cb
 md"""
@@ -144,20 +144,14 @@ end
 md"""
 Now to figure out the variational updates. We'll start by deriving the component update for $q(z_i)$. From the mean field assumption, we know the ELBO is maximized when $\log q(z_{ik}) = E_q \log p(y_i | u_k) + E_q \log p(z_{ik}) + \text{const}$. As the approximate posterior over $\pi$ is Dirichlet, $E_q \log p(z_{ik}) = E_q \pi_k = \psi(\alpha_k) - \psi(\sum_j \alpha_j)$. It remains to find
 
-```math
-E_q \log p(y_i | u_k) =-\frac{1}{2} E_q (y-Au_k)\Lambda (y-Au_k) + \frac{1}{2} \log |\Lambda|
-```
+$E_q \log p(y_i | u_k) =-\frac{1}{2} E_q (y-Au_k)\Lambda (y-Au_k) + \frac{1}{2} \log |\Lambda|$ 
 
 Expanding the quadratic term lets us compute the expectation:
 
-```math
-\begin{align}
-&-2 y^T\Lambda A m_k + y^T\Lambda y + \text{Tr}(E[u_ku_k^T])A^T \Lambda A \\
-&= -2 y^T\Lambda A m_k + y^T\Lambda y + \text{Tr}(m_km_k^T + S_k)A^T \Lambda A \\
-&= -2 y^T\Lambda A m_k + y^T\Lambda y + \text{Tr}(S_kA^T \Lambda A) + m_k^TA^T\Lambda A m_k \\
-&= (y - Am_k)^T\Lambda (y - A m_k) + \text{Tr}(S_kA^T \Lambda A)
-\end{align}
-```
+$-2 y^T\Lambda A m_k + y^T\Lambda y + \text{Tr}(E[u_ku_k^T])A^T \Lambda A$
+$= -2 y^T\Lambda A m_k + y^T\Lambda y + \text{Tr}(m_km_k^T + S_k)A^T \Lambda A$
+$= -2 y^T\Lambda A m_k + y^T\Lambda y + \text{Tr}(S_kA^T \Lambda A) + m_k^TA^T\Lambda A m_k$
+$= (y - Am_k)^T\Lambda (y - A m_k) + \text{Tr}(S_kA^T \Lambda A)$
 """
 
 # ╔═╡ 3e25cc5d-f9ee-4e23-ae0e-6974dcfcbeec
@@ -175,18 +169,14 @@ function responsibilities(y1, y2, c::Vector{KernelMats}, o, alpha)
             -0.5 * q - tr(V) + digamma(alpha_g)
         end for (og, alpha_g) in zip(o, alpha)])
         for (cn, y1n, y2n) in zip(c, y1, y2)]
-end
+end;
 
 # ╔═╡ 59c17f6a-5009-4cee-b17d-1dae0c43a93d
 md"""
 Next, let's calculate the inducing point variational parameters. From the mean field assumption, the ELBO is maximized when
 
-```math
-\begin{align}
-\log q(u_k) &= \sum_i E_q 1_{z_i = k} \log  p(y_i | u_k, z_i = k) + \log p(u_k) + \text{const} \\
-&= \sum_i r_{ik} (\langle u_ku_k^T, A^T\Lambda A \rangle + \langle \Lambda A u_k, y_i \rangle) + \langle u_ku_k^T, K_{uu}^{-1} \rangle + \text{const}
-\end{align}
-```
+$\log q(u_k) = \sum_i E_q 1_{z_i = k} \log  p(y_i | u_k, z_i = k) + \log p(u_k) + \text{const}$
+$= \sum_i r_{ik} (\langle u_ku_k^T, A^T\Lambda A \rangle + \langle \Lambda A u_k, y_i \rangle) + \langle u_ku_k^T, K_{uu}^{-1} \rangle + \text{const}$
 
 By combining like terms, we can see that
 $S_k^{-1} = K_{uu}^{-1} + \sum_i r_{ik} A^T \Lambda A$ and $S_k^{-1}m_k = \sum_i r_{ik} A^T \Lambda y_i$.
@@ -201,12 +191,12 @@ function fit_gp(g, K_UU_inv::PDMat{Float64,Matrix{Float64}}, r, y1, y2, c)
     m1 = S_inv \ sum(rn[g] * cn.A' * (cn.Λ * yn) for (rn, cn, yn) in zip(r, c, y1))
     m2 = S_inv \ sum(rn[g] * cn.A' * (cn.Λ * yn) for (rn, cn, yn) in zip(r, c, y2))
     VComp(S_inv, m1, m2)
-end
+end;
 
 # ╔═╡ bfbb7e00-cb88-4bfd-8285-6151630e6473
 function fit_gps(K_UU_inv::PDMat{Float64,Matrix{Float64}}, r, y1, y2, c)::Vector{Union{Nothing,VComp}}
     Union{VComp,Nothing}[fit_gp(g, K_UU_inv, r, y1, y2, c) for g in 1:length(r[1])]
-end
+end;
 
 # ╔═╡ 353dd315-8e64-4f4e-9939-ab7c66cc0518
 md"""
@@ -238,7 +228,7 @@ function fixedpoint(f, arg::T; iters=500) where {T}
     end
     println("DID NOT CONVERGE")
     arg
-end
+end;
 
 # ╔═╡ d37facf7-dcb7-4c40-bfaf-646350744b8a
 @sizecheck function fit_mixture(kern, alpha0, x_N, y1_N, y2_N, z_M, o; iters=50)
@@ -249,7 +239,87 @@ end
         alpha0 + sum(r)
     end
     alpha, c, o
+end;
+
+# ╔═╡ 4ba73439-5ce0-4c8c-a34d-be76846850cd
+md"## Example on Synthetic Data"
+
+# ╔═╡ 19d144ba-fb9c-4703-8d5c-d61bfed58b1f
+kern = with_lengthscale(Matern52Kernel(), 0.1);
+
+# ╔═╡ b82a0405-1214-49be-a9b2-d14c8bd8a53b
+T = 100;
+
+# ╔═╡ e5ccfca2-8b58-4969-b902-fa449b9c3749
+N = 100;
+
+# ╔═╡ 488126ce-1a3c-4cc7-aae7-92c12f2daf03
+π_prior = Dirichlet(5 * ones(3));
+
+# ╔═╡ 9c971aed-a1eb-4660-855e-ae866487204e
+gp = GP(kern);
+
+# ╔═╡ 2a7b020e-9386-4fc9-832a-0b60e92a2dd1
+rng = Xoshiro(9);
+
+# ╔═╡ 307dffff-d183-4bfb-815b-ed5b6dddc1cf
+pi = rand(π_prior);
+
+# ╔═╡ 4bd2d3e6-f388-4b4e-9ceb-6e477c972566
+(true_f, y1_N, y2_N, x_N) = let
+	x_T = LinRange(0, 1, T)
+	true_f = [rand(rng, gp(x_T), 2) for _ in 1:3]
+    noise = [σ .* randn(T, 2) for _ in 1:N]
+    z = rand(rng, Distributions.Categorical(pi), N)
+	y_T2N = stack(true_f[z] .+ noise)
+	y1_N = eachcol(y_T2N[:, 1, :])
+    y2_N = eachcol(y_T2N[:, 2, :])
+	x_N = [x_T for _ in 1:N]
+	(true_f, y1_N, y2_N, x_N)
+end;
+
+# ╔═╡ 50e89b85-3836-465a-aed1-7a0606a45375
+c_U = LinRange(0, 1, 25);
+
+# ╔═╡ 35f8328d-b78d-4b8d-b26e-2039224311ce
+md"""
+To kick off variational inference, we'll need to guess starting parameters for $S_k$ and $m_k$.
+"""
+
+# ╔═╡ 913d896a-381d-4bbf-a361-a83c11103204
+o_guess = let
+	f = gp(c_U, σ^2)
+	K_UU_inv = inv(PDMat(kern.(c_U', c_U)))
+	Union{Nothing,VComp}[VComp(K_UU_inv, rand(rng, f), rand(rng, f)) for _ in 1:3]
+end;
+
+# ╔═╡ 51a5a104-6015-49e7-bfaf-a38d99edc055
+_, c, o = fit_mixture(kern, π_prior.alpha, x_N, y1_N, y2_N, c_U, o_guess; iters=50);
+
+# ╔═╡ cab11ff0-8b49-4573-a83d-27a37e269dde
+md"""
+We can visualize how well the mixtures were recovered during inference by plotting a circle at our GP predictions over time. The radius of each circle will be the standard deviation of our posterior uncertainty at that point. I will draw the true synthetically generated functions as well for comparison. 
+"""
+
+# ╔═╡ edb186bc-d040-4da6-8206-ea22649de03d
+function plot_example(o, kern, c_U, true_f)
+    f = Figure()
+    ax = Axis(f[1, 1])
+    x_N = [LinRange(0, 1, 100)]
+    _, c = kernel_mats(kern, x_N, c_U)
+    for on in filter(!isnothing, o)
+        μ = Point2d.(c[1].A * on.m1, c[1].A * on.m2)
+        σ = sqrt.(diag(inv(c[1].Λ)) .+ invquad(on.S_inv, c[1].A'))
+        poly!(ax, Circle.(μ, σ), alpha=0.2)
+    end
+	for i in 1:3
+        lines!(ax, true_f[i][:, 1], true_f[i][:, 2])
+    end
+    f
 end
+
+# ╔═╡ 7e600e38-f5dc-4b96-93a6-09661db7b82e
+plot_example(o, kern, c_U, true_f)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -266,6 +336,7 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 PDMats = "90014a1f-27ba-587c-ab20-58faa44d9150"
 PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 RecursiveArrayTools = "731186ca-8d62-57ce-b412-fbd966d074cd"
 SizeCheck = "e0176837-3861-45f9-8fb4-a12fc39b9661"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
@@ -294,7 +365,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.1"
 manifest_format = "2.0"
-project_hash = "54db7751a296efce739f43bb4102aa3344753447"
+project_hash = "c551a7df58aee5684ad261950d5d0daee1e3872f"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -2190,5 +2261,21 @@ version = "4.1.0+0"
 # ╠═d37facf7-dcb7-4c40-bfaf-646350744b8a
 # ╟─c19e5b7c-91d6-42fa-98ef-4bf2e0c44167
 # ╠═526ed862-958d-46c6-8e6e-2b7e90d3fdc8
+# ╟─4ba73439-5ce0-4c8c-a34d-be76846850cd
+# ╠═19d144ba-fb9c-4703-8d5c-d61bfed58b1f
+# ╠═b82a0405-1214-49be-a9b2-d14c8bd8a53b
+# ╠═e5ccfca2-8b58-4969-b902-fa449b9c3749
+# ╠═488126ce-1a3c-4cc7-aae7-92c12f2daf03
+# ╠═9c971aed-a1eb-4660-855e-ae866487204e
+# ╠═2a7b020e-9386-4fc9-832a-0b60e92a2dd1
+# ╠═307dffff-d183-4bfb-815b-ed5b6dddc1cf
+# ╠═4bd2d3e6-f388-4b4e-9ceb-6e477c972566
+# ╠═50e89b85-3836-465a-aed1-7a0606a45375
+# ╟─35f8328d-b78d-4b8d-b26e-2039224311ce
+# ╠═913d896a-381d-4bbf-a361-a83c11103204
+# ╠═51a5a104-6015-49e7-bfaf-a38d99edc055
+# ╟─cab11ff0-8b49-4573-a83d-27a37e269dde
+# ╠═edb186bc-d040-4da6-8206-ea22649de03d
+# ╠═7e600e38-f5dc-4b96-93a6-09661db7b82e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
