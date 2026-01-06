@@ -1,0 +1,29 @@
+[
+  {
+    "listing": "/index.html",
+    "items": [
+      "/posts/congestion_pricing/Notebook.html",
+      "/posts/ankivec/ankivec.html",
+      "/posts/ships/ships.html",
+      "/posts/coffee/coffee.html",
+      "/posts/sizecheck.html",
+      "/posts/Frequentist_Sample_Size_Estimation.html",
+      "/posts/bayesian_logistic_regression/bayesian_logistic_regression.html",
+      "/posts/clustering/Clustering.html",
+      "/posts/synth_control/SyntheticControl.html",
+      "/posts/hoplists/HopLists.html",
+      "/posts/graphslam/graphslam.html",
+      "/posts/regression_diagnostics.html",
+      "/posts/finite_basis_gps/finite_basis_gps.html",
+      "/posts/finite_particle_approx.html",
+      "/posts/nearest_neighbor_gps/nngp.html",
+      "/posts/Krylov-Methods.html",
+      "/posts/kalman/kalman.html",
+      "/posts/conjugate_computation/Conjugate-Computation.html",
+      "/posts/Diffusion-is-a-fancy-VAE.html",
+      "/posts/sparse_variational_gp/Sparse-Variational-Gaussian-Processes.html",
+      "/posts/differential-equations.html",
+      "/posts/likelihood_ratios.html"
+    ]
+  }
+]

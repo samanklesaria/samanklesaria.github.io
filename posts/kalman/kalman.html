@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.26">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2023-10-02">
+
+<title>Mapping with Gaussian Conditioning – Sam’s Blog</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-ff63373b1067ca6f91cf1456aa1f00a2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Sam’s Blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/samanklesaria"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Mapping with Gaussian Conditioning</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">SLAM</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">October 2, 2023</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<div id="2" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">LinearAlgebra</span>, <span class="bu">SparseArrays</span>, <span class="bu">FillArrays</span>, <span class="bu">Rotations</span>, <span class="bu">RecursiveArrayTools</span>, <span class="bu">ForwardDiff</span>, <span class="bu">DiffResults</span>, <span class="bu">LazyArrays</span>, <span class="bu">CairoMakie</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>CairoMakie.<span class="fu">enable_only_mime!</span>(<span class="st">"png"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>For a robot to navigate autonomously, it needs to learn the locations of any potential obsticles around it. One of the standard ways to do this is with an algorithm known as EKF-Slam. Slam stands for “simultaneous localization and mapping”, as the algorithm must simultaneously find out where the robot is (localization) and where the obstacles are (mapping). The “EKF” part refers to the “extended Kalman filter”, which is just a fancy name for Gaussian conditioning with Taylor approximations. The idea goes as follows:</p>
+<p>Describe the robot by its position coordinates <span class="math inline">\(u \in \mathbb{R}^2\)</span>. Assume it has a sensor that gives noisy measurements <span class="math inline">\(Y\)</span> of the displacement to an obstacle at location <span class="math inline">\(v \in \mathbb{R}^2\)</span>. Specifically, assume <span class="math inline">\(Y \sim \mathcal{N}(v - u, \Sigma_2)\)</span>.</p>
+<p>Let our uncertainty about the locations <span class="math inline">\(u\)</span> and <span class="math inline">\(v\)</span> be jointly be described by the random variable <span class="math inline">\(X \sim \mathcal{N}(\mu, \Sigma_1)\)</span> in <span class="math inline">\(\mathbb{R}^4\)</span>. Given the observation <span class="math inline">\(Y\)</span>, we’d like to find the posterior distribution over <span class="math inline">\(X\)</span>.</p>
+<p>Conditioning Gaussians is easier in the natural paramteterization. Instead of describing distributions with a mean <span class="math inline">\(\mu\)</span> and covariance <span class="math inline">\(\Sigma\)</span>, we describe them with a precision <span class="math inline">\(\Lambda\)</span> and information vector <span class="math inline">\(\Lambda \mu\)</span>. In this parameterization, say <span class="math inline">\(X \sim \mathcal{N}(\Lambda_1, \Lambda_1\mu_1)\)</span> and <span class="math inline">\(Y \sim \mathcal{N}(\Lambda_2, \Lambda_2 (Ax  + b))\)</span> where <span class="math inline">\(A\)</span> is a linear transformation. Then by Bayes’ rule, a little algebra tells us that <span class="math display">\[
+X | y \sim \mathcal{N}(\Lambda_1\mu + A^T\Lambda_2(y - b), \Lambda_1 + A^T\Lambda_2A)
+\]</span></p>
+<p>When <span class="math inline">\(X\)</span> describes robot and obstacle locations and <span class="math inline">\(Y\)</span> describes noisy displacement observations as above, we get the posterior natural parameters <span class="math display">\[
+(\Sigma_1^{-1} \mu + A^T\Sigma_2^{-1}Y, \Sigma_1^{-1} + A^T\Sigma_2^{-1}A)
+\]</span> where <span class="math inline">\(A = \begin{bmatrix} -I &amp; I \end{bmatrix}\)</span>.</p>
+<p>We also need to update the distribution for <span class="math inline">\(X\)</span> when the robot moves. Say we know that the robot’s position was displaced by some <span class="math inline">\(\Delta \sim \mathcal{N}(\delta, \Sigma_3)\)</span>. After this displacement</p>
+<p><span class="math display">\[
+X \sim \mathcal{N}\left(\mu + \begin{bmatrix} \delta  0 \end{bmatrix}, \Sigma_1 + \begin{bmatrix} \Sigma_3 &amp;   &amp; 0 \end{bmatrix}\right)
+\]</span></p>
+<p>By repeatedly updating our distribution over <span class="math inline">\(X\)</span> in response to observations <span class="math inline">\(Y\)</span> and movements <span class="math inline">\(\Delta\)</span>, we can track the likely position of the robot and the obstacle over time.</p>
+<section id="adding-a-heading" class="level2">
+<h2 class="anchored" data-anchor-id="adding-a-heading">Adding a Heading</h2>
+<p>To make this toy example slightly more realistic, let us also give the robot a heading angle <span class="math inline">\(\theta\)</span>. Assume now that the sensor measurement above is rotated <span class="math inline">\(-\theta\)</span> degrees, so that <span class="math inline">\(Y = f(X) + \epsilon\)</span>, where <span class="math inline">\(\epsilon \sim \mathcal{N}(0, \Sigma_2)\)</span>, <span class="math inline">\(f(x) = R_x(x_2 - x_1)\)</span>, <span class="math inline">\(x_1\)</span> and <span class="math inline">\(x_2\)</span> refer to the robot and obstacle coordinate components of <span class="math inline">\(x\)</span> respectively, and <span class="math inline">\(R_x\)</span> is the corresponding rotation matrix. Although <span class="math inline">\(f\)</span> isn’t linear, we can use the Taylor approximation of <span class="math inline">\(f\)</span> about <span class="math inline">\(\mu\)</span> to pretend it is. <span class="math display">\[
+f(x) = f(\mu + (x - \mu)) \approx f(\mu) + \nabla f(\mu)(x - \mu)
+\]</span> This makes <span class="math inline">\(Y\)</span> a linear transformation of <span class="math inline">\(X\)</span>, so we can continue to use the standard Gaussian conditioning formula. We get natural parameters</p>
+<p><span class="math display">\[
+(\Sigma_1^{-1} \mu + J^T\Sigma_2^{-1}(Y - b), \Sigma_1^{-1} + J^T\Sigma_2^{-1}J)
+\]</span> where <span class="math inline">\(J = \nabla f(\mu)\)</span> and <span class="math inline">\(b = f(\mu) - J \mu\)</span>. This expression naturally extends to handling observations for multiple obstacles.</p>
+<p>This is the EKF-Slam algorithm in a nutshell. With the math out of the way, let’s get to some code.</p>
+</section>
+<section id="code-for-observing" class="level1">
+<h1>Code for Observing</h1>
+<p>While finding the Jacobian above analytically is easy enough, it’s even easier to let Julia do it with Forward mode automatic differentiation.</p>
+<p>For ease of notation let <span class="math inline">\(L=\Sigma_2^{-2}\)</span>.</p>
+<div id="4" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span>  <span class="fl">10</span> <span class="op">*</span> <span class="fu">Eye</span>(<span class="fl">2</span>,<span class="fl">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>2×2 FillArrays.RectDiagonal{Float64, Vector{Float64}, Tuple{Base.OneTo{Int64}, Base.OneTo{Int64}}}:
+ 10.0    ⋅ 
+   ⋅   10.0</code></pre>
+</div>
+</div>
+<div id="6" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">obs_approx</span>(μ<span class="op">::</span><span class="dt">AbstractVector</span>, ix<span class="op">::</span><span class="dt">Int</span>, y<span class="op">::</span><span class="dt">AbstractVector</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    result <span class="op">=</span> DiffResults.<span class="fu">JacobianResult</span>(<span class="fu">zeros</span>(<span class="fl">2</span>), μ)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">f</span>(μ) <span class="op">=</span> <span class="fu">RotMatrix</span><span class="dt">{2}</span>(<span class="op">-</span>μ[<span class="fl">3</span>]) <span class="op">*</span> (μ[ix<span class="op">:</span>ix<span class="op">+</span><span class="fl">1</span>] <span class="op">-</span> μ[<span class="fl">1</span><span class="op">:</span><span class="fl">2</span>])</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    ForwardDiff.<span class="fu">jacobian!</span>(result, f, μ)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    f_μ <span class="op">=</span> DiffResults.<span class="fu">value</span>(result)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    J <span class="op">=</span> DiffResults.<span class="fu">jacobian</span>(result)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    JL <span class="op">=</span> J<span class="op">'</span> <span class="op">*</span> L</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    b <span class="op">=</span> f_μ <span class="op">-</span> J <span class="op">*</span> μ</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    JL <span class="op">*</span> (y <span class="op">-</span> b), JL <span class="op">*</span> J</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>obs_approx (generic function with 1 method)</code></pre>
+</div>
+</div>
+</section>
+<section id="code-for-moving" class="level1">
+<h1>Code for Moving</h1>
+<p>For simplicity, let’s assume that at each step in time, the robot walks in the direction <span class="math inline">\((1,1)\)</span> and rotates its heading by <span class="math inline">\(2\pi/100\)</span> radians.</p>
+<div id="8" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>dμ_1 <span class="op">=</span> [<span class="fl">1</span>,<span class="fl">1</span>,<span class="fl">2</span><span class="op">*</span><span class="cn">π</span><span class="op">/</span><span class="fl">100</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>3-element Vector{Float64}:
+ 1.0
+ 1.0
+ 0.06283185307179587</code></pre>
+</div>
+</div>
+<p>These updates are noisy however, accounting for any imprecision in our dynamics model. Our uncertainty about the robot’s location increases at each step according to the following covariance matrix.</p>
+<div id="10" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>Σ<span class="fl">3_1</span> <span class="op">=</span> <span class="fu">Diagonal</span>([<span class="fl">1</span>,<span class="fl">1</span>,<span class="fl">0.02</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>3×3 Diagonal{Float64, Vector{Float64}}:
+ 1.0   ⋅    ⋅ 
+  ⋅   1.0   ⋅ 
+  ⋅    ⋅   0.02</code></pre>
+</div>
+</div>
+<div id="12" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>N <span class="op">=</span> <span class="fl">4</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>4</code></pre>
+</div>
+</div>
+<p>We add this to our mean vector…</p>
+<div id="14" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>dμ <span class="op">=</span> <span class="fu">sparsevec</span>([<span class="fl">1</span>,<span class="fl">2</span>,<span class="fl">3</span>], dμ_1, <span class="fl">3</span> <span class="op">+</span> <span class="fl">2</span> <span class="op">*</span> N)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>11-element SparseVector{Float64, Int64} with 3 stored entries:
+  [1]  =  1.0
+  [2]  =  1.0
+  [3]  =  0.0628319</code></pre>
+</div>
+</div>
+<p>…and this to our covariance matrix…</p>
+<div id="16" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>Σ<span class="fl">3</span> <span class="op">=</span> <span class="fu">sparse_vcat</span>(<span class="fu">sparse_hcat</span>(Σ<span class="fl">3_1</span>, <span class="fu">Zeros</span>(<span class="fl">3</span>,<span class="fl">2</span> <span class="op">*</span> N)), <span class="fu">Zeros</span>(<span class="fl">2</span><span class="op">*</span>N, <span class="fl">3</span> <span class="op">+</span> <span class="fl">2</span> <span class="op">*</span> N))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>11×11 SparseMatrixCSC{Float64, Int64} with 3 stored entries:
+ 1.0   ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
+  ⋅   1.0   ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
+  ⋅    ⋅   0.02   ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ </code></pre>
+</div>
+</div>
+<p>… which can be factored as <span class="math inline">\(U \Sigma_{3,1} U'\)</span>, where <span class="math display">\[
+\begin{align}
+U = \begin{bmatrix} I  0 \end{bmatrix}
+\end{align}
+\]</span></p>
+<div id="18" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>U <span class="op">=</span> <span class="fu">Vcat</span>(<span class="fu">Diagonal</span>(<span class="fu">ones</span>(<span class="fl">3</span>)), <span class="fu">Zeros</span>(<span class="fl">2</span> <span class="op">*</span> N, <span class="fl">3</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>vcat(3×3 Diagonal{Float64, Vector{Float64}}, 8×3 Zeros{Float64}):
+ 1.0   ⋅    ⋅ 
+  ⋅   1.0   ⋅ 
+  ⋅    ⋅   1.0
+  ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅ 
+  ⋅    ⋅    ⋅ </code></pre>
+</div>
+</div>
+<div id="20" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>V <span class="op">=</span> <span class="fu">SparseMatrixCSC</span>(U<span class="op">'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>3×11 SparseMatrixCSC{Float64, Int64} with 3 stored entries:
+ 1.0   ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
+  ⋅   1.0   ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
+  ⋅    ⋅   1.0   ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ </code></pre>
+</div>
+</div>
+<p>This is a low rank matrix. And we’ll need to invert the resut when we condition on the observations, as described above. So we’ll express our update to the covariance matrix <span class="math inline">\(\Sigma_1\)</span> in terms of the Woodbury Matrix identity, which says that <span class="math inline">\((\Sigma_1 +  U\Sigma_{3,1}V)^{-1} = \Sigma_1^{-1} - \Sigma_1^{-1} U (\Sigma_{3,1}^{-1} + V\Sigma_1^{-1} U)^{-1}V\Sigma_1^{-1}\)</span>. Let <span class="math inline">\(\Sigma_1^{-1} = \Lambda\)</span>.</p>
+<div id="22" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>Λ<span class="fl">3_1</span> <span class="op">=</span> <span class="fu">inv</span>(Σ<span class="fl">3_1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>3×3 Diagonal{Float64, Vector{Float64}}:
+ 1.0   ⋅     ⋅ 
+  ⋅   1.0    ⋅ 
+  ⋅    ⋅   50.0</code></pre>
+</div>
+</div>
+<div id="24" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">update_precision</span>(Λ)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>    Λ <span class="op">-</span> Λ <span class="op">*</span> U <span class="op">*</span> (((Λ<span class="fl">3_1</span> <span class="op">+</span> Λ[<span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">3</span>]) <span class="op">\</span> V) <span class="op">*</span> Λ)</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>update_precision (generic function with 1 method)</code></pre>
+</div>
+</div>
+</section>
+<section id="putting-them-together" class="level1">
+<h1>Putting them Together</h1>
+<p>We want to update the distribution over possible locations <span class="math inline">\(X\)</span> after a single time-step. First, the movement of the robot is accounted for by the dynamics model. Then we condition on the observations of each obstacle <span class="math inline">\(ys\)</span>.</p>
+<div id="26" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tupsum</span>(x,y) <span class="op">=</span> x <span class="op">.+</span> y</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>tupsum (generic function with 1 method)</code></pre>
+</div>
+</div>
+<div id="28" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">step</span>((μ,Λ), ys)</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>    μ <span class="op">+=</span> dμ</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    Λ <span class="op">=</span> <span class="fu">update_precision</span>(Λ)</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>    msg <span class="op">=</span> <span class="fu">reduce</span>(tupsum, (<span class="fu">obs_approx</span>(μ, <span class="fl">4</span> <span class="op">+</span> <span class="fl">2</span> <span class="op">*</span> (i<span class="op">-</span><span class="fl">1</span>), y)</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> (i, y) <span class="kw">in</span> <span class="fu">enumerate</span>(<span class="fu">eachcol</span>(ys))))</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    (Λμ, Λ) <span class="op">=</span> (Λ <span class="op">*</span> μ, Λ) <span class="op">.+</span> msg</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    (Λ <span class="op">\</span> Λμ, Λ)</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>step (generic function with 1 method)</code></pre>
+</div>
+</div>
+<p>That’s it! We’ve written the algorithm for EKF-Slam. It remains to see how it performs on fake data.</p>
+</section>
+<section id="fake-data" class="level1">
+<h1>Fake Data</h1>
+<p>Here we generate the unknown, true trajectory that the robot takes by following our dynamics model.</p>
+<div id="30" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>K <span class="op">=</span> <span class="fl">100</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>100</code></pre>
+</div>
+</div>
+<div id="32" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>true_x1s <span class="op">=</span> [<span class="fu">zeros</span>(<span class="fl">3</span>) <span class="fu">cumsum</span>(<span class="fu">repeat</span>(dμ_1, <span class="fl">1</span>, K<span class="op">-</span><span class="fl">1</span>) <span class="op">+</span> <span class="fu">sqrt</span>(Σ<span class="fl">3_1</span>) <span class="op">*</span> <span class="fu">randn</span>(<span class="fl">3</span>,K<span class="op">-</span><span class="fl">1</span>), dims<span class="op">=</span><span class="fl">2</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>3×100 Matrix{Float64}:
+ 0.0  2.11762   4.55484   5.13519   7.09133   …  93.3984   92.5634   93.3861
+ 0.0  3.32292   4.84397   5.95895   8.00179      80.1535   82.0442   83.7126
+ 0.0  0.242689  0.339492  0.622383  0.606434      8.75449   8.83309   8.99149</code></pre>
+</div>
+</div>
+<p>We’ll also set up the true but unknown obstacle locations.</p>
+<div id="34" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>true_x2s <span class="op">=</span> <span class="fl">50</span> <span class="op">*</span> <span class="fu">rand</span>(<span class="fl">2</span>, N)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>2×4 Matrix{Float64}:
+ 19.0432    9.47417  14.7808   1.49347
+  6.61717  11.7026   39.9869  46.6605</code></pre>
+</div>
+</div>
+<div id="36" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="cf">begin</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>f <span class="op">=</span> <span class="fu">Figure</span>()</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>ax <span class="op">=</span> f[<span class="fl">1</span>, <span class="fl">1</span>] <span class="op">=</span> <span class="fu">Axis</span>(f)</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="fu">plot!</span>(true_x1s[<span class="fl">1</span>, <span class="op">:</span>], true_x1s[<span class="fl">2</span>, <span class="op">:</span>], label<span class="op">=</span><span class="st">"robot path"</span>)</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a><span class="fu">scatter!</span>(true_x2s[<span class="fl">1</span>,<span class="op">:</span>], true_x2s[<span class="fl">2</span>,<span class="op">:</span>], label<span class="op">=</span><span class="st">"obstacles"</span>)</span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>f[<span class="fl">1</span>,<span class="fl">2</span>] <span class="op">=</span> <span class="fu">Legend</span>(f, ax)</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>f</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+<figure class="figure">
+<p><img src="kalman_files/figure-html/cell-19-output-1.png" width="672" height="480" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Imagine the displacement observations the robot sees along its trajectory look like this:</p>
+<div id="38" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>intRootL <span class="op">=</span> <span class="fu">sqrt</span>(<span class="fu">inv</span>(L))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>2×2 Matrix{Float64}:
+ 0.316228  0.0
+ 0.0       0.316228</code></pre>
+</div>
+</div>
+<div id="40" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>ys <span class="op">=</span> [(<span class="fu">RotMatrix</span><span class="dt">{2}</span>(<span class="op">-</span>x[<span class="fl">3</span>]) <span class="op">*</span> (true_x2s <span class="op">.-</span> x[<span class="fl">1</span><span class="op">:</span><span class="fl">2</span>])) <span class="op">+</span> intRootL <span class="op">*</span> <span class="fu">randn</span>(<span class="fl">2</span>,N) for x <span class="kw">in</span> <span class="fu">eachcol</span>(true_x1s)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>100-element Vector{Matrix{Float64}}:
+ [19.603741851669007 9.479204551258722 14.900654400589262 1.2139374388079114; 7.109167442992881 11.775011318681827 39.864880815432244 46.47732302265945]
+ [17.428417732717854 9.186205752268958 21.58418858968195 10.302514798231858; -1.2775894214216188 6.503682945931601 32.4600792973359 42.1391721408444]
+ [13.744198022456898 6.46742218871332 21.604198711877444 11.647194636830429; -3.0604680460453797 5.150291438464928 30.071311279180946 40.276065820668954]
+ [11.719737913056772 6.320470356596162 27.311754677102762 21.15040031222601; -7.2877817184007 1.9961194947595295 22.015843280684727 34.7138674395836]
+ [9.170647717903567 4.097154497685532 24.594517778984052 17.415084927101788; -8.168926103520667 1.3713381045796311 21.868856926106677 34.58207095408722]
+ [6.851771008557176 2.8387315768003183 23.86519784545656 17.74815319262439; -7.620934369097298 1.8534328414257264 21.12961974465073 35.08617798718458]
+ [1.398221192786282 1.2409843183837255 27.95514193245455 26.82854294580393; -10.086407748075187 0.018919119178708033 11.240493348899419 25.699635303326286]
+ [0.3169655976859883 -0.39285744142372026 26.649019797009263 25.561068751895768; -10.536310387809673 0.30927290312356137 10.084782216747216 25.16572017266392]
+ [2.0434381516062126 0.5639742214775894 25.912435608559953 23.022673246126974; -10.776295296075798 0.38883939303539855 13.127995130484802 27.676442341737296]
+ [-2.3710757827037687 -3.2802287127408833 23.21854805575887 21.636363251553103; -8.429720638807137 1.7055137837804848 13.483351917616712 28.44462483387499]
+ ⋮
+ [-85.01537842242018 -82.61016689991195 -53.73990062912071 -51.62829545307723; 48.31044159300804 58.2521122905678 61.27458633125155 75.24876490536376]
+ [-77.92158877538101 -74.16003378399459 -45.675320451009426 -40.54218710372369; 60.4334255290315 70.2293122899909 69.20913376130136 83.34947961682585]
+ [-70.53372215169925 -64.68037466576178 -36.7496876006135 -29.96711191806724; 69.85817704833501 79.24606738372202 74.53101886911851 87.23432715129978]
+ [-33.98099706546737 -25.03165642202575 -2.057248863963723 10.12979068910752; 95.52485097649517 101.22558541520517 84.60871367148738 94.33592881378806]
+ [-12.043085472099799 -2.5026403638765027 16.615205968496387 30.48133220980331; 100.64644061904743 106.00976882843113 83.95087259794121 91.08771713790362]
+ [25.338843399166226 35.91483691197125 46.137066300048794 61.1525044695857; 100.16309327986784 101.23885333657653 74.11040091177298 75.58909399184269]
+ [11.989506064945864 23.753886929613135 36.95714374615932 51.39192149833056; 103.51764309193247 105.77665278482468 80.20229964834772 83.03976466509822]
+ [18.689727331037783 29.57774053380095 41.464426214945114 55.489635695847284; 104.09395263404592 104.18947951304438 78.66245385208178 79.59735168397988]
+ [34.58203052852036 45.39969886132603 53.65821015648627 67.58345887809908; 101.16246858622048 99.85185965577973 72.26982436583816 72.23512917823203]</code></pre>
+</div>
+</div>
+<div id="42" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="cf">begin</span></span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>plt <span class="op">=</span> <span class="fu">plot</span>([y[<span class="fl">1</span>,<span class="fl">1</span>] for y <span class="kw">in</span> ys], [y[<span class="fl">2</span>,<span class="fl">1</span>] for y <span class="kw">in</span> ys])</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="fl">2</span><span class="op">:</span>N</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">plot!</span>([y[<span class="fl">1</span>,i] for y <span class="kw">in</span> ys], [y[<span class="fl">2</span>,i] for y <span class="kw">in</span> ys])</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>plt</span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+<figure class="figure">
+<p><img src="kalman_files/figure-html/cell-22-output-1.png" width="672" height="480" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="simulating-the-algorithm" class="level1">
+<h1>Simulating the Algorithm</h1>
+<p>When we start tracking the robot, we know its location almost (making these precision terms super high), but we know nothing about the locations of the obstacles, so the rest of the precision terms should be low.</p>
+<div id="44" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>Λ<span class="fl">1</span> <span class="op">=</span> <span class="fu">Diagonal</span>(<span class="fu">vcat</span>(<span class="fl">50</span> <span class="op">*</span> <span class="fu">ones</span>(<span class="fl">3</span>), (<span class="fl">1</span> <span class="op">/</span> <span class="fl">50</span>) <span class="op">*</span> <span class="fu">ones</span>(<span class="fl">2</span> <span class="op">*</span> N)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>11×11 Diagonal{Float64, Vector{Float64}}:
+ 50.0    ⋅     ⋅    ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅ 
+   ⋅   50.0    ⋅    ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅ 
+   ⋅     ⋅   50.0   ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅ 
+   ⋅     ⋅     ⋅   0.02   ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅ 
+   ⋅     ⋅     ⋅    ⋅    0.02   ⋅     ⋅     ⋅     ⋅     ⋅     ⋅ 
+   ⋅     ⋅     ⋅    ⋅     ⋅    0.02   ⋅     ⋅     ⋅     ⋅     ⋅ 
+   ⋅     ⋅     ⋅    ⋅     ⋅     ⋅    0.02   ⋅     ⋅     ⋅     ⋅ 
+   ⋅     ⋅     ⋅    ⋅     ⋅     ⋅     ⋅    0.02   ⋅     ⋅     ⋅ 
+   ⋅     ⋅     ⋅    ⋅     ⋅     ⋅     ⋅     ⋅    0.02   ⋅     ⋅ 
+   ⋅     ⋅     ⋅    ⋅     ⋅     ⋅     ⋅     ⋅     ⋅    0.02   ⋅ 
+   ⋅     ⋅     ⋅    ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅    0.02</code></pre>
+</div>
+</div>
+<div id="46" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>start <span class="op">=</span> (<span class="fu">zeros</span>(<span class="fl">3</span> <span class="op">+</span> <span class="fl">2</span> <span class="op">*</span> N), <span class="fu">Matrix</span>(Λ<span class="fl">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [50.0 0.0 … 0.0 0.0; 0.0 50.0 … 0.0 0.0; … ; 0.0 0.0 … 0.02 0.0; 0.0 0.0 … 0.0 0.02])</code></pre>
+</div>
+</div>
+<div id="48" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>progress <span class="op">=</span> <span class="fu">VectorOfArray</span>([p[<span class="fl">1</span>][<span class="fl">1</span><span class="op">:</span><span class="fl">2</span>] for p <span class="kw">in</span> <span class="fu">accumulate</span>(step, ys; init<span class="op">=</span>start)])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>VectorOfArray{Float64,2}:
+100-element Vector{Vector{Float64}}:
+ [0.19603470614227045, -1.1019964687272161]
+ [2.889909146537032, 2.0345416147280435]
+ [5.4465674824236805, 3.490024263516243]
+ [5.834140865479254, 5.621543266706627]
+ [6.867610338133039, 7.345006193785757]
+ [8.771160897989832, 7.684325652555491]
+ [9.671871792436933, 10.576968282019857]
+ [9.719187902983348, 11.137261142975037]
+ [9.495176663250813, 10.67180669193075]
+ [12.693960332347404, 12.717406136495278]
+ ⋮
+ [82.59429723485445, 80.39396991410229]
+ [83.94394349825295, 80.6031184162581]
+ [83.6086549631126, 81.54608657915432]
+ [80.03442589307521, 78.98054759382246]
+ [85.88962193557168, 81.58140447738558]
+ [84.69253231070572, 81.38863317696293]
+ [86.65021564031672, 83.97002446611756]
+ [87.02483988117402, 87.00435824964622]
+ [87.93827854608371, 87.48235512496616]</code></pre>
+</div>
+</div>
+<div id="50" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="cf">begin</span></span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>f2 <span class="op">=</span> <span class="fu">Figure</span>()</span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>ax2 <span class="op">=</span> f2[<span class="fl">1</span>, <span class="fl">1</span>] <span class="op">=</span> <span class="fu">Axis</span>(f2)</span>
+<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a><span class="fu">plot!</span>(true_x1s[<span class="fl">1</span>, <span class="op">:</span>], true_x1s[<span class="fl">2</span>, <span class="op">:</span>], label<span class="op">=</span><span class="st">"true robot trajectory"</span>)</span>
+<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a><span class="fu">plot!</span>(progress[<span class="fl">1</span>, <span class="op">:</span>], progress[<span class="fl">2</span>, <span class="op">:</span>], label<span class="op">=</span><span class="st">"inferred robot trajectory"</span>)</span>
+<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a>f2[<span class="fl">1</span>,<span class="fl">2</span>] <span class="op">=</span> <span class="fu">Legend</span>(f2, ax2)</span>
+<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a>f2</span>
+<span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+<figure class="figure">
+<p><img src="kalman_files/figure-html/cell-26-output-1.png" width="672" height="480" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>As we can see, although the robot’s trajectory did not follow our dynamics model exactly thanks to the added noise at each step, conditioning on the observations allowed us to keep track of its approximate position regardless.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/samanklesaria\.github\.io");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

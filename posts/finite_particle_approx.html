@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.26">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2024-04-02">
+
+<title>Finite Particle Approximations – Sam’s Blog</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ff63373b1067ca6f91cf1456aa1f00a2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Sam’s Blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/samanklesaria"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Finite Particle Approximations</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">machine_learning</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">April 2, 2024</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<p>Say you have a discrete distribution <span class="math inline">\(\pi\)</span> that you want to approximate with a small number of weighted particles. Intuitively, it seems like the the best choice of particles would be the outputs of highest probability under <span class="math inline">\(\pi\)</span>, and that the relative weights of these particles should be the same under our approximation as they were under <span class="math inline">\(\pi\)</span>. This actually isn’t hard to prove!</p>
+<section id="minimizing-the-kl-divergence" class="level3">
+<h3 class="anchored" data-anchor-id="minimizing-the-kl-divergence">Minimizing the KL Divergence</h3>
+<p>Let <span class="math inline">\(q\)</span> be our approximation: a version of <span class="math inline">\(\pi\)</span> with support restricted to <span class="math inline">\(b\)</span> outcomes. We’ll try to minimize <span class="math inline">\(KL[q, \pi]\)</span>. (Note that <span class="math inline">\(KL[\pi, q]\)</span> will always be infinite as we do not have $ q$, so using this distance isn’t an option). Treat <span class="math inline">\(\pi\)</span> and <span class="math inline">\(q\)</span> as vectors in <span class="math inline">\(\mathbb{R}^n\)</span>, and assume without loss of generality that <span class="math inline">\(\pi_1 \geq \pi_2 \geq \pi_3 \dotsc\)</span>.</p>
+<p><strong>Claim 1: <span class="math inline">\(KL[q, \pi]\)</span> is minimized when the nonzero components of <span class="math inline">\(q\)</span> have <span class="math inline">\(q \propto \pi\)</span>.</strong></p>
+<p><em>Proof:</em> Use Lagrange multipliers. Let <span class="math inline">\(S\)</span> be the support of <span class="math inline">\(q\)</span>. <span class="math inline">\(L(\lambda, q) = \sum_{i \in S} q_i \log (q_i / \pi_i) + \lambda (1 - \langle q, 1 \rangle)\)</span>. The minimum will be at a fixed point of the Lagrangian. Differentiating, we find that <span class="math inline">\(\log (q_i/\pi_i) + (q_i/q_i) + \lambda = 0\)</span> for all <span class="math inline">\(i\)</span> in <span class="math inline">\(q\)</span>’s support, or <span class="math inline">\(\pi_i / q_i =e^{\lambda + 1}\)</span>. As this proportionality constant is the same for all <span class="math inline">\(i\)</span>, this confirms that minimizer is proportional to <span class="math inline">\(\pi\)</span> whenever it is nonzero. <span class="math inline">\(\square\)</span></p>
+<p><strong>Claim 2: If <span class="math inline">\(q \propto m \odot \pi\)</span> where <span class="math inline">\(\odot\)</span> indicates point-wise multiplication and <span class="math inline">\(m\)</span> is a binary mask with <span class="math inline">\(\|m\|_0 = b\)</span> picking out the support of <span class="math inline">\(q\)</span>, then <span class="math inline">\(\arg \min KL[q, \pi]\)</span> is obtained when <span class="math inline">\(m_i = 1\)</span> when <span class="math inline">\(i \leq b\)</span> and <span class="math inline">\(m_i = 0\)</span> otherwise.</strong></p>
+<p><em>Proof</em>: Let <span class="math inline">\(P = m^T\pi\)</span>. The KL divergence simplifies as follows <span class="math display">\[
+\begin{align*}
+KL[q, \pi] &amp;= \frac{1}{P}\sum_{i=1}^n \pi_i m_i \left( \log (\pi_i / P) - \log \pi_i\right) \\
+&amp;= -\log(P)
+\end{align*}
+\]</span> The <span class="math inline">\(m\)</span> maximizing <span class="math inline">\(m^T\pi\)</span> is clearly the one with its mass on the <span class="math inline">\(b\)</span> highest outcomes in <span class="math inline">\(\pi\)</span>. <span class="math inline">\(\square\)</span></p>
+</section>
+<section id="minimizing-maximum-mean-discrepancy" class="level3">
+<h3 class="anchored" data-anchor-id="minimizing-maximum-mean-discrepancy">Minimizing Maximum Mean Discrepancy</h3>
+<p>The KL divergence isn’t the only way to measure distance between distributions. In fact, it’s not a particularly flexible way, as it only lets us compare our discrete distribution <span class="math inline">\(q\)</span> with other discrete distributions <span class="math inline">\(\pi\)</span>. Instead, we can minimize the “maximum mean discrepancy” or MMD. The big idea is to choose <span class="math inline">\(q\)</span> to make <span class="math inline">\(E_{X \sim q}f(X)\)</span> as close as possible to <span class="math inline">\(E_{X \sim \pi} f(X)\)</span> for all functions <span class="math inline">\(f\)</span> in some space <span class="math inline">\(\mathcal{H}\)</span>. <span class="math display">\[
+\text{MMD} = \sup_{f \in \mathcal{H}, \|f\| \leq 1} (E_{X \sim \pi} f(X) - E_{X \sim q} f(X))^2
+\]</span> If we assume that <span class="math inline">\(\mathcal{H}\)</span> is closed under negation, squaring this difference won’t change the optimal distribution <span class="math inline">\(q^*\)</span> minimizing the expression, so we can equivalently write this as <span class="math display">\[
+\sup_{f \in \mathcal{H}, \|f\| \leq 1} (E_{X \sim \pi} f(X) - E_{X \sim q} f(X))
+\]</span> If we let <span class="math inline">\(\mathcal{H}\)</span> be a <a href="https://web.archive.org/web/https://en.wikipedia.org/wiki/Reproducing_kernel_Hilbert_space">reproducing kernel Hilbert space</a> with kernel <span class="math inline">\(k\)</span>, function evaluation <span class="math inline">\(f(x)\)</span> is the same as taking the inner product <span class="math inline">\(\langle f, k(x, \cdot) \rangle\)</span>, and we can write the result as <span class="math display">\[
+\sup_{f \in \mathcal{H}, \|f\| \leq 1} (E_{X \sim \pi} \langle f, k(X, \cdot) \rangle - E_{X \sim q} \langle f, k(X, \cdot) \rangle)
+\]</span> You can read more about kernel mean embeddings like this <a href="https://web.archive.org/web/https://en.wikipedia.org/wiki/Kernel_embedding_of_distributions">here</a>.</p>
+<p>Let’s assume that <span class="math inline">\(\pi\)</span> is discrete, and we can use <span class="math inline">\(\mathbb{R}^n\)</span> as this Hilbert space. Letting <span class="math inline">\(\pi\)</span> and <span class="math inline">\(q\)</span> also indicate vectors of component probabilities, the expression simplifies as <span class="math display">\[
+\sup_{f \in \mathbb{R}^n, \|f\| \leq 1} \langle f, E_{X \sim \pi}[X], - E_{X \sim q}[X] \rangle = \|\pi - q\|_2^2 \\
+\]</span> Our problem, therefore, is to project <span class="math inline">\(\pi\)</span> onto the space of all <span class="math inline">\(q\)</span> for which <span class="math inline">\(\|q\|_1 = 1\)</span> (the sum of components is 1) and <span class="math inline">\(\|q\|_0 = b\)</span> (the total number of non-zero components is <span class="math inline">\(b\)</span>).</p>
+<p>This space is not convex, but we can get around this by fixing a binary mask vector <span class="math inline">\(m\)</span> with 1-norm <span class="math inline">\(b\)</span> and minimizing <span class="math inline">\(\|\pi - m \odot q\|_2^2\)</span> over all unit <span class="math inline">\(q\)</span>, where <span class="math inline">\(\odot\)</span> indicates the Hadamard product. This gives us the Lagrangian <span class="math display">\[
+L(\lambda, q) = \|m \odot q\|^2 - 2 \langle m \odot \pi, q \rangle + \lambda (\langle q, m \rangle - 1).
+\]</span> The derivative with respect to <span class="math inline">\(q_i\)</span> is zero when <span class="math inline">\(2m_i q_i - 2m_i \pi_i + \lambda m_i = 0\)</span> from which we can conclude that <span class="math inline">\(q_i = \pi_i + c\)</span> for some normalizing constant <span class="math inline">\(c\)</span> shared by all components in the support.</p>
+<p>We can plug in this result about the optimal <span class="math inline">\(q_i\)</span> and solve to find the optimal <span class="math inline">\(m_i\)</span>. Let <span class="math inline">\(S\)</span> be the support of <span class="math inline">\(q\)</span> we get from <span class="math inline">\(m\)</span> and <span class="math inline">\(1\)</span> be the all ones vector. We want to minimize <span class="math display">\[
+\begin{align*}
+\text{MMD} &amp;= \|m\pi + \frac{\langle 1-m, \pi \rangle}{b}m - \pi\|^2 \\
+&amp;= \sum_i \left( 1_{i \notin S} \pi_i + 1_{i \in S}\frac{\langle 1-m, \pi \rangle}{b}\right)^2 \\
+&amp;= (1 - b) + \sum_{i \notin S} \pi_i^2
+\end{align*}
+\]</span> Clearly, this quantity is minimized by choosing <span class="math inline">\(S\)</span> to contain the <span class="math inline">\(b\)</span> most likely components of <span class="math inline">\(\pi\)</span>.</p>
+</section>
+<section id="unbiased-mmd-minimization" class="level3">
+<h3 class="anchored" data-anchor-id="unbiased-mmd-minimization">Unbiased MMD Minimization</h3>
+<p>The approximation schemes we’ve looked at so far have been deterministic: to make a <span class="math inline">\(b\)</span> particle approximation <span class="math inline">\(q\)</span> to a more complicated distribution <span class="math inline">\(\pi\)</span>, we always choose <span class="math inline">\(q\)</span>’s support <span class="math inline">\(S\)</span> to be the <span class="math inline">\(b\)</span> most likely elements in <span class="math inline">\(\pi\)</span>. But because of this determinism, these approximations are biased. By <em>biased</em> here, I mean that it is not generally the case that <span class="math inline">\(E[\sum_{i=1}^n q_i f(x_i)] \neq E_{X \sim \pi} f(X)\)</span> for any function <span class="math inline">\(f\)</span> unless <span class="math inline">\(b\)</span> is large enough to capture the full support of <span class="math inline">\(\pi\)</span>.</p>
+<p>If this property (unbiased-ness) was more important to us than truly minimizing the maximum mean discrepancy, we could instead try to choose <span class="math inline">\(S\)</span> stochastically. Specifically, we could do the following: - Assign each outcome <span class="math inline">\(i\)</span> in <span class="math inline">\(\pi\)</span>’s support a weight <span class="math inline">\(w_i\)</span>. - Sample an outcome with probability proportional to the remaining weights. - Put that outcome in <span class="math inline">\(S\)</span> and prevent it from being sampled again. - Repeat <span class="math inline">\(b\)</span> times.</p>
+<p>With this scheme, the number of times outcome <span class="math inline">\(i\)</span> is included in <span class="math inline">\(S\)</span> is given by <a href="https://web.archive.org/web/https://en.wikipedia.org/wiki/Wallenius%27_noncentral_hypergeometric_distribution">Wallenius’ non-central hypergeometric distribution</a> with success-outcomes parameter <span class="math inline">\(m_1 =1\)</span>, total outcomes parameter <span class="math inline">\(N\)</span> being the size of <span class="math inline">\(\pi\)</span>’s support, draws parameter <span class="math inline">\(n=b\)</span>, and odds parameter <span class="math inline">\(\theta_i = \frac{(n-1)w_i}{1 - w_i}\)</span>. If we know the odds parameter <span class="math inline">\(\theta_i\)</span>, we can get back <span class="math inline">\(w_i\)</span> using <span class="math inline">\(\sigma(\log(\theta_i / (n-1)))\)</span> where <span class="math inline">\(\sigma\)</span> is the standard logistic function.</p>
+<p>Once we choose the support set <span class="math inline">\(S\)</span>, we can deterministically assign probabilities to each outcome in <span class="math inline">\(q\)</span> to minimize the maximum mean discrepancy from our target distribution <span class="math inline">\(\pi\)</span>. As shown above, the optimal choice is to set <span class="math inline">\(q_i = \pi_i + c\)</span> where <span class="math inline">\(c\)</span> is the equally distributed un-allocated probability mass <span class="math inline">\(\frac{1}{b} \sum_{j \notin S} \pi_j\)</span>.</p>
+<p>Now, we can choose the <span class="math inline">\(w_i\)</span> for each outcome in such a way that <span class="math inline">\(\pi_i = E[q_i]\)</span>, making <span class="math inline">\(q\)</span> <em>unbiased</em> unlike the deterministic approximation discussed earlier. Let <span class="math inline">\(s_i = P(i \in S)\)</span> and <span class="math inline">\(r_i = 1 - s_i\)</span>. <span class="math display">\[
+\begin{align*}
+\pi_i &amp;= E[1_{i \in S}(\pi_i + \frac{1}{b}\sum_j 1_{j \notin S} P_j)] \\
+&amp;= s_i(\pi_i + \frac{1}{b}\sum_j \pi_j (1 - s_j)) \\
+b(1-s_i)\pi_i &amp;= \sum_j \pi_j (1 - s_j) \\
+(b - 1)r_i \pi_i &amp;= \sum_{j \neq i} \pi_j r_i
+\end{align*}
+\]</span> This holds for all <span class="math inline">\(i\)</span> simultaneously, so letting <span class="math inline">\(P\)</span> be the matrix with <span class="math inline">\(\pi\)</span> along its diagonal and <span class="math inline">\(1\)</span> be the all ones matrix, we can write the above equation in vectorized form as <span class="math display">\[
+\begin{align*}
+(b-1)Pr &amp;= (1-I)Pr \\
+((b-1)I - 1 + I)Pr &amp;= 0 \\
+(bI - 1)Pr &amp;= 0 \\
+\end{align*}
+\]</span> We can see that if we find an eigenvector of <span class="math inline">\((bI - 1)P\)</span> with eigenvalue zero, the entries will indicate the probability mass functions of our our non-central hypergeometric distributions at zero.</p>
+<p>However, as <span class="math inline">\((bI - 1)\)</span> is nonsingular for nonzero <span class="math inline">\(b\)</span>, no such eigenvalue exists! This means this whole approach is actually impossible. <strong>We can’t randomly choose a support and then optimally pick the weights if we want the result to be unbiased.</strong> We can either choose optimal weights, or we can have an unbiased approximation. Having both at the same time is fundamentally impossible.</p>
+</section>
+<section id="quasi-monte-carlo-approximation" class="level3">
+<h3 class="anchored" data-anchor-id="quasi-monte-carlo-approximation">Quasi Monte Carlo Approximation</h3>
+<p>If we’d prefer to have unbiased-ness to optimal weights, there are other finite particle approximation strategies we could use besides standard Monte Carlo. One simple approach is to use randomized lattice <a href="https://web.archive.org/web/https://en.wikipedia.org/wiki/Quasi-Monte_Carlo_method">Quasi Monte Carlo</a>. The basic idea goes like this: - Let <span class="math inline">\(u_i = i/b\)</span> for <span class="math inline">\(b\)</span> different particles. - Choose a random number <span class="math inline">\(s\)</span> between 0 and 1 and add it to all the <span class="math inline">\(u_i\)</span> mod 1. These are unbiased, evenly dispersed samples from a uniform distribution. - Now apply the inverse CDF <span class="math inline">\(\Phi\)</span> of <span class="math inline">\(\pi\)</span> to each of these samples. Here, we’re assuming an ordering among the possible outcomes; if <span class="math inline">\(\Phi(0.3) = 3\)</span>, for example, that would mean that 30% of <span class="math inline">\(\pi\)</span>’s probability mass is for outcomes below 3. This is known as inverse transform sampling, and guarantees we’ll get unbiased samples from <span class="math inline">\(\pi\)</span>! We’ll set all the weights to be <span class="math inline">\(1/b\)</span>, just as in the standard Monte Carlo case.</p>
+<p>Some connections to think about: when the <span class="math inline">\(\pi\)</span> we’re trying to approximate is a the empirical distribution of particles during a round of sequential Monte Carlo, this approximation is known as <em>systematic resampling</em>. If, as is often the case in probabilistic programming, we’re not trying to sample from a single categorical distribution <span class="math inline">\(\pi\)</span>, but rather a sequence of dependent distributions <span class="math inline">\(\pi^1, \pi^2, \dotsc\)</span>, we can sample our uniform grid in the unit hypercube rather than along the unit interval and apply the inverse CDF of <span class="math inline">\(\pi^i\)</span> to the <span class="math inline">\(i\)</span>th coordinates. In multiple dimensions, however, a uniform grid might not be the best idea. If we try to pick the lattice structure in a way that minimizes MMD between <span class="math inline">\(q\)</span> and <span class="math inline">\(\pi\)</span>, the best choice of lattice will depend on the class of functions <span class="math inline">\(\mathcal{H}\)</span> we’re considering for the MMD. For example, one common RKHS for multidimensional spaces has a kernel that is just the product of the kernels for each dimension. If the kernel for one of the dimensions has a lower bandwidth, it will make sense to pack our grid points more tightly in this dimension.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/samanklesaria\.github\.io");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

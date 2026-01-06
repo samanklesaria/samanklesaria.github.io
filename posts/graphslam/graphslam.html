@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.26">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2024-07-22">
+
+<title>Graph SLAM – Sam’s Blog</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-ff63373b1067ca6f91cf1456aa1f00a2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Sam’s Blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/samanklesaria"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Graph SLAM</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">SLAM</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">July 22, 2024</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<div id="2" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">LinearAlgebra</span>, <span class="bu">SparseArrays</span>, <span class="bu">RecursiveArrayTools</span>, <span class="bu">Distributions</span>, <span class="bu">Unzip</span>, <span class="bu">ExtendableSparse</span>, <span class="bu">ForwardDiff</span>, <span class="bu">DiffResults</span>, <span class="bu">AppleAccelerate</span>, <span class="bu">CairoMakie</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div id="4" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>CairoMakie.<span class="fu">enable_only_mime!</span>(<span class="st">"svg"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>For a robot to navigate autonomously, it needs to learn both its own location, as well as the locations of any potential obsticles around it, given its sensors’ observations of the world. We’ll create a probabilistic model of our environment and get a MAP estimate of these unknown quantities.</p>
+<ul>
+<li>Let <span class="math inline">\(x_t \in \mathbb{R}^2\)</span> be the robot’s location at time <span class="math inline">\(t\)</span>.</li>
+<li>Let <span class="math inline">\(θ_t \in \mathbb{R}\)</span> be the robot’s heading angle at time <span class="math inline">\(t\)</span>.</li>
+<li>Let <span class="math inline">\(m_i \in \mathbb{R}^2\)</span> be the position of the <span class="math inline">\(i\)</span>th obstacle.</li>
+<li>Let <span class="math inline">\(o_{t, i} \in \mathbb{R}^2\)</span> be our robot’s noisy observation of its distance at time <span class="math inline">\(t\)</span> to obstacle <span class="math inline">\(i\)</span>.</li>
+</ul>
+<section id="motion-model" class="level1">
+<h1>Motion Model</h1>
+<p>We will assume that the robot advances approximately one step forward (in its local coordiante system) at each timestep. Let <span class="math inline">\(R(\theta)\)</span> be a rotation matrix that converts coordinates in the <span class="math inline">\(\theta\)</span>-rotated coordinate frame to global coordinates</p>
+<p><span class="math display">\[
+p(x_t | x_{t-1}) = \mathcal{N}\left(x_{t-1} + R(\theta_{t-1}) \begin{bmatrix} 1  1 \end{bmatrix}, \sigma^2_x I\right)
+\]</span></p>
+<p>We also assume that the heading angle increases by approximately <span class="math inline">\(2\pi/100\)</span> radians each step, so that <span class="math inline">\(p(\theta_t | \theta_{t-1}) = \mathcal{N}(\theta_{t-1} + \frac{2\pi}{100}, \sigma^2_θ)\)</span>. Let</p>
+<p><span class="math display">\[
+y_t = \begin{bmatrix} x_t  \theta_t \end{bmatrix}
+\]</span></p>
+<p>combine the location and heading parameters, and <span class="math inline">\(y\)</span> be the vector of all the <span class="math inline">\(y_t\)</span>. In the code that follows, Gaussian distributions will be represented by their mean and covariance parameters. For reasons we’ll see later on, it will be easiest to express the mean at time <span class="math inline">\(t\)</span> by indexing into <span class="math inline">\(y_{t-1}\)</span>.</p>
+<div id="6" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>Σ_x <span class="op">=</span> <span class="fu">Diagonal</span>(<span class="fu">fill</span>(<span class="fl">0.05</span>, <span class="fl">2</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>2×2 Diagonal{Float64, Vector{Float64}}:
+ 0.05   ⋅ 
+  ⋅    0.05</code></pre>
+</div>
+</div>
+<div id="8" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">μ_θ</span>(y, θ) <span class="op">=</span> y[θ<span class="op">:</span>θ] <span class="op">+</span> <span class="fu">fill</span>(<span class="fl">2</span>π<span class="op">/</span><span class="fl">100</span>, <span class="fl">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>μ_θ (generic function with 1 method)</code></pre>
+</div>
+</div>
+<div id="10" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>Σ_θ <span class="op">=</span> <span class="fl">0.008</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>0.008</code></pre>
+</div>
+</div>
+<div id="12" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rot</span>(t) <span class="op">=</span> [<span class="fu">cos</span>(t) <span class="fu">-sin</span>(t); <span class="fu">sin</span>(t) <span class="fu">cos</span>(t)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>rot (generic function with 1 method)</code></pre>
+</div>
+</div>
+<div id="14" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">μ_x</span>(y, x, θ) <span class="op">=</span> y[x] <span class="op">+</span> <span class="fu">rot</span>(y[θ]) <span class="op">*</span> [<span class="fl">1.0</span>,<span class="fl">0.0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>μ_x (generic function with 1 method)</code></pre>
+</div>
+</div>
+<div id="16" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>start <span class="op">=</span> <span class="fu">zeros</span>(<span class="fl">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>3-element Vector{Float64}:
+ 0.0
+ 0.0
+ 0.0</code></pre>
+</div>
+</div>
+</section>
+<section id="simulating-the-model" class="level1">
+<h1>Simulating the Model</h1>
+<p>Let’s simulate a robot trajectory that obeys this motion model for <span class="math inline">\(T\)</span> timesteps. We’ll try to reconstruct this trajectory with a maximum likelihood approach in the next section.</p>
+<div id="18" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>T <span class="op">=</span> <span class="fl">100</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>100</code></pre>
+</div>
+</div>
+<div id="20" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mean_step</span>(y) <span class="op">=</span> [<span class="fu">μ_x</span>(y, <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, <span class="fl">3</span>); <span class="fu">μ_θ</span>(y, <span class="fl">3</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>mean_step (generic function with 1 method)</code></pre>
+</div>
+</div>
+<p>Without noise, the robot’s trajectory would look like this, with the color changing from black to yellow over time.</p>
+<div id="22" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>yhat <span class="op">=</span> <span class="fu">VectorOfArray</span>(<span class="fu">accumulate</span>((y,_)<span class="op">-&gt;</span> <span class="fu">mean_step</span>(y), <span class="fl">1</span><span class="op">:</span>T; init<span class="op">=</span>start))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>VectorOfArray{Float64,2}:
+100-element Vector{Vector{Float64}}:
+ [1.0, 0.0, 0.06283185307179587]
+ [1.9980267284282716, 0.06279051952931337, 0.12566370614359174]
+ [2.9901414297427493, 0.18812375309361762, 0.1884955592153876]
+ [3.972428680471438, 0.3755050676793422, 0.25132741228718347]
+ [4.941011841600069, 0.624194954844197, 0.3141592653589793]
+ [5.892068357895223, 0.9332119492191444, 0.37699111843077515]
+ [6.821844843783475, 1.3013365019038223, 0.439822971502571]
+ [7.726671896249494, 1.727115793468895, 0.5026548245743668]
+ [8.602978576293358, 2.20886946757061, 0.5654866776461627]
+ [9.447306501795373, 2.7446962625496067, 0.6283185307179585]
+ ⋮
+ [-7.602978576293377, 2.208869467570511, 5.780530482605213]
+ [-6.726671896249516, 1.7271157934687904, 5.843362335677009]
+ [-5.8218448437834995, 1.3013365019037118, 5.906194188748804]
+ [-4.89206835789525, 0.9332119492190273, 5.9690260418206]
+ [-3.941011841600099, 0.6241949548440728, 6.031857894892395]
+ [-2.9724286804714697, 0.3755050676792106, 6.094689747964191]
+ [-1.9901414297427826, 0.18812375309347806, 6.157521601035986]
+ [-0.9980267284283059, 0.06279051952916548, 6.220353454107782]
+ [-3.4861002973229915e-14, -1.566524687746096e-13, 6.283185307179577]</code></pre>
+</div>
+</div>
+<div id="24" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> f1 <span class="op">=</span> <span class="fu">Figure</span>()</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>    ax1 <span class="op">=</span> f1[<span class="fl">1</span>, <span class="fl">1</span>] <span class="op">=</span> <span class="fu">Axis</span>(f1)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    p1 <span class="op">=</span> <span class="fu">plot!</span>(yhat[<span class="fl">1</span>, <span class="op">:</span>], yhat[<span class="fl">2</span>, <span class="op">:</span>], color<span class="op">=</span><span class="fl">1</span><span class="op">:</span>T)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">Colorbar</span>(f1[<span class="fl">1</span>,<span class="fl">2</span>], p1)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>    f1</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+<figure class="figure">
+<p><img src="graphslam_files/figure-html/cell-13-output-1.svg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>But as we’ve assumed some noise at each step, the true trajectory is a little more wiggly.</p>
+<div id="26" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">step</span>(y) <span class="op">=</span> [<span class="fu">rand</span>(<span class="fu">MultivariateNormal</span>(<span class="fu">μ_x</span>(y, <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, <span class="fl">3</span>), Σ_x)); <span class="fu">rand</span>(<span class="fu">Normal</span>(<span class="fu">μ_θ</span>(y, <span class="fl">3</span>)[<span class="fl">1</span>], Σ_θ))]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>step (generic function with 1 method)</code></pre>
+</div>
+</div>
+<div id="28" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>true_y <span class="op">=</span> <span class="fu">VectorOfArray</span>(<span class="fu">accumulate</span>((y,_)<span class="op">-&gt;</span> <span class="fu">step</span>(y), <span class="fl">1</span><span class="op">:</span>T; init<span class="op">=</span>start))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>VectorOfArray{Float64,2}:
+100-element Vector{Vector{Float64}}:
+ [0.9948369008080734, -0.17881455800404114, 0.06813995060080176]
+ [2.2627930974742254, 0.17186151904112557, 0.12975149463685665]
+ [3.2577831373702573, -0.10985759933358524, 0.1829090984073673]
+ [4.400490027838276, 0.025835244482602535, 0.2454353075657262]
+ [5.287719367549745, 0.33742069041111256, 0.33541549600906045]
+ [6.189569042596519, 0.3940744827551949, 0.4010285171119553]
+ [6.9437488500664895, 0.4715841172952981, 0.45651471287207906]
+ [7.972843771064869, 1.3090087381507867, 0.5219706310461045]
+ [8.80959728633984, 1.6739948567368281, 0.6084779835161396]
+ [10.08790868778338, 2.3364002859826782, 0.6766190544277169]
+ ⋮
+ [-8.286488651409167, 4.725160020949448, 5.858871709439354]
+ [-7.462292377502831, 4.310271190958247, 5.92407834074762]
+ [-6.299206837132079, 3.9592901447036657, 5.989198227579204]
+ [-5.0048292897616315, 3.031484767839803, 6.051276214969418]
+ [-4.101678423979381, 2.951706786370477, 6.115026977729722]
+ [-3.174101632699504, 2.518573445277533, 6.184476993977584]
+ [-2.2918628875042364, 2.3265372408595124, 6.242626128695027]
+ [-1.1511843642951767, 2.8874967492862282, 6.313806498956315]
+ [0.26107996338269074, 2.8672711545305583, 6.374629526124709]</code></pre>
+</div>
+</div>
+<div id="30" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> f1 <span class="op">=</span> <span class="fu">Figure</span>()</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>    ax1 <span class="op">=</span> f1[<span class="fl">1</span>, <span class="fl">1</span>] <span class="op">=</span> <span class="fu">Axis</span>(f1)</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    p1 <span class="op">=</span> <span class="fu">plot!</span>(true_y[<span class="fl">1</span>, <span class="op">:</span>], true_y[<span class="fl">2</span>, <span class="op">:</span>], color<span class="op">=</span><span class="fl">1</span><span class="op">:</span>T)</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">Colorbar</span>(f1[<span class="fl">1</span>,<span class="fl">2</span>], p1)</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>    f1</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+<figure class="figure">
+<p><img src="graphslam_files/figure-html/cell-16-output-1.svg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="obstacle-location-prior" class="level1">
+<h1>Obstacle Location Prior</h1>
+<p>We will assume an uninformative prior over the locations of our <span class="math inline">\(k\)</span> potential obstacles <span class="math inline">\(m\)</span>: <span class="math inline">\(m_i \sim \mathcal{N}(0, \Sigma_m)\)</span>. For consistency with the earlier mean method defined for positions <span class="math inline">\(x\)</span>, the mean function for obstacles will take a dummy argument.</p>
+<div id="32" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> <span class="fl">10</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>10</code></pre>
+</div>
+</div>
+<div id="34" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">μ_m</span>(_) <span class="op">=</span> <span class="fu">fill</span>(<span class="fl">10</span>, <span class="fl">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>μ_m (generic function with 1 method)</code></pre>
+</div>
+</div>
+<div id="36" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>Σ_m <span class="op">=</span> <span class="fu">Diagonal</span>(<span class="fu">fill</span>(<span class="fl">100</span>, <span class="fl">2</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>2×2 Diagonal{Int64, Vector{Int64}}:
+ 100    ⋅
+   ⋅  100</code></pre>
+</div>
+</div>
+<div id="38" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>true_m <span class="op">=</span> <span class="fu">rand</span>(<span class="fu">MultivariateNormal</span>(<span class="fu">μ_m</span>(<span class="cn">nothing</span>), Σ_m), k)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>2×10 Matrix{Float64}:
+ 6.55633  25.9119   10.7696  -3.08722  …  19.4976    3.42704  -6.70656
+ 8.74785   4.83715  20.3582  19.8423       4.63834  -3.50851   7.83388</code></pre>
+</div>
+</div>
+<div id="40" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> f1 <span class="op">=</span> <span class="fu">Figure</span>()</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>    ax1 <span class="op">=</span> f1[<span class="fl">1</span>, <span class="fl">1</span>] <span class="op">=</span> <span class="fu">Axis</span>(f1)</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>    p1 <span class="op">=</span> <span class="fu">plot!</span>(true_y[<span class="fl">1</span>, <span class="op">:</span>], true_y[<span class="fl">2</span>, <span class="op">:</span>], color<span class="op">=</span><span class="fl">1</span><span class="op">:</span>T, label<span class="op">=</span><span class="st">"robot trajectory"</span>)</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">plot!</span>(true_m[<span class="fl">1</span>, <span class="op">:</span>], true_m[<span class="fl">2</span>,<span class="op">:</span>], color<span class="op">=:</span>red, label<span class="op">=</span><span class="st">"map points"</span>)</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>    f1[<span class="fl">1</span>,<span class="fl">2</span>] <span class="op">=</span> <span class="fu">Legend</span>(f1, ax1)</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>    f1</span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+<figure class="figure">
+<p><img src="graphslam_files/figure-html/cell-21-output-1.svg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Let <span class="math display">\[
+z = \begin{bmatrix} y  m \end{bmatrix}
+\]</span> combine the ego and obstacle parameters.</p>
+<div id="42" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>true_z <span class="op">=</span> [<span class="fu">vec</span>(true_y); <span class="fu">vec</span>(true_m)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>320-element Vector{Float64}:
+  0.9948369008080734
+ -0.17881455800404114
+  0.06813995060080176
+  2.2627930974742254
+  0.17186151904112557
+  0.12975149463685665
+  3.2577831373702573
+ -0.10985759933358524
+  0.1829090984073673
+  4.400490027838276
+  ⋮
+ 20.087161874125705
+ 16.98673666207452
+ 26.761324025474323
+ 19.497590609511285
+  4.638343755581045
+  3.427042183951291
+ -3.5085063520697517
+ -6.706558668864389
+  7.833875387182863</code></pre>
+</div>
+</div>
+</section>
+<section id="observation-model" class="level1">
+<h1>Observation Model</h1>
+<p>Let <span class="math inline">\(p(o_{t, i} | x_t, θ_t, m_i) = \mathcal{N}(R(-θ_t)(m_i - x_t), Σ_o)\)</span>, so that the robot’s sensor tells it approximately how close each map point is in its local coordinate frame.</p>
+<div id="44" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">μ_obs</span>(z, x, θ, m) <span class="op">=</span> <span class="fu">rot</span>(<span class="op">-</span>z[θ]) <span class="op">*</span> (z[m] <span class="op">-</span> z[x])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>μ_obs (generic function with 1 method)</code></pre>
+</div>
+</div>
+<div id="46" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>Σ_obs <span class="op">=</span> <span class="fu">Diagonal</span>(<span class="fu">fill</span>(<span class="fl">0.1</span>, <span class="fl">2</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>2×2 Diagonal{Float64, Vector{Float64}}:
+ 0.1   ⋅ 
+  ⋅   0.1</code></pre>
+</div>
+</div>
+<div id="48" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>obs <span class="op">=</span> <span class="fu">VectorOfArray</span>([<span class="fu">VectorOfArray</span>([</span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rand</span>(<span class="fu">MultivariateNormal</span>(<span class="fu">μ_obs</span>(true_z, <span class="fl">3</span>t<span class="op">+</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span>t<span class="op">+</span><span class="fl">2</span>, <span class="fl">3</span>t<span class="op">+</span><span class="fl">3</span>, (<span class="fl">3</span>T<span class="op">+</span><span class="fl">2</span>m<span class="op">+</span><span class="fl">1</span>)<span class="op">:</span>(<span class="fl">3</span>T<span class="op">+</span><span class="fl">2</span>m<span class="op">+</span><span class="fl">2</span>)), Σ_obs)) for m <span class="kw">in</span> <span class="fl">0</span><span class="op">:</span>(k<span class="op">-</span><span class="fl">1</span>)]) for t <span class="kw">in</span> <span class="fl">0</span><span class="op">:</span>(T<span class="op">-</span><span class="fl">1</span>)])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>VectorOfArray{Float64,3}:
+100-element Vector{VectorOfArray{Float64, 2, Vector{Vector{Float64}}}}:
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[6.013700145086878, 8.368164266295134], [24.568021744453933, 3.6157091049669656], [11.23778228240714, 19.222792500273055], [-2.7040300052210795, 19.792162726658354], [11.250628280481457, -1.6887668931377868], [16.027211901569483, 19.032850002087653], [17.778324286305484, 25.8465606216527], [19.441293019621643, 3.8879295067523945], [1.8809069271553998, -3.251827387382284], [-7.432381353009933, 8.645019960045108]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[5.641985228875032, 7.924150333390872], [24.474762791025697, 1.5399668441475096], [10.896505350585308, 19.14184066164264], [-2.8898071407213397, 19.79983657318185], [9.749145325474837, -3.2938891127184835], [15.803316027431402, 18.16650234550198], [17.878814119398438, 24.86620332021086], [17.671848850537003, 2.078932762216099], [0.5769536724566005, -4.355619037474067], [-8.207967964723636, 8.985428046601001]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[4.851631808665426, 8.188085448607072], [22.948895587595022, 0.43775846135747726], [11.005179454038947, 18.59536299257642], [-2.805042873203761, 20.84842826750874], [8.505294699591524, -2.6997322648621034], [15.70012657408447, 17.572421151893366], [18.128916953436377, 23.834553381464215], [16.780208160819445, 2.1368667977760416], [-0.7400891037317023, -3.417356665861245], [-7.912720993040339, 9.534565325810163]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[4.048231394317695, 7.721987916874405], [21.71834476032371, -0.5659096212098226], [10.88881162981954, 17.926602832838835], [-2.042645731965736, 21.06910413938711], [7.006996582086496, -2.8700125188555052], [16.18457477434436, 16.97570115207072], [18.80072063154177, 23.462534798530292], [16.021686390387767, 0.5784537452527012], [-1.6102837184467977, -3.530878884865166], [-8.539929896505848, 10.424353745640826]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[3.63090613235886, 7.550792587951964], [21.19886142760244, -2.899881179137308], [11.445282614446857, 16.829170336602218], [-1.5711220247939073, 21.216618198260317], [5.9946431651363925, -4.22151707487656], [16.84201289628381, 15.135162281477065], [19.897419903902616, 21.509982311505958], [14.812395117449746, -0.30171320319528583], [-2.9705849900207686, -3.0753253031980003], [-9.351472933012097, 11.256286706657121]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[4.1567292874234045, 7.217876989269879], [20.031530259147335, -3.805016511339554], [11.805343841699973, 17.15847024793535], [-0.9494894059627843, 21.411926277598948], [5.269723616963123, -4.028733124369017], [16.758682983305825, 14.14696720211139], [19.959509571468296, 19.99039322133718], [13.224448152122887, -1.0309267036091796], [-3.5222001411460484, -2.6497070522637056], [-8.954298046447112, 11.774280435000888]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[3.1741880442516948, 7.278860356736828], [18.87521422440231, -4.472497094503896], [11.800325404846303, 16.295369409287265], [-0.7171437115541555, 21.53254662271214], [3.2856046187068175, -3.370560611170286], [16.310533683090117, 13.617389923037623], [20.89472387664705, 18.705680477004066], [13.365791953957965, -1.495587523708471], [-4.7323986077301425, -2.4427779029098704], [-8.882759283217794, 12.533620977684915]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[2.0425556099387574, 7.066129125669452], [17.598079572324643, -5.502543567288933], [12.075143487583459, 15.85152134744959], [-0.5393243431996848, 21.469407020903695], [2.561477443413501, -4.446991446491485], [16.082759754634296, 11.83419562578087], [20.822299827955526, 17.644956151132828], [11.718433710022705, -3.14677933192268], [-6.66235093454659, -1.8072160990252237], [-9.750416360283822, 12.359686401888242]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[2.2816570565727656, 7.383041195033532], [15.808228099440342, -7.550027191654502], [11.507667669820282, 13.967166455229231], [0.5884347133759719, 20.86134703635186], [0.6756153569732424, -4.340809047211794], [16.47356421296756, 11.108958142749307], [20.95613108347853, 15.883372806979661], [10.563130717995497, -3.468325849068952], [-7.146941348087052, -0.4041440353753609], [-9.24822537609671, 13.702260824489597]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[1.6793343967549705, 7.036795779767694], [13.360779749114423, -7.9647506399299255], [11.236228718586213, 13.969091821537623], [1.0391408118453676, 21.900876838648326], [-0.10684530555668281, -4.395463121679125], [15.140171375134607, 9.934715867253184], [20.712718472833604, 15.052217576577188], [9.145744140662826, -4.081860230417136], [-8.923938796838996, -0.11272085563531176], [-9.413796486221301, 14.94540366680314]])
+ ⋮
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[11.895435519097228, 10.096250080587007], [30.975050523300183, 14.45443709898133], [11.135232297052879, 22.64729705590045], [-1.71080986823068, 15.406779695838383], [20.658265969190452, 3.838088694804081], [15.233762630418745, 23.734209497280688], [13.698979348814278, 30.149769005198372], [24.84130959192779, 11.402516186176626], [13.913990328907596, -3.308575062072246], [0.2700971701232535, 3.3249075529248797]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[11.544045405312193, 9.06021770042106], [31.029513316602163, 13.163344230056122], [11.58933285912982, 21.653482692182195], [-1.3537117605130766, 16.097935654330694], [20.358796399141443, 1.6629414343363025], [15.91514387742586, 23.2570196053237], [14.649109298607984, 29.916763958813313], [25.45425630262209, 10.045359892816323], [13.294676732727366, -2.963936492473572], [-0.25029973900567865, 3.1924000111842177]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[11.045652254232264, 8.619982301082722], [30.477238913040956, 10.674471999285572], [11.291262593919816, 20.782892126283105], [-1.9471137886124064, 15.816602347816609], [19.128166048454982, 0.45362865668916885], [16.40449799707704, 21.75446187297804], [15.68190718601276, 28.832763883748935], [23.68335834622055, 8.045926400443612], [11.841980930405585, -4.5323125356999405], [-1.4837503894146615, 4.237739513970863]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[9.864512396788715, 8.174355969610168], [29.64109550471643, 8.94464529078981], [11.74909722916652, 21.083713859941614], [-2.1196222870955834, 17.16313205691649], [17.584766293952026, -0.26954654517960586], [16.328243760948826, 21.16344789096051], [16.16578259093745, 27.811516254603013], [23.541726969840862, 6.837205505173892], [9.827960898326841, -4.52230863369103], [-3.685379588831624, 4.64562622457701]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[9.335691826213935, 7.607209026495554], [29.45240430760495, 6.21606512830997], [11.90890616348594, 19.66088439355682], [-2.0329608490032243, 16.705853074573707], [17.288944713096615, -1.16570411797972], [16.891583909028103, 20.100892575353356], [17.403731679617888, 27.02663611787579], [23.672802301167607, 5.45259331883669], [8.604313192351126, -5.224359270684223], [-3.247508519731462, 4.092589703568361]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[8.919742708155354, 7.245067771309988], [28.36992146744046, 5.723139469478966], [12.390020064954982, 18.64410819705427], [-1.151716565306933, 17.289944341814728], [15.000327482057703, -1.7008403954528681], [16.959186573295256, 19.620865492493625], [17.7002432735754, 26.018009499617758], [22.862309288611925, 4.881388901683297], [7.233238624850517, -5.320660824135512], [-3.636429232574335, 5.438673018619582]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[8.279106326855326, 7.149463899354719], [28.091268735912287, 3.6646525160383265], [12.207777477591296, 18.55169023921717], [-1.0393831156839681, 17.730881363829212], [14.462496539724393, -2.9068150158810058], [17.29448503387057, 18.55333657403531], [18.116942128466697, 25.877334959834457], [21.801692311606093, 2.6985815160041837], [5.865153526042226, -5.294348183788221], [-4.383202346059136, 5.140777560712807]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[7.871969763556479, 5.693281179819593], [27.079311433478527, 1.0222543664256254], [12.829613327905994, 17.009600131285378], [-0.9388450513507693, 16.854425667022767], [13.432432475396185, -4.764050539289802], [17.64484260642448, 16.789186893496602], [18.992102332827866, 23.22148939098534], [21.136826483389267, 0.9763542938789962], [4.451279536187137, -6.384753657386503], [-5.609142471465136, 4.931707956247374]])
+ VectorOfArray{Float64, 2, Vector{Vector{Float64}}}([[6.739357850166455, 5.314592282275178], [25.824003013561565, -0.44346792418659314], [12.613184509356499, 16.829002244521998], [-1.9804481682466397, 17.148558489846486], [11.331549703798766, -5.239902906708373], [16.671274647209334, 15.523578816652083], [18.808836993675946, 21.73238749095739], [18.961881301347855, 0.29836699013508333], [2.304305953590278, -6.099487027629671], [-6.608484484768158, 5.967973441682578]])</code></pre>
+</div>
+</div>
+<p>The following plots our observations over time, from black at the start to yellow at time <span class="math inline">\(T\)</span>. The swirling shape comes from the fact that the robot spins as it moves.</p>
+<div id="50" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> f <span class="op">=</span> <span class="fu">Figure</span>()</span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>    ax <span class="op">=</span> f[<span class="fl">1</span>, <span class="fl">1</span>] <span class="op">=</span> <span class="fu">Axis</span>(f)</span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>k</span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>        p1 <span class="op">=</span> <span class="fu">plot!</span>(obs[<span class="fl">1</span>,i,<span class="op">:</span>], obs[<span class="fl">2</span>, i,<span class="op">:</span>], color<span class="op">=</span><span class="fl">1</span><span class="op">:</span>T)</span>
+<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> i <span class="op">==</span> <span class="fl">1</span></span>
+<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>            <span class="fu">Colorbar</span>(f[<span class="fl">1</span>,<span class="fl">2</span>], p1)</span>
+<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
+<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a>    f</span>
+<span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+<figure class="figure">
+<p><img src="graphslam_files/figure-html/cell-26-output-1.svg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="guessing-an-initial-trajectory" class="level1">
+<h1>Guessing an Initial Trajectory</h1>
+<p>We’ll start out with our guess <span class="math inline">\(\hat{y}\)</span> as the mean of the motion model. We’ll guess <span class="math inline">\(\hat{m}\)</span> by just sampling from the prior.</p>
+<div id="52" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>mhat <span class="op">=</span> <span class="fu">rand</span>(<span class="fu">MultivariateNormal</span>(<span class="fu">μ_m</span>(<span class="cn">nothing</span>), Σ_m), k)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>2×10 Matrix{Float64}:
+  9.77342   3.92698  14.6207    …  27.3042  -4.2041   8.7704   10.2939
+ -0.432306  3.51201  -0.757796      4.7226   8.80291  1.73778  25.5637</code></pre>
+</div>
+</div>
+<div id="54" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>zhat <span class="op">=</span> [<span class="fu">vec</span>(yhat); <span class="fu">vec</span>(mhat)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>320-element Vector{Float64}:
+  1.0
+  0.0
+  0.06283185307179587
+  1.9980267284282716
+  0.06279051952931337
+  0.12566370614359174
+  2.9901414297427493
+  0.18812375309361762
+  0.1884955592153876
+  3.972428680471438
+  ⋮
+  4.6246080767284585
+ 27.30417657249438
+  4.722597230875135
+ -4.204101557016603
+  8.80290626371208
+  8.770396239663455
+  1.7377838203908151
+ 10.293861660079147
+ 25.5637364438413</code></pre>
+</div>
+</div>
+</section>
+<section id="assembling-trajectory-probability" class="level1">
+<h1>Assembling Trajectory Probability</h1>
+<p>The negative joint log density of our guess and observations <span class="math inline">\(L(y, m)\)</span> is a sum of factors <span class="math inline">\(L_i = (v_i - μ_i(z))^TΛ_i(v_i - μ_i(z))\)</span> for different variables <span class="math inline">\(v_i\)</span> with means <span class="math inline">\(\mu_i\)</span> and precisions <span class="math inline">\(\Lambda_i\)</span>. The following code assembles these factors for the observation model above.</p>
+<div id="56" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="fu">start_x</span>(_) <span class="op">=</span> [<span class="fl">0</span>., <span class="fl">1.0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>start_x (generic function with 1 method)</code></pre>
+</div>
+</div>
+<div id="58" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="fu">start_θ</span>(_) <span class="op">=</span> <span class="fu">fill</span>(<span class="fl">2</span>π<span class="op">/</span><span class="fl">100</span>, <span class="fl">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>start_θ (generic function with 1 method)</code></pre>
+</div>
+</div>
+</section>
+<section id="maximizing-trajectory-probability" class="level1">
+<h1>Maximizing Trajectory Probability</h1>
+<p>We know <span class="math inline">\(L_i(z) = -f_i(z)^T\Lambda_i f(z)\)</span> where <span class="math inline">\(f_i\)</span> is a potentially nonlinear transformation of <span class="math inline">\(z\)</span>. Taylor expand <span class="math inline">\(f_i(z) \approx f_i(\hat{z}) + J_i\Delta\)</span> where <span class="math inline">\(\Delta = z - \hat{z}\)</span> and <span class="math inline">\(J_i = \nabla_z f_i(\hat{z})\)</span>. Substitute this expression in definition of <span class="math inline">\(L_i\)</span> giving <span class="math inline">\(L_i(z) \approx \Delta^T H_i\Delta + 2 b_i^T\Delta + c\)</span>, where <span class="math inline">\(H_i = J_i^T\Lambda_i J_i\)</span> and <span class="math inline">\(b_i = J_i^T\Lambda_i f_i(\hat{z})\)</span>. When add up all these factors to get the full log probability, we get <span class="math inline">\(\Delta^T H \Delta + 2 b^T \Delta + c\)</span> where <span class="math inline">\(b\)</span> is the sum of the <span class="math inline">\(b_i\)</span> and <span class="math inline">\(H\)</span> is the sum of the <span class="math inline">\(H_i\)</span>.</p>
+<p>To minimize this quantity, take the derivative. We find that <span class="math inline">\(L\)</span> will be approximately minimized when <span class="math inline">\(H\Delta = -b\)</span> or <span class="math inline">\(\Delta = -H^{-1}b\)</span>. It remains to solve for <span class="math inline">\(\Delta\)</span> and modify <span class="math inline">\(z\)</span> appropriately. Repeating this gives the Gauss Newton algorithm.</p>
+<p>When <span class="math inline">\(f\)</span> is not well approximated by its first order Taylor expansion, instead of solving <span class="math inline">\(H^{-1}b\)</span>, it works better to solve the smoothed version <span class="math inline">\((H + \lambda \text{Diag}(H))^{-1}b\)</span>, where <span class="math inline">\(\lambda\)</span> is a factor that gets slowly lowered to zero as <span class="math inline">\(z\)</span> nears its optimal value. This is the <a href="https://en.wikipedia.org/wiki/Levenberg–Marquardt_algorithm">Levenberg-Marquardt</a> algorithm.</p>
+<section id="understanding-log_prob_builder" class="level3">
+<h3 class="anchored" data-anchor-id="understanding-log_prob_builder">Understanding <code>log_prob_builder</code></h3>
+<p>The <code>log_prob_builder</code> function above has two forms, depending on its <code>jac</code> argument. If <code>jac=true</code>, the function builds a vector of terms <span class="math inline">\(H_i\)</span> and <span class="math inline">\(b_i\)</span> described above. Othewise, it builds a vector of the negative log probabilities <span class="math inline">\(L_i\)</span>.</p>
+<div id="60" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> QuadformBuilder <span class="op">=</span> <span class="dt">Vector</span>{<span class="dt">Tuple</span>{<span class="op">&lt;:</span><span class="dt"> ExtendableSparseMatrix</span>, <span class="dt">Vector</span>}}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div class="ansi-escaped-output">
+<pre>Vector{Tuple{ExtendableSparseMatrixCSC, Vector}}<span class="ansi-bright-black-fg"> (alias for </span><span class="ansi-bright-black-fg">Array{Tuple{ExtendableSparseMatrixCSC, Array{T, 1} where T}, 1}</span><span class="ansi-bright-black-fg">)</span></pre>
+</div>
+</div>
+</div>
+<p>These terms are computed by the <code>factor</code> function, which assembles <span class="math inline">\(H\)</span> and <span class="math inline">\(b\)</span> out of <span class="math inline">\(f_i(z)\)</span> and its jacobian <span class="math inline">\(J\)</span>.</p>
+<div id="62" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="fu">factor</span>(Λ, (fval,_)<span class="op">::</span><span class="dt">Tuple{&lt;:Any, Nothing}</span>) <span class="op">=</span> fval<span class="op">'</span> <span class="op">*</span> (Λ <span class="op">*</span> fval)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>factor (generic function with 1 method)</code></pre>
+</div>
+</div>
+<div id="64" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">factor</span>(Λ, (fval, J))</span>
+<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>    ΛJ <span class="op">=</span> Λ <span class="op">*</span> J</span>
+<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>    b <span class="op">=</span> (ΛJ)<span class="ch">' * fval</span></span>
+<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a>    H <span class="op">=</span> J<span class="op">'</span> <span class="op">*</span> ΛJ</span>
+<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a>    (<span class="fu">ExtendableSparseMatrix</span>(H), b)</span>
+<span id="cb56-6"><a href="#cb56-6" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>factor (generic function with 2 methods)</code></pre>
+</div>
+</div>
+<p>Finally, we compute <span class="math inline">\(f_i(z)\)</span> and its Jacobian using the following wrappers around the <code>sparse_jac</code> function, which computes a function and its sparse Jacobian.</p>
+</section>
+</section>
+<section id="handling-sparsity" class="level1">
+<h1>Handling Sparsity</h1>
+<p>To define the <code>sparse_jac</code> function, we’ll wrap the <code>jacobian</code> function from the <code>ForwardDiff</code> library.</p>
+<div id="66" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">sparse_jac</span>(f, z, support, outs; jac<span class="op">=</span><span class="cn">true</span>)</span>
+<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a>    jac <span class="op">||</span> <span class="cf">return</span> <span class="fu">f</span>(z), <span class="cn">nothing</span></span>
+<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a>    M <span class="op">=</span> <span class="cn">nothing</span></span>
+<span id="cb58-4"><a href="#cb58-4" aria-hidden="true" tabindex="-1"></a>    fz <span class="op">=</span> <span class="cn">nothing</span></span>
+<span id="cb58-5"><a href="#cb58-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">function</span> <span class="fu">f_wrapper</span>(z_sup)</span>
+<span id="cb58-6"><a href="#cb58-6" aria-hidden="true" tabindex="-1"></a>        newz <span class="op">=</span> <span class="fu">collect</span>(<span class="fu">eltype</span>(z_sup), z)</span>
+<span id="cb58-7"><a href="#cb58-7" aria-hidden="true" tabindex="-1"></a>        newz[support] <span class="op">.=</span> z_sup</span>
+<span id="cb58-8"><a href="#cb58-8" aria-hidden="true" tabindex="-1"></a>        <span class="fu">f</span>(newz)</span>
+<span id="cb58-9"><a href="#cb58-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb58-10"><a href="#cb58-10" aria-hidden="true" tabindex="-1"></a>    z_sup <span class="op">=</span> z[support]</span>
+<span id="cb58-11"><a href="#cb58-11" aria-hidden="true" tabindex="-1"></a>    res <span class="op">=</span> DiffResults.<span class="fu">JacobianResult</span>(<span class="fu">zeros</span>(outs), z_sup)</span>
+<span id="cb58-12"><a href="#cb58-12" aria-hidden="true" tabindex="-1"></a>    res <span class="op">=</span> ForwardDiff.<span class="fu">jacobian!</span>(res, f_wrapper, z_sup)</span>
+<span id="cb58-13"><a href="#cb58-13" aria-hidden="true" tabindex="-1"></a>    J <span class="op">=</span> DiffResults.<span class="fu">jacobian</span>(res)</span>
+<span id="cb58-14"><a href="#cb58-14" aria-hidden="true" tabindex="-1"></a>    M <span class="op">=</span> <span class="fu">ExtendableSparseMatrix</span>(outs, <span class="fu">length</span>(z))</span>
+<span id="cb58-15"><a href="#cb58-15" aria-hidden="true" tabindex="-1"></a>    M[<span class="op">:</span>, support] <span class="op">.=</span> J</span>
+<span id="cb58-16"><a href="#cb58-16" aria-hidden="true" tabindex="-1"></a>    DiffResults.<span class="fu">value</span>(res), M</span>
+<span id="cb58-17"><a href="#cb58-17" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>sparse_jac (generic function with 1 method)</code></pre>
+</div>
+</div>
+<div id="68" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb60"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">term</span>(z, target, μ, outs, ixs<span class="op">...</span>; jac<span class="op">=</span><span class="cn">true</span>)</span>
+<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a>    support <span class="op">=</span> [target; <span class="fu">reduce</span>(vcat, ixs; init<span class="op">=</span><span class="dt">Int</span>[])]</span>
+<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">f</span>(z) <span class="op">=</span> z[target] <span class="op">-</span> <span class="fu">μ</span>(z, ixs<span class="op">...</span>)</span>
+<span id="cb60-4"><a href="#cb60-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sparse_jac</span>(f, z, support, outs; jac)</span>
+<span id="cb60-5"><a href="#cb60-5" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>term (generic function with 1 method)</code></pre>
+</div>
+</div>
+<div id="70" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb62"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">obs_term</span>(z, obs, ixs<span class="op">...</span>; jac<span class="op">=</span><span class="cn">true</span>)</span>
+<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>    support <span class="op">=</span> <span class="fu">reduce</span>(vcat, ixs; init<span class="op">=</span><span class="dt">Int</span>[])</span>
+<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">f</span>(z) <span class="op">=</span> obs <span class="op">-</span> <span class="fu">μ_obs</span>(z, ixs<span class="op">...</span>)</span>
+<span id="cb62-4"><a href="#cb62-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sparse_jac</span>(f, z, support, <span class="fl">2</span>; jac)</span>
+<span id="cb62-5"><a href="#cb62-5" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>obs_term (generic function with 1 method)</code></pre>
+</div>
+</div>
+<div id="72" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb64"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">log_prob_builder</span>(z; jac<span class="op">=</span><span class="cn">true</span>)</span>
+<span id="cb64-2"><a href="#cb64-2" aria-hidden="true" tabindex="-1"></a>    bld <span class="op">=</span> jac ? <span class="fu">QuadformBuilder</span>() <span class="op">:</span> <span class="fu">Vector</span><span class="dt">{Float64}</span>()</span>
+<span id="cb64-3"><a href="#cb64-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb64-4"><a href="#cb64-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># We know the location distribution at time 1</span></span>
+<span id="cb64-5"><a href="#cb64-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">push!</span>(bld, <span class="fu">factor</span>(<span class="fu">inv</span>(Σ_x), <span class="fu">term</span>(z, <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, start_x, <span class="fl">2</span>; jac)))</span>
+<span id="cb64-6"><a href="#cb64-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">push!</span>(bld, <span class="fu">factor</span>(<span class="fu">inv</span>(Σ_θ), <span class="fu">term</span>(z, <span class="fl">3</span><span class="op">:</span><span class="fl">3</span>, start_θ, <span class="fl">1</span>; jac)))</span>
+<span id="cb64-7"><a href="#cb64-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb64-8"><a href="#cb64-8" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Add the Markovian jump probabilities at each step</span></span>
+<span id="cb64-9"><a href="#cb64-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> t <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>(T<span class="op">-</span><span class="fl">1</span>)</span>
+<span id="cb64-10"><a href="#cb64-10" aria-hidden="true" tabindex="-1"></a>        ix <span class="op">=</span> <span class="fl">3</span>t<span class="op">+</span><span class="fl">1</span></span>
+<span id="cb64-11"><a href="#cb64-11" aria-hidden="true" tabindex="-1"></a>        pix <span class="op">=</span> <span class="fl">3</span>(t<span class="op">-</span><span class="fl">1</span>)<span class="op">+</span><span class="fl">1</span></span>
+<span id="cb64-12"><a href="#cb64-12" aria-hidden="true" tabindex="-1"></a>        <span class="fu">push!</span>(bld, <span class="fu">factor</span>(<span class="fu">inv</span>(Σ_x), <span class="fu">term</span>(z, ix<span class="op">:</span>ix<span class="op">+</span><span class="fl">1</span>, μ_x, <span class="fl">2</span>, pix<span class="op">:</span>pix<span class="op">+</span><span class="fl">1</span>, pix<span class="op">+</span><span class="fl">2</span>; jac)))</span>
+<span id="cb64-13"><a href="#cb64-13" aria-hidden="true" tabindex="-1"></a>        <span class="fu">push!</span>(bld, <span class="fu">factor</span>(<span class="fu">inv</span>(Σ_θ), <span class="fu">term</span>(z, ix<span class="op">+</span><span class="fl">2</span><span class="op">:</span>ix<span class="op">+</span><span class="fl">2</span>, μ_θ, <span class="fl">1</span>, pix<span class="op">+</span><span class="fl">2</span>; jac)))</span>
+<span id="cb64-14"><a href="#cb64-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb64-15"><a href="#cb64-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb64-16"><a href="#cb64-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Add the prior on map components</span></span>
+<span id="cb64-17"><a href="#cb64-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="fl">0</span><span class="op">:</span>(k<span class="op">-</span><span class="fl">1</span>)</span>
+<span id="cb64-18"><a href="#cb64-18" aria-hidden="true" tabindex="-1"></a>        ix <span class="op">=</span> <span class="fl">3</span>T<span class="op">+</span><span class="fl">2</span>i<span class="op">+</span><span class="fl">1</span></span>
+<span id="cb64-19"><a href="#cb64-19" aria-hidden="true" tabindex="-1"></a>        <span class="fu">push!</span>(bld, <span class="fu">factor</span>(<span class="fu">inv</span>(Σ_m), <span class="fu">term</span>(z, ix<span class="op">:</span>(ix<span class="op">+</span><span class="fl">1</span>), μ_m, <span class="fl">2</span>; jac)))</span>
+<span id="cb64-20"><a href="#cb64-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb64-21"><a href="#cb64-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb64-22"><a href="#cb64-22" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Add the observations</span></span>
+<span id="cb64-23"><a href="#cb64-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> t <span class="kw">in</span> <span class="fl">0</span><span class="op">:</span>(T<span class="op">-</span><span class="fl">1</span>)</span>
+<span id="cb64-24"><a href="#cb64-24" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>k</span>
+<span id="cb64-25"><a href="#cb64-25" aria-hidden="true" tabindex="-1"></a>            m <span class="op">=</span> <span class="fl">3</span><span class="fu">T+2</span>(i<span class="op">-</span><span class="fl">1</span>)</span>
+<span id="cb64-26"><a href="#cb64-26" aria-hidden="true" tabindex="-1"></a>            ix <span class="op">=</span> <span class="fl">3</span>t<span class="op">+</span><span class="fl">1</span></span>
+<span id="cb64-27"><a href="#cb64-27" aria-hidden="true" tabindex="-1"></a>            <span class="fu">push!</span>(bld, <span class="fu">factor</span>(<span class="fu">inv</span>(Σ_obs), <span class="fu">obs_term</span>(z, obs[<span class="op">:</span>, i, t<span class="op">+</span><span class="fl">1</span>], ix<span class="op">:</span>(ix<span class="op">+</span><span class="fl">1</span>), ix<span class="op">+</span><span class="fl">2</span>,(m<span class="op">+</span><span class="fl">1</span>)<span class="op">:</span>(m<span class="op">+</span><span class="fl">2</span>); jac)))</span>
+<span id="cb64-28"><a href="#cb64-28" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
+<span id="cb64-29"><a href="#cb64-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb64-30"><a href="#cb64-30" aria-hidden="true" tabindex="-1"></a>    jac ? <span class="fu">sum</span>.(<span class="fu">unzip</span>(bld)) <span class="op">:</span> <span class="fu">sum</span>(bld)</span>
+<span id="cb64-31"><a href="#cb64-31" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>log_prob_builder (generic function with 1 method)</code></pre>
+</div>
+</div>
+<div id="74" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb66"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">maximize_logprob</span>(z; λ<span class="op">=</span><span class="fl">1e-3</span>, α<span class="op">=</span><span class="fl">2</span>, β<span class="op">=</span><span class="fl">3</span>, maxiter<span class="op">=</span><span class="fl">100</span>, eps<span class="op">=</span><span class="fl">1e-4</span>)</span>
+<span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a>    Δ <span class="op">=</span> <span class="fu">ones</span>(<span class="fu">length</span>(z))</span>
+<span id="cb66-3"><a href="#cb66-3" aria-hidden="true" tabindex="-1"></a>    i <span class="op">=</span> <span class="fl">0</span></span>
+<span id="cb66-4"><a href="#cb66-4" aria-hidden="true" tabindex="-1"></a>    prevL <span class="op">=</span> <span class="fu">log_prob_builder</span>(z; jac<span class="op">=</span><span class="cn">false</span>)</span>
+<span id="cb66-5"><a href="#cb66-5" aria-hidden="true" tabindex="-1"></a>    L <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb66-6"><a href="#cb66-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="fu">any</span>(<span class="fu">abs</span>.(Δ) <span class="op">.&gt;</span> eps)  <span class="op">&amp;&amp;</span> i <span class="op">&lt;</span> maxiter</span>
+<span id="cb66-7"><a href="#cb66-7" aria-hidden="true" tabindex="-1"></a>        H, b <span class="op">=</span> <span class="fu">log_prob_builder</span>(z; jac<span class="op">=</span><span class="cn">true</span>)</span>
+<span id="cb66-8"><a href="#cb66-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">while</span> <span class="cn">true</span></span>
+<span id="cb66-9"><a href="#cb66-9" aria-hidden="true" tabindex="-1"></a>            Δ <span class="op">=</span> (H <span class="op">+</span> λ <span class="op">*</span> <span class="fu">Diagonal</span>(H)) <span class="op">\</span> b</span>
+<span id="cb66-10"><a href="#cb66-10" aria-hidden="true" tabindex="-1"></a>            L <span class="op">=</span> <span class="fu">log_prob_builder</span>(z <span class="op">-</span> Δ; jac<span class="op">=</span><span class="cn">false</span>)</span>
+<span id="cb66-11"><a href="#cb66-11" aria-hidden="true" tabindex="-1"></a>            L <span class="op">&gt;=</span> prevL <span class="op">||</span> <span class="cf">break</span></span>
+<span id="cb66-12"><a href="#cb66-12" aria-hidden="true" tabindex="-1"></a>            λ <span class="op">*=</span> β</span>
+<span id="cb66-13"><a href="#cb66-13" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
+<span id="cb66-14"><a href="#cb66-14" aria-hidden="true" tabindex="-1"></a>        z[<span class="op">:</span>] <span class="op">.-=</span> Δ</span>
+<span id="cb66-15"><a href="#cb66-15" aria-hidden="true" tabindex="-1"></a>        λ <span class="op">/=</span> α</span>
+<span id="cb66-16"><a href="#cb66-16" aria-hidden="true" tabindex="-1"></a>        prevL <span class="op">=</span> L</span>
+<span id="cb66-17"><a href="#cb66-17" aria-hidden="true" tabindex="-1"></a>        i <span class="op">+=</span> <span class="fl">1</span></span>
+<span id="cb66-18"><a href="#cb66-18" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb66-19"><a href="#cb66-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">println</span>(<span class="st">"Concluded after </span><span class="sc">$</span>i<span class="st"> iterations"</span>)</span>
+<span id="cb66-20"><a href="#cb66-20" aria-hidden="true" tabindex="-1"></a>    z</span>
+<span id="cb66-21"><a href="#cb66-21" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>maximize_logprob (generic function with 1 method)</code></pre>
+</div>
+</div>
+</section>
+<section id="running-the-optimization" class="level1">
+<h1>Running the Optimization</h1>
+<p>Here’s the negative log probability of the robot’s true trajectory.</p>
+<div id="76" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a><span class="fu">log_prob_builder</span>(true_z; jac<span class="op">=</span><span class="cn">false</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>2082.4291845741</code></pre>
+</div>
+</div>
+<p>Wereas here’s how likely our prior mean would be:</p>
+<div id="78" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb70"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb70-1"><a href="#cb70-1" aria-hidden="true" tabindex="-1"></a><span class="fu">log_prob_builder</span>(zhat; jac<span class="op">=</span><span class="cn">false</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>4.293105704799155e6</code></pre>
+</div>
+</div>
+<p>Running Levenberg-Marquardt gives us a solution that isn’t our true trajectory, but is technically more likely under the generative model above.</p>
+<div id="80" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb72"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb72-1"><a href="#cb72-1" aria-hidden="true" tabindex="-1"></a>z_guess <span class="op">=</span> <span class="fu">maximize_logprob</span>(<span class="fu">copy</span>(zhat))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Concluded after 23 iterations</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>320-element Vector{Float64}:
+  0.0034378099328569015
+  0.9914065354044322
+  0.04412767144911623
+  1.1616831781275363
+  1.2383383769126906
+  0.10251482279741249
+  2.26578807824746
+  1.006135883145371
+  0.15915735291351707
+  3.2835135446382417
+  ⋮
+ 20.80105806876392
+ 16.461071406617254
+ 27.51403449819456
+ 18.585176469681425
+  5.309729223046708
+  2.28449550904925
+ -2.4762014943557835
+ -7.58331169017551
+  9.055115769823518</code></pre>
+</div>
+</div>
+<div id="82" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb75"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb75-1"><a href="#cb75-1" aria-hidden="true" tabindex="-1"></a><span class="fu">log_prob_builder</span>(z_guess; jac<span class="op">=</span><span class="cn">false</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>1765.1322400328486</code></pre>
+</div>
+</div>
+<p>Below, we plot the guessed trajectory as a line, with the true trajectory represented as a scatter plot.</p>
+<div id="84" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb77"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a>y_guess <span class="op">=</span> <span class="fu">reshape</span>(z_guess[<span class="fl">1</span><span class="op">:</span><span class="fl">3</span>T], (<span class="fl">3</span>, T))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>3×100 Matrix{Float64}:
+ 0.00343781  1.16168   2.26579   3.28351   …  -3.27478  -2.14573  -0.667408
+ 0.991407    1.23834   1.00614   1.03379       3.46532   3.84416   3.83187
+ 0.0441277   0.102515  0.159157  0.223708      6.22054   6.30426   6.36082</code></pre>
+</div>
+</div>
+<div id="86" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb79"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> f1 <span class="op">=</span> <span class="fu">Figure</span>()</span>
+<span id="cb79-2"><a href="#cb79-2" aria-hidden="true" tabindex="-1"></a>    ax1 <span class="op">=</span> f1[<span class="fl">1</span>, <span class="fl">1</span>] <span class="op">=</span> <span class="fu">Axis</span>(f1)</span>
+<span id="cb79-3"><a href="#cb79-3" aria-hidden="true" tabindex="-1"></a>    p1 <span class="op">=</span> <span class="fu">plot!</span>(true_y[<span class="fl">1</span>, <span class="op">:</span>], true_y[<span class="fl">2</span>, <span class="op">:</span>], color<span class="op">=</span><span class="fl">1</span><span class="op">:</span>T)</span>
+<span id="cb79-4"><a href="#cb79-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">lines!</span>(y_guess[<span class="fl">1</span>,<span class="op">:</span>], y_guess[<span class="fl">2</span>,<span class="op">:</span>], color<span class="op">=</span><span class="fl">1</span><span class="op">:</span>T<span class="op">+</span><span class="fl">1</span>)</span>
+<span id="cb79-5"><a href="#cb79-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">Colorbar</span>(f1[<span class="fl">1</span>,<span class="fl">2</span>], p1)</span>
+<span id="cb79-6"><a href="#cb79-6" aria-hidden="true" tabindex="-1"></a>    f1</span>
+<span id="cb79-7"><a href="#cb79-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+<figure class="figure">
+<p><img src="graphslam_files/figure-html/cell-44-output-1.svg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>We ended up with a pretty good estiamte of the map points’ locations as well.</p>
+<div id="88" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb80"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb80-1"><a href="#cb80-1" aria-hidden="true" tabindex="-1"></a>m_guess <span class="op">=</span> <span class="fu">reshape</span>(z_guess[<span class="fl">3</span>T<span class="op">+</span><span class="fl">1</span><span class="op">:</span><span class="kw">end</span>], (<span class="fl">2</span>, k))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>2×10 Matrix{Float64}:
+ 5.74172  24.964    10.1238  -3.69083  …  18.5852    2.2845  -7.58331
+ 9.74611   5.44817  21.2426  20.9662       5.30973  -2.4762   9.05512</code></pre>
+</div>
+</div>
+<div id="90" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb82"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb82-1"><a href="#cb82-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> f1 <span class="op">=</span> <span class="fu">Figure</span>()</span>
+<span id="cb82-2"><a href="#cb82-2" aria-hidden="true" tabindex="-1"></a>    ax1 <span class="op">=</span> f1[<span class="fl">1</span>, <span class="fl">1</span>] <span class="op">=</span> <span class="fu">Axis</span>(f1)</span>
+<span id="cb82-3"><a href="#cb82-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">plot!</span>(true_m[<span class="fl">1</span>, <span class="op">:</span>], true_m[<span class="fl">2</span>,<span class="op">:</span>], color<span class="op">=:</span>red, label<span class="op">=</span><span class="st">"map points"</span>)</span>
+<span id="cb82-4"><a href="#cb82-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">plot!</span>(m_guess[<span class="fl">1</span>, <span class="op">:</span>], m_guess[<span class="fl">2</span>,<span class="op">:</span>], color<span class="op">=:</span>black, label<span class="op">=</span><span class="st">"guesses"</span>)</span>
+<span id="cb82-5"><a href="#cb82-5" aria-hidden="true" tabindex="-1"></a>    f1[<span class="fl">1</span>,<span class="fl">2</span>] <span class="op">=</span> <span class="fu">Legend</span>(f1, ax1)</span>
+<span id="cb82-6"><a href="#cb82-6" aria-hidden="true" tabindex="-1"></a>    f1</span>
+<span id="cb82-7"><a href="#cb82-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+<figure class="figure">
+<p><img src="graphslam_files/figure-html/cell-46-output-1.svg" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/samanklesaria\.github\.io");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
