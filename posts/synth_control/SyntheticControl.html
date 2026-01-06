@@ -206,7 +206,7 @@ window.Quarto = {
 
 <p>This post uses a synthetic control design to study whether Texas’s prison building boom in 1993 resulted in them incarcerating more prisoners than they would have if their rate of prison building had continued as normal. The analysis will build off the one in the book <a href="https://mixtape.scunning.com/">Causal Inference: The Mixtable</a>, but will make use of techniques from Gelman’s <a href="https://arxiv.org/pdf/2011.01808">Bayesian workflow</a>.</p>
 <p>As in the <em>Mixtape</em> book, we’ll express Texas’s incarceration rates over time as a mixture of those of other states with comparable poverty, alcoholiosm and incarceration rates in ’93. Then, we’ll use this mixture of other states to construct a “synthetic” counterfactual Texas which, like the states in the mixture, didn’t have a prison building boom after ’93. We can compare the difference between the true and synthetic Texas over time.</p>
-<div class="cell">
+<div id="e5c05009" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
@@ -220,89 +220,66 @@ window.Quarto = {
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> zscore</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div class="cell">
+<div id="bfe6d3a2" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>texas <span class="op">=</span> pd.read_stata(<span class="st">"https://github.com/scunning1975/mixtape/raw/master/texas.dta"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>texas <span class="op">=</span> texas[texas.state <span class="op">!=</span> <span class="st">'District of Columbia'</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Our endogenous variable <span class="math inline">\(y\)</span> will be the black male incarceration rate. I’ll use a zscore for ease of training hyperparameters.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>texas[<span class="st">'incarceration_rate'</span>] <span class="op">=</span> texas.bmprison <span class="op">/</span> texas.bmpop</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>texas[<span class="st">'incarceration_z'</span>] <span class="op">=</span> texas.groupby(<span class="st">'year'</span>).incarceration_rate.transform(zscore)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>texas[<span class="st">'poverty'</span>] <span class="op">=</span> texas[<span class="st">'poverty'</span>] <span class="op">/</span> <span class="dv">100</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>texas <span class="op">=</span> texas.sort_values([<span class="st">"state"</span>, <span class="st">"year"</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> np.reshape(texas[[<span class="st">"incarceration_z"</span>, <span class="st">"poverty"</span>, <span class="st">"alcohol"</span>]].values, (<span class="dv">50</span>, <span class="dv">16</span>,<span class="op">-</span><span class="dv">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="a8916402" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>texas[<span class="st">'incarceration_rate'</span>] <span class="op">=</span> texas.bmprison <span class="op">/</span> texas.bmpop</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>texas[<span class="st">'incarceration_z'</span>] <span class="op">=</span> texas.groupby(<span class="st">'year'</span>).incarceration_rate.transform(zscore)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>texas[<span class="st">'poverty'</span>] <span class="op">=</span> texas[<span class="st">'poverty'</span>] <span class="op">/</span> <span class="dv">100</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>texas <span class="op">=</span> texas.sort_values([<span class="st">"state"</span>, <span class="st">"year"</span>])</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> np.reshape(texas[[<span class="st">"incarceration_z"</span>, <span class="st">"poverty"</span>, <span class="st">"alcohol"</span>]].values, (<span class="dv">50</span>, <span class="dv">16</span>,<span class="op">-</span><span class="dv">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Looking at the data shows a pretty sizeable increase in Texas’s incarceration rate after ’93 compared to other states, which lends credence to the hypothesis.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>years <span class="op">=</span> pd.unique(texas.year)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>states <span class="op">=</span> pd.unique(texas.state)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>texix <span class="op">=</span> <span class="bu">list</span>(states).index(<span class="st">"Texas"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ix, r <span class="kw">in</span> <span class="bu">enumerate</span>(data):</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> ix <span class="op">==</span> texix:</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>        plt.plot(years, r[:,<span class="dv">0</span>], color<span class="op">=</span><span class="st">"C0"</span>)</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>        plt.plot(years, r[:,<span class="dv">0</span>], color<span class="op">=</span><span class="st">"C1"</span> , alpha<span class="op">=</span><span class="fl">0.1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output-display">
+<div id="2d75adce" class="cell" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>years <span class="op">=</span> pd.unique(texas.year)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>states <span class="op">=</span> pd.unique(texas.state)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>texix <span class="op">=</span> <span class="bu">list</span>(states).index(<span class="st">"Texas"</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> ix, r <span class="kw">in</span> <span class="bu">enumerate</span>(data):</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> ix <span class="op">==</span> texix:</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        plt.plot(years, r[:,<span class="dv">0</span>], color<span class="op">=</span><span class="st">"C0"</span>)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        plt.plot(years, r[:,<span class="dv">0</span>], color<span class="op">=</span><span class="st">"C1"</span> , alpha<span class="op">=</span><span class="fl">0.1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="SyntheticControl_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="SyntheticControl_files/figure-html/cell-5-output-1.png" width="569" height="411" class="figure-img"></p>
 </figure>
 </div>
 </div>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="{attach}SyntheticControl_files/SyntheticControl_13_0.png" class="img-fluid figure-img"></p>
-<figcaption>png</figcaption>
-</figure>
 </div>
 <p>To construct our synthetic version of Texas, we’ll fit a Gaussian process model relating state characteristics in 1993 (incarceration rate, poverty and alcoholism levels) to incarceration rates for other years. Then we’ll apply the fitted model to Texas’s characeristics to predict the counterfactual incarceration rate.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> torch.from_numpy(data[:,<span class="dv">7</span>,:]).<span class="bu">float</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="4c8cbebd" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> torch.from_numpy(data[:,<span class="dv">7</span>,:]).<span class="bu">float</span>()</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>Y <span class="op">=</span> torch.from_numpy(data[:,:<span class="dv">7</span>,<span class="dv">0</span>]).<span class="bu">float</span>()</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SynthControlModel(nn.Module):</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>):</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>        <span class="bu">super</span>().<span class="fu">__init__</span>()</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.covar_module <span class="op">=</span> ScaleKernel(RBFKernel(ard_num_dims<span class="op">=</span><span class="dv">3</span>))</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.noise <span class="op">=</span> HomoskedasticNoise()</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> forward(<span class="va">self</span>, x):</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>        covar_x <span class="op">=</span> <span class="va">self</span>.noise(x) <span class="op">+</span> <span class="va">self</span>.covar_module(x)</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> MultivariateNormal(torch.zeros(covar_x.shape[<span class="dv">0</span>]), covar_x)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>Y <span class="op">=</span> torch.from_numpy(data[:,:<span class="dv">7</span>,<span class="dv">0</span>]).<span class="bu">float</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SynthControlModel(nn.Module):</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>):</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>        <span class="bu">super</span>().<span class="fu">__init__</span>()</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.covar_module <span class="op">=</span> ScaleKernel(RBFKernel(ard_num_dims<span class="op">=</span><span class="dv">3</span>))</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.noise <span class="op">=</span> HomoskedasticNoise()</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> forward(<span class="va">self</span>, x):</span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>        covar_x <span class="op">=</span> <span class="va">self</span>.noise(x) <span class="op">+</span> <span class="va">self</span>.covar_module(x)</span>
-<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> MultivariateNormal(torch.zeros(covar_x.shape[<span class="dv">0</span>]), covar_x)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> SynthControlModel()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="e35ce237" class="cell" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> SynthControlModel()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>The following code fits the noise and lengthscale parameters by maximum likelihood estimation.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>opt <span class="op">=</span> torch.optim.Adam(model.parameters(), lr<span class="op">=</span><span class="fl">0.1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">200</span>):</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    opt.zero_grad()</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    loss <span class="op">=</span> <span class="op">-</span>model(X).log_prob(Y.T).<span class="bu">sum</span>()</span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    loss.backward()</span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> i <span class="op">%</span> <span class="dv">20</span> <span class="op">==</span> <span class="dv">0</span>:</span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(loss.item())</span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>    opt.step()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="78749ff4" class="cell" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>opt <span class="op">=</span> torch.optim.Adam(model.parameters(), lr<span class="op">=</span><span class="fl">0.1</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">200</span>):</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    opt.zero_grad()</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    loss <span class="op">=</span> <span class="op">-</span>model(X).log_prob(Y.T).<span class="bu">sum</span>()</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    loss.backward()</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> i <span class="op">%</span> <span class="dv">20</span> <span class="op">==</span> <span class="dv">0</span>:</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(loss.item())</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    opt.step()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>390.9499206542969
 221.37319946289062
@@ -316,222 +293,158 @@ window.Quarto = {
 210.87567138671875</code></pre>
 </div>
 </div>
-<pre><code>390.9499206542969
-221.37319946289062
-212.59107971191406
-211.1005401611328
-210.900634765625
-210.87908935546875
-210.87689208984375
-210.87579345703125
-210.87570190429688
-210.87567138671875</code></pre>
 <p>The fitted noise and lengthscales seem reasonable.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>model.noise.noise.detach()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
+<div id="e88f36e4" class="cell" data-execution_count="8">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>model.noise.noise.detach()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="138">
 <pre><code>tensor([0.0906])</code></pre>
 </div>
 </div>
-<pre><code>tensor([0.0906])</code></pre>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>model.covar_module.base_kernel.lengthscale.detach()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
+<div id="f9b63c08" class="cell" data-execution_count="9">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>model.covar_module.base_kernel.lengthscale.detach()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="139">
 <pre><code>tensor([[1.6206, 0.9185, 1.6307]])</code></pre>
 </div>
 </div>
-<pre><code>tensor([[1.6206, 0.9185, 1.6307]])</code></pre>
 <p>Prediction with a Gaussian process is just a matter of cranking through the Gaussian conditioning equations. I’m avoiding gpytorch’s high level interface here, as we’ll need the additional flexibility that comes from doing this manually.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> predict(X, test_X, Y):</span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> torch.no_grad():</span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>        prior_x <span class="op">=</span> model(X)</span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>        prior_t <span class="op">=</span> model(test_X)</span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>        X_tk <span class="op">=</span> model.covar_module.forward(test_X, X)</span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>        mu <span class="op">=</span> X_tk <span class="op">@</span> torch.linalg.solve(prior_x.covariance_matrix, Y)</span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>        S <span class="op">=</span> prior_t.covariance_matrix <span class="op">-</span> X_tk <span class="op">@</span> torch.linalg.solve(prior_x.covariance_matrix, X_tk.T)</span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> MultivariateNormal(mu.T, S)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="57805220" class="cell" data-execution_count="10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> predict(X, test_X, Y):</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> torch.no_grad():</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>        prior_x <span class="op">=</span> model(X)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>        prior_t <span class="op">=</span> model(test_X)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>        X_tk <span class="op">=</span> model.covar_module.forward(test_X, X)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>        mu <span class="op">=</span> X_tk <span class="op">@</span> torch.linalg.solve(prior_x.covariance_matrix, Y)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>        S <span class="op">=</span> prior_t.covariance_matrix <span class="op">-</span> X_tk <span class="op">@</span> torch.linalg.solve(prior_x.covariance_matrix, X_tk.T)</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> MultivariateNormal(mu.T, S)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Here, then, is our counterfactual prediction for Texas’s incarceration rate based on the training data from all the other states. There’s a lot of uncertainty shown by the blue shading, but we can guess the general trend.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>non_texas <span class="op">=</span> np.delete(np.arange(<span class="dv">50</span>), texix)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>X_no_texas <span class="op">=</span> torch.from_numpy(data[non_texas, <span class="dv">7</span>]).<span class="bu">float</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>y_no_texas <span class="op">=</span> torch.from_numpy(data[non_texas,:,<span class="dv">0</span>]).<span class="bu">float</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>X_texas <span class="op">=</span> torch.from_numpy(data[<span class="va">None</span>,texix, <span class="dv">7</span>]).<span class="bu">float</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>predictions <span class="op">=</span> predict(X_no_texas, X_texas, y_no_texas)</span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>lower, upper <span class="op">=</span> predictions.confidence_region()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>plt.fill_between(years, lower[:,<span class="dv">0</span>].numpy(), upper[:,<span class="dv">0</span>].numpy(), alpha<span class="op">=</span><span class="fl">0.5</span>)</span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>plt.plot(years, data[texix,:,<span class="dv">0</span>])<span class="op">;</span></span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>plt.axvline(x<span class="op">=</span><span class="dv">1993</span>, c<span class="op">=</span><span class="st">'red'</span>)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output-display">
+<div id="b3be9616" class="cell" data-execution_count="11">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>non_texas <span class="op">=</span> np.delete(np.arange(<span class="dv">50</span>), texix)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>X_no_texas <span class="op">=</span> torch.from_numpy(data[non_texas, <span class="dv">7</span>]).<span class="bu">float</span>()</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>y_no_texas <span class="op">=</span> torch.from_numpy(data[non_texas,:,<span class="dv">0</span>]).<span class="bu">float</span>()</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>X_texas <span class="op">=</span> torch.from_numpy(data[<span class="va">None</span>,texix, <span class="dv">7</span>]).<span class="bu">float</span>()</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>predictions <span class="op">=</span> predict(X_no_texas, X_texas, y_no_texas)</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>lower, upper <span class="op">=</span> predictions.confidence_region()</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>plt.fill_between(years, lower[:,<span class="dv">0</span>].numpy(), upper[:,<span class="dv">0</span>].numpy(), alpha<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>plt.plot(years, data[texix,:,<span class="dv">0</span>])<span class="op">;</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>plt.axvline(x<span class="op">=</span><span class="dv">1993</span>, c<span class="op">=</span><span class="st">'red'</span>)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="SyntheticControl_files/figure-html/unnamed-chunk-26-3.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="SyntheticControl_files/figure-html/cell-12-output-1.png" width="582" height="411" class="figure-img"></p>
 </figure>
 </div>
 </div>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="{attach}SyntheticControl_files/SyntheticControl_33_0.png" class="img-fluid figure-img"></p>
-<figcaption>png</figcaption>
-</figure>
 </div>
 <p>Texas fits the model just fine pre-1993, but quickly deviates after its building boom. We can show just how atypical this lack of fit is using a randomization test. We’ll collect the log likelihoods of each state’s post ’93 observations in the posterior predictive we obtained from fitting on the other states. The fraction of states with likelihoods below that of Texas gives us a p-value: the probability of seeing a fit as bad as Texas’s if the treatment effect were zero.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>post_93 <span class="op">=</span> torch.from_numpy(data[:,<span class="dv">8</span>:,<span class="dv">0</span>]).<span class="bu">float</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>state_probs <span class="op">=</span> []</span>
-<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">50</span>):</span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>    ixs <span class="op">=</span> np.delete(np.arange(<span class="dv">50</span>), i)</span>
-<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>    post_prob <span class="op">=</span> predict(X[ixs], X[i:i<span class="op">+</span><span class="dv">1</span>], post_93[ixs]).log_prob(post_93[i:i<span class="op">+</span><span class="dv">1</span>].T)</span>
-<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>    state_probs.append(post_prob.<span class="bu">sum</span>())</span>
-<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>state_probs <span class="op">=</span> torch.stack(state_probs, axis<span class="op">=</span><span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>(<span class="bu">list</span>(torch.argsort(state_probs)).index(texix) <span class="op">+</span> <span class="dv">1</span>) <span class="op">/</span> <span class="bu">len</span>(state_probs)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
+<div id="d1c0c87e" class="cell" data-execution_count="12">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>post_93 <span class="op">=</span> torch.from_numpy(data[:,<span class="dv">8</span>:,<span class="dv">0</span>]).<span class="bu">float</span>()</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>state_probs <span class="op">=</span> []</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">50</span>):</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>    ixs <span class="op">=</span> np.delete(np.arange(<span class="dv">50</span>), i)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    post_prob <span class="op">=</span> predict(X[ixs], X[i:i<span class="op">+</span><span class="dv">1</span>], post_93[ixs]).log_prob(post_93[i:i<span class="op">+</span><span class="dv">1</span>].T)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    state_probs.append(post_prob.<span class="bu">sum</span>())</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>state_probs <span class="op">=</span> torch.stack(state_probs, axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>(<span class="bu">list</span>(torch.argsort(state_probs)).index(texix) <span class="op">+</span> <span class="dv">1</span>) <span class="op">/</span> <span class="bu">len</span>(state_probs)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="142">
 <pre><code>0.02</code></pre>
 </div>
 </div>
-<pre><code>0.02</code></pre>
 <p>If we’re okay with a 2% false positive rate, we can reject the null hypothesis that the treatment effect is zero.</p>
 <p>We can examine the contribution of top states towards our synthetic version of texas as follows:</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> state_contrib(model):</span>
-<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>    X_kk <span class="op">=</span> model.covar_module.forward(X_no_texas, X_no_texas)</span>
-<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>    X_kt <span class="op">=</span> model.covar_module.forward(X_no_texas, X_texas)</span>
-<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> torch.linalg.solve(X_kk, X_kt)[:,<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>cs <span class="op">=</span> state_contrib(model)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>ixs <span class="op">=</span> torch.argsort(<span class="op">-</span>cs)[:<span class="dv">3</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="bu">list</span>(<span class="bu">zip</span>(states[non_texas][ixs], cs[ixs].detach()))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[('South Dakota', tensor(2.1369)), ('Virginia', tensor(1.6360)), ('Missouri', tensor(1.5237))]</code></pre>
-</div>
-</div>
+<div id="1b4d72d4" class="cell" data-execution_count="13">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> state_contrib(model):</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    X_kk <span class="op">=</span> model.covar_module.forward(X_no_texas, X_no_texas)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    X_kt <span class="op">=</span> model.covar_module.forward(X_no_texas, X_texas)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> torch.linalg.solve(X_kk, X_kt)[:,<span class="dv">0</span>]</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>cs <span class="op">=</span> state_contrib(model)</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>ixs <span class="op">=</span> torch.argsort(<span class="op">-</span>cs)[:<span class="dv">3</span>]</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="bu">list</span>(<span class="bu">zip</span>(states[non_texas][ixs], cs[ixs].detach()))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="143">
 <pre><code>[('South Dakota', tensor(2.1369)),
  ('Virginia', tensor(1.6360)),
  ('Missouri', tensor(1.5237))]</code></pre>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>similar_states <span class="op">=</span> data[non_texas][ixs,:,<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+<div id="3a77359a" class="cell" data-execution_count="14">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>similar_states <span class="op">=</span> data[non_texas][ixs,:,<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>We can overlay the trajectory of the similar states themselves below:</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> r <span class="kw">in</span> similar_states:</span>
-<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>    plt.plot(years, r, color<span class="op">=</span><span class="st">"C1"</span>, alpha<span class="op">=</span><span class="fl">0.3</span>)</span>
-<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>plt.fill_between(years, lower[:,<span class="dv">0</span>].numpy(), upper[:,<span class="dv">0</span>].numpy(), alpha<span class="op">=</span><span class="fl">0.5</span>)</span>
-<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a>plt.plot(years, data[texix,:,<span class="dv">0</span>])<span class="op">;</span></span>
-<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a>plt.axvline(x<span class="op">=</span><span class="dv">1993</span>, c<span class="op">=</span><span class="st">'red'</span>)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output-display">
+<div id="85a0826b" class="cell" data-execution_count="15">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> r <span class="kw">in</span> similar_states:</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    plt.plot(years, r, color<span class="op">=</span><span class="st">"C1"</span>, alpha<span class="op">=</span><span class="fl">0.3</span>)</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>plt.fill_between(years, lower[:,<span class="dv">0</span>].numpy(), upper[:,<span class="dv">0</span>].numpy(), alpha<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>plt.plot(years, data[texix,:,<span class="dv">0</span>])<span class="op">;</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>plt.axvline(x<span class="op">=</span><span class="dv">1993</span>, c<span class="op">=</span><span class="st">'red'</span>)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="SyntheticControl_files/figure-html/unnamed-chunk-35-5.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="SyntheticControl_files/figure-html/cell-16-output-1.png" width="582" height="411" class="figure-img"></p>
 </figure>
 </div>
 </div>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="{attach}SyntheticControl_files/SyntheticControl_46_0.png" class="img-fluid figure-img"></p>
-<figcaption>png</figcaption>
-</figure>
 </div>
 <p>Just because the Gaussian process model fits Texas worse than any other state, however, doesn’t mean it’s actually fitting the other states all that well.</p>
 <p>To see how well the model fits the other states, we can do some leave-one-out cross validation. Specifically, we can check that the observed incarceration distribution for past and future years is similar to that of samples from the leave-one-out posterior predictive distribution. Below, the orange line shows the observed distribution of incarceration rate z scores, while the blue lines are leave-one-out posterior predictive samples.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> []</span>
-<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">49</span>):</span>
-<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>    ixs <span class="op">=</span> np.delete(np.arange(<span class="dv">49</span>), i)</span>
-<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a>    post <span class="op">=</span> predict(X_no_texas[ixs], X_no_texas[i:i<span class="op">+</span><span class="dv">1</span>], y_no_texas[ixs]).sample(torch.Size([<span class="dv">20</span>]))</span>
-<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a>    results.append(post)</span>
-<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> torch.concat(results, axis<span class="op">=-</span><span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">20</span>):</span>
-<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>    sns.kdeplot(results[i].ravel(), color<span class="op">=</span><span class="st">'C0'</span>, alpha<span class="op">=</span><span class="fl">0.2</span>)</span>
-<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>sns.kdeplot(y_no_texas.ravel(), color<span class="op">=</span><span class="st">'C1'</span>)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output-display">
+<div id="f26c50e2" class="cell" data-execution_count="16">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> []</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">49</span>):</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    ixs <span class="op">=</span> np.delete(np.arange(<span class="dv">49</span>), i)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>    post <span class="op">=</span> predict(X_no_texas[ixs], X_no_texas[i:i<span class="op">+</span><span class="dv">1</span>], y_no_texas[ixs]).sample(torch.Size([<span class="dv">20</span>]))</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>    results.append(post)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> torch.concat(results, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">20</span>):</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>    sns.kdeplot(results[i].ravel(), color<span class="op">=</span><span class="st">'C0'</span>, alpha<span class="op">=</span><span class="fl">0.2</span>)</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>sns.kdeplot(y_no_texas.ravel(), color<span class="op">=</span><span class="st">'C1'</span>)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="SyntheticControl_files/figure-html/unnamed-chunk-37-7.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="SyntheticControl_files/figure-html/cell-17-output-1.png" width="589" height="411" class="figure-img"></p>
 </figure>
 </div>
 </div>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="{attach}SyntheticControl_files/SyntheticControl_50_0.png" class="img-fluid figure-img"></p>
-<figcaption>png</figcaption>
-</figure>
 </div>
 <p>The fit is pretty good, but the wiggle on the right side of the orange plot indicates that our data gives somewhat higher incarceration rates than the predictive posterior would suggest. Let’s break this down by year.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a>fig, axs <span class="op">=</span> plt.subplots(<span class="dv">4</span>, <span class="dv">2</span>)</span>
-<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (dist, obs, ax) <span class="kw">in</span> <span class="bu">zip</span>(results.permute((<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>)), y_no_texas[:,<span class="dv">8</span>:].T, axs.ravel()):</span>
-<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">20</span>):</span>
-<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a>        sns.kdeplot(dist[i], color<span class="op">=</span><span class="st">'C0'</span>, alpha<span class="op">=</span><span class="fl">0.2</span>, ax<span class="op">=</span>ax)</span>
-<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a>    sns.kdeplot(obs, color<span class="op">=</span><span class="st">'C1'</span>, ax<span class="op">=</span>ax)<span class="op">;</span></span>
-<span id="cb48-6"><a href="#cb48-6" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output-display">
+<div id="35ad9ef4" class="cell" data-execution_count="17">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>fig, axs <span class="op">=</span> plt.subplots(<span class="dv">4</span>, <span class="dv">2</span>)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (dist, obs, ax) <span class="kw">in</span> <span class="bu">zip</span>(results.permute((<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>)), y_no_texas[:,<span class="dv">8</span>:].T, axs.ravel()):</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">20</span>):</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>        sns.kdeplot(dist[i], color<span class="op">=</span><span class="st">'C0'</span>, alpha<span class="op">=</span><span class="fl">0.2</span>, ax<span class="op">=</span>ax)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>    sns.kdeplot(obs, color<span class="op">=</span><span class="st">'C1'</span>, ax<span class="op">=</span>ax)<span class="op">;</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="SyntheticControl_files/figure-html/unnamed-chunk-38-9.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="SyntheticControl_files/figure-html/cell-18-output-1.png" width="662" height="470" class="figure-img"></p>
 </figure>
 </div>
 </div>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="{attach}SyntheticControl_files/SyntheticControl_52_0.png" class="img-fluid figure-img"></p>
-<figcaption>png</figcaption>
-</figure>
 </div>
 <p>In earlier years, everything seems okay. But by ’98, that extra little hump starts appearing on the right. While other states weren’t increasing their rates as fast as Texas was, it does seem like the model isn’t quite describing them correctly.</p>
 <p>We can validate this lack of fit further by checking probability-integral-transform values. The fraction of the leave-one-out posterior predictive distribution below each observation would be uniform under perfect caliration.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> to_univariate(post):</span>
-<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Normal(post.mean, post.covariance_matrix.ravel())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> []</span>
-<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">49</span>):</span>
-<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>    ixs <span class="op">=</span> np.delete(np.arange(<span class="dv">49</span>), i)</span>
-<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a>    post <span class="op">=</span> predict(X_no_texas[ixs], X_no_texas[i:i<span class="op">+</span><span class="dv">1</span>], y_no_texas[ixs])</span>
-<span id="cb50-5"><a href="#cb50-5" aria-hidden="true" tabindex="-1"></a>    results.append(to_univariate(post).cdf(y_no_texas[i:i<span class="op">+</span><span class="dv">1</span>]))</span>
-<span id="cb50-6"><a href="#cb50-6" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> torch.concat(results, axis<span class="op">=-</span><span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>sns.displot(results.ravel())<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output-display">
+<div id="6012e32e" class="cell" data-execution_count="18">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> to_univariate(post):</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Normal(post.mean, post.covariance_matrix.ravel())</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> []</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">49</span>):</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>    ixs <span class="op">=</span> np.delete(np.arange(<span class="dv">49</span>), i)</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>    post <span class="op">=</span> predict(X_no_texas[ixs], X_no_texas[i:i<span class="op">+</span><span class="dv">1</span>], y_no_texas[ixs])</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>    results.append(to_univariate(post).cdf(y_no_texas[i:i<span class="op">+</span><span class="dv">1</span>]))</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> torch.concat(results, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>sns.displot(results.ravel())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="SyntheticControl_files/figure-html/unnamed-chunk-41-11.png" class="img-fluid figure-img" width="480"></p>
+<p><img src="SyntheticControl_files/figure-html/cell-19-output-1.png" width="470" height="470" class="figure-img"></p>
 </figure>
 </div>
 </div>
-</div>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="{attach}SyntheticControl_files/SyntheticControl_57_0.png" class="img-fluid figure-img"></p>
-<figcaption>png</figcaption>
-</figure>
 </div>
 <p>The posterior predictive distributions seem to be quite under-dispersed relative to the observations. We need a better model! But I’ll leave that to a future post.</p>
 
