@@ -1,0 +1,226 @@
+---
+title: "Nearest Neighbor Gaussian Processes"
+date: "2/16/2024"
+categories: [machine_learning]
+engine: julia
+---
+
+
+```{julia}
+using KernelFunctions, LinearAlgebra, SparseArrays, AbstractGPs
+```
+
+```{julia}
+using CairoMakie, AbstractGPsMakie
+CairoMakie.enable_only_mime!("png")
+```
+
+```{julia}
+using ParameterHandling, Optim, Zygote
+```
+
+In a *$k$-Nearest Neighbor Gaussian Process*, we assume that the input points $x$ are ordered in such a way that $f(x_i)$ is independent of $f(x_j)$ whenever $i > j + k$. When $k=2$, for example, this means we can generate the sequence of process values by sampling the first value, then sampling the second given the first, then the third given the first two, then the fourth given the second and third, and so on.
+
+$$
+\begin{align*}
+f_1 &\sim p(f_1) \\
+f_2 &\sim p(f_2 | f_1) \\
+f_3 &\sim p(f_3 | f_1, f_2) \\
+f_4 &\sim p(f_4 | f_2, f_3) \\
+\dotsc
+\end{align*}
+$$
+
+The conditional distribution for $f_i$ with $k$-predecessors in the set $S$ has mean $K_{i, S}K_{S,S}^{-1} f_S$ and variance $K_{i, i} - K_{i, S}K_{S,S}^{-1} K_{i,S}$. This means we can write the generation procedure as
+
+$$
+\begin{align*}
+f_1 &= \eta_1 \\
+f_2 &= K_{2, 1}K_{1,1}^{-1}f_1 + \eta_2 \\
+f_3 &= K_{3, (2,1)}K_{(2,1),(2,1)}^{-1}f_{(2,1)} + \eta_3 \\
+f_4 &= K_{4, (3,2)}K_{(3,2), (3,2)}^{-1}f_{(3,2)} + \eta_3 \\
+\dotsc
+\end{align*}
+$$
+where $\eta_i \sim \mathcal{N}(0, K_{i, i} - K_{i, S}K_{S,S}^{-1} K_{i,S})$.
+In matrix form, this means
+$$
+\begin{align*}
+f &= Bf + \eta \\
+f &= (I - B)^{-1}\eta
+\end{align*}
+$$
+where $B$ is the strictly lower triangular matrix that comes from stacking zero-padded rows of the form $K_{i, S}K_{SS}^{-1}$. This shows that $f$ has a precision matrix of the form $UU^T$ where $L=(I - B)^TF^{-1/2}$ and $F$ is diagonal.
+
+## Implementation
+We assume that `pts` are in order, and that each point is independent of all the previous ones given the previous `k`.
+
+```{julia}
+function make_B(pts::AbstractVector{T}, k::Int, kern::Kernel) where {T}
+    n = length(pts)
+    js = Int[]
+    is = Int[]
+    vals = T[]
+    for i in 1:n
+        if i == 1
+            ns = T[]
+        else
+            ns = pts[max(1, i - k):i-1]
+        end
+        row = kernelmatrix(kern, ns) \ kern.(ns, pts[i])
+        start_ix = max(i - k, 1)
+        col_ixs = start_ix:(start_ix+length(row)-1)
+        append!(js, col_ixs)
+        append!(is, fill(i, length(col_ixs)))
+        append!(vals, row)
+    end
+    sparse(is, js, vals, n, n)
+end
+```
+To the understand the form of the B matrix described above more clearly, consider its form in a 2-nearest neighbor Gaussian Process.
+
+```{julia}
+pts = [1.0, 2.0, 3.5, 4.2, 5.9, 8.0]
+```
+
+```{julia}
+kern = SqExponentialKernel()
+```
+
+```{julia}
+B = make_B(pts, 2, kern)
+```
+The $F$ matrix can be constructed analogously.
+
+```{julia}
+function make_F(pts::AbstractVector{T}, k::Int, kern::Kernel) where {T}
+    n = length(pts)
+    vals = T[]
+    for i in 1:n
+        prior = kern(pts[i], pts[i])
+        if i == 1
+            push!(vals, prior)
+        else
+            ns = pts[max(1, i - k):i-1]
+            ki = kern.(ns, pts[i])
+            push!(vals, prior - dot(ki, kernelmatrix(kern, ns) \ ki))
+        end
+    end
+    Diagonal(vals)
+end
+```
+
+```{julia}
+F = make_F(pts, 2, kern)
+```
+The associated covariance matrix has the form $(I-B)^{-1}F(I-B)^{-1}$. We can compare this approximation to the full (non nearest-neighbor) covariance matrix.
+
+```{julia}
+L = (I - B) \ sqrt(F)
+```
+
+```{julia}
+L * L'
+```
+
+```{julia}
+kernelmatrix(kern, pts)
+```
+The two are pretty close!
+
+## Interface
+To make this usable with Julia's AbstractGPs library, we'll add a new method for the `posterior` function.
+
+
+```{julia}
+struct NearestNeighbors
+    k::Int
+end
+```
+
+```{julia}
+struct InvRoot{A}
+    U::A
+end
+```
+
+```{julia}
+AbstractGPs.diag_Xt_invA_X(A::InvRoot, X::AbstractVecOrMat) = AbstractGPs.diag_At_A(A.U' * X)
+```
+
+```{julia}
+function AbstractGPs.posterior(nn::NearestNeighbors, fx::AbstractGPs.FiniteGP, y::AbstractVector)
+    kern = fx.f.kernel
+    F = make_F(fx.x, nn.k, kern)
+    B = make_B(fx.x, nn.k, kern)
+    U = UpperTriangular((I - B)' * inv(sqrt(F)))
+    δ = y - mean(fx)
+    α = U * (U' * δ)
+    C = InvRoot(U)
+    AbstractGPs.PosteriorGP(fx.f, (α=α, C=C, x=fx.x, δ=δ))
+end
+```
+Here's how we use it:
+
+```{julia}
+y = sin.(pts)
+```
+
+```{julia}
+fx = GP(kern)(pts, 0.0)
+```
+Note that the nearest neighbor approximation requires a noise-free GP.
+
+```{julia}
+post = posterior(NearestNeighbors(5), fx, y)
+```
+
+```{julia}
+plot(1:0.01:8, post)
+```
+
+## Optimizing Hyperparameters
+The last thing necessary to make this technique usable in practice is to ensure it works with autodifferentiation so that we can optimize hyperparameters like lengthscales.
+
+
+```{julia}
+initial_params = (var=positive(1.0), lengthscale=positive(1.0))
+```
+
+```{julia}
+flat_initial_params, unflatten = ParameterHandling.value_flatten(initial_params)
+```
+
+```{julia}
+function build_gp(params)
+    k2 = params.var * with_lengthscale(kern, params.lengthscale)
+    GP(k2)(pts, 0.0)
+end
+```
+
+```{julia}
+function objective(flat_params)
+    params = unflatten(flat_params)
+    fx = build_gp(params)
+    -logpdf(fx, y)
+end
+```
+
+```{julia}
+training_results = Optim.optimize(
+    objective,
+    θ -> only(Zygote.gradient(objective, θ)),
+    flat_initial_params,
+    BFGS(
+        alphaguess=Optim.LineSearches.InitialStatic(scaled=true),
+        linesearch=Optim.LineSearches.BackTracking(),
+    ),
+    inplace=false,
+)
+```
+With optimized parameters, we get much less uncertainty in our predictions.
+
+```{julia}
+plot(1:0.01:8, posterior(NearestNeighbors(5),
+    build_gp(unflatten(training_results.minimizer)), y))
+```

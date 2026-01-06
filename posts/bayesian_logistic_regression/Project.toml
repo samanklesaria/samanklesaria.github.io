@@ -1,0 +1,18 @@
+
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
+PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+QuasiMonteCarlo = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
+StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
+
+[compat]
+CairoMakie = "~0.15.2"
+Distributions = "~0.25.120"
+LogExpFunctions = "~0.3.29"
+PythonCall = "~0.9.26"
+QuasiMonteCarlo = "~0.3.3"
+StatsModels = "~0.7.4"
+

@@ -1,0 +1,228 @@
+---
+title: "Mapping with Gaussian Conditioning"
+date: "2023-10-02"
+categories: ["SLAM"]
+engine: julia
+---
+
+
+```{julia}
+using LinearAlgebra, SparseArrays, FillArrays, Rotations, RecursiveArrayTools, ForwardDiff, DiffResults, LazyArrays, CairoMakie
+CairoMakie.enable_only_mime!("png")
+```
+
+For a robot to navigate autonomously, it needs to learn the locations of any potential obsticles around it. One of the standard ways to do this is with an algorithm known as EKF-Slam. Slam stands for "simultaneous localization and mapping", as the algorithm must simultaneously find out where the robot is (localization) and where the obstacles are (mapping). The "EKF" part refers to the "extended Kalman filter", which is just a fancy name for Gaussian conditioning with Taylor approximations. The idea goes as follows:
+
+Describe the robot by its position coordinates $u \in \mathbb{R}^2$. Assume it has a sensor that gives noisy measurements $Y$ of the displacement to an obstacle at location $v \in \mathbb{R}^2$. Specifically, assume $Y \sim \mathcal{N}(v - u, \Sigma_2)$.
+
+Let our uncertainty about the locations $u$ and $v$ be jointly be described by the random variable $X \sim \mathcal{N}(\mu, \Sigma_1)$ in $\mathbb{R}^4$. Given the observation $Y$, we'd like to find the posterior distribution over $X$.
+
+Conditioning Gaussians is easier in the natural paramteterization. Instead of describing distributions with a mean $\mu$ and covariance $\Sigma$, we describe them with a precision $\Lambda$ and information vector $\Lambda \mu$. In this parameterization, say $X \sim \mathcal{N}(\Lambda_1, \Lambda_1\mu_1)$ and $Y \sim \mathcal{N}(\Lambda_2, \Lambda_2 (Ax  + b))$ where $A$ is a linear transformation. Then by Bayes' rule, a little algebra tells us that
+$$
+X | y \sim \mathcal{N}(\Lambda_1\mu + A^T\Lambda_2(y - b), \Lambda_1 + A^T\Lambda_2A)
+$$
+
+When $X$ describes robot and obstacle locations and $Y$ describes noisy displacement observations as above, we get the posterior natural parameters
+$$
+(\Sigma_1^{-1} \mu + A^T\Sigma_2^{-1}Y, \Sigma_1^{-1} + A^T\Sigma_2^{-1}A)
+$$
+where $A = \begin{bmatrix} -I & I \end{bmatrix}$.
+
+We also need to update the distribution for $X$ when the robot moves. Say we know that the robot's position was displaced by some $\Delta \sim \mathcal{N}(\delta, \Sigma_3)$. After this displacement
+
+$$
+X \sim \mathcal{N}\left(\mu + \begin{bmatrix} \delta  0 \end{bmatrix}, \Sigma_1 + \begin{bmatrix} \Sigma_3 &   & 0 \end{bmatrix}\right)
+$$
+
+By repeatedly updating our distribution over $X$ in response to observations $Y$ and  movements $\Delta$, we can track the likely position of the robot and the obstacle over time.
+
+
+## Adding a Heading
+
+To make this toy example slightly more realistic, let us also give the robot a heading angle $\theta$. Assume now that the sensor measurement above is rotated $-\theta$ degrees, so that $Y = f(X) + \epsilon$, where $\epsilon \sim \mathcal{N}(0, \Sigma_2)$, $f(x) = R_x(x_2 - x_1)$, $x_1$ and $x_2$ refer to the robot and obstacle coordinate components of $x$ respectively, and $R_x$ is the corresponding rotation matrix. Although $f$ isn't linear, we can use the Taylor approximation of $f$ about $\mu$ to pretend it is.
+$$
+f(x) = f(\mu + (x - \mu)) \approx f(\mu) + \nabla f(\mu)(x - \mu)
+$$
+This makes $Y$ a linear transformation of $X$, so we can continue to use the standard Gaussian conditioning formula. We get natural parameters
+
+$$
+(\Sigma_1^{-1} \mu + J^T\Sigma_2^{-1}(Y - b), \Sigma_1^{-1} + J^T\Sigma_2^{-1}J)
+$$
+where $J = \nabla f(\mu)$ and $b = f(\mu) - J \mu$. This expression naturally extends to handling observations for multiple obstacles.
+
+This is the EKF-Slam algorithm in a nutshell. With the math out of the way, let's get to some code.
+
+# Code for Observing
+While finding the Jacobian above analytically is easy enough, it's even easier to let Julia do it with Forward mode automatic differentiation.
+
+For ease of notation let $L=\Sigma_2^{-2}$.
+
+
+```{julia}
+L =  10 * Eye(2,2)
+```
+
+```{julia}
+function obs_approx(μ::AbstractVector, ix::Int, y::AbstractVector)
+	result = DiffResults.JacobianResult(zeros(2), μ)
+	f(μ) = RotMatrix{2}(-μ[3]) * (μ[ix:ix+1] - μ[1:2])
+	ForwardDiff.jacobian!(result, f, μ)
+	f_μ = DiffResults.value(result)
+	J = DiffResults.jacobian(result)
+	JL = J' * L
+	b = f_μ - J * μ
+	JL * (y - b), JL * J
+end
+```
+
+# Code for Moving
+
+For simplicity, let's assume that at each step in time, the robot walks in the direction $(1,1)$ and rotates its heading by $2\pi/100$ radians.
+
+
+```{julia}
+dμ_1 = [1,1,2*π/100]
+```
+These updates are noisy however, accounting for any imprecision in our dynamics model. Our uncertainty about the robot's location increases at each step according to the following covariance matrix.
+
+```{julia}
+Σ3_1 = Diagonal([1,1,0.02])
+```
+
+```{julia}
+N = 4
+```
+We add this to our mean vector...
+
+```{julia}
+dμ = sparsevec([1,2,3], dμ_1, 3 + 2 * N)
+```
+...and this to our covariance matrix...
+
+```{julia}
+Σ3 = sparse_vcat(sparse_hcat(Σ3_1, Zeros(3,2 * N)), Zeros(2*N, 3 + 2 * N))
+```
+
+... which can be factored as $U \Sigma_{3,1} U'$, where
+$$
+\begin{align}
+U = \begin{bmatrix} I  0 \end{bmatrix}
+\end{align}
+$$
+
+
+```{julia}
+U = Vcat(Diagonal(ones(3)), Zeros(2 * N, 3))
+```
+
+```{julia}
+V = SparseMatrixCSC(U')
+```
+
+This is a low rank matrix. And we'll need to invert the resut when we condition on the observations, as described above. So we'll express our update to the covariance matrix $\Sigma_1$ in terms of the Woodbury Matrix identity, which says that $(\Sigma_1 +  U\Sigma_{3,1}V)^{-1} = \Sigma_1^{-1} - \Sigma_1^{-1} U (\Sigma_{3,1}^{-1} + V\Sigma_1^{-1} U)^{-1}V\Sigma_1^{-1}$. Let $\Sigma_1^{-1} = \Lambda$.
+
+
+```{julia}
+Λ3_1 = inv(Σ3_1)
+```
+
+```{julia}
+function update_precision(Λ)
+	Λ - Λ * U * (((Λ3_1 + Λ[1:3, 1:3]) \ V) * Λ)
+end
+```
+
+# Putting them Together
+We want to update the distribution over possible locations $X$ after a single time-step. First, the movement of the robot is accounted for by the dynamics model. Then we condition on the observations of each obstacle $ys$.
+
+
+```{julia}
+tupsum(x,y) = x .+ y
+```
+
+```{julia}
+function step((μ,Λ), ys)
+	μ += dμ
+	Λ = update_precision(Λ)
+	msg = reduce(tupsum, (obs_approx(μ, 4 + 2 * (i-1), y)
+		for (i, y) in enumerate(eachcol(ys))))
+	(Λμ, Λ) = (Λ * μ, Λ) .+ msg
+	(Λ \ Λμ, Λ)
+end
+```
+That's it! We've written the algorithm for EKF-Slam. It remains to see how it performs on fake data.
+
+# Fake Data
+Here we generate the unknown, true trajectory that the robot takes by following our dynamics model.
+
+
+```{julia}
+K = 100
+```
+
+```{julia}
+true_x1s = [zeros(3) cumsum(repeat(dμ_1, 1, K-1) + sqrt(Σ3_1) * randn(3,K-1), dims=2)]
+```
+We'll also set up the true but unknown obstacle locations.
+
+```{julia}
+true_x2s = 50 * rand(2, N)
+```
+
+```{julia}
+begin
+f = Figure()
+ax = f[1, 1] = Axis(f)
+plot!(true_x1s[1, :], true_x1s[2, :], label="robot path")
+scatter!(true_x2s[1,:], true_x2s[2,:], label="obstacles")
+f[1,2] = Legend(f, ax)
+f
+end
+```
+Imagine the displacement observations the robot sees along its trajectory look like this:
+
+```{julia}
+intRootL = sqrt(inv(L))
+```
+
+```{julia}
+ys = [(RotMatrix{2}(-x[3]) * (true_x2s .- x[1:2])) + intRootL * randn(2,N) for x in eachcol(true_x1s)]
+```
+
+```{julia}
+begin
+plt = plot([y[1,1] for y in ys], [y[2,1] for y in ys])
+for i in 2:N
+	plot!([y[1,i] for y in ys], [y[2,i] for y in ys])
+end
+plt
+end
+```
+
+# Simulating the Algorithm
+When we start tracking the robot, we know its location almost (making these precision terms super high), but we know nothing about the locations of the obstacles, so the rest of the precision terms should be low.
+
+
+```{julia}
+Λ1 = Diagonal(vcat(50 * ones(3), (1 / 50) * ones(2 * N)))
+```
+
+```{julia}
+start = (zeros(3 + 2 * N), Matrix(Λ1))
+```
+
+```{julia}
+progress = VectorOfArray([p[1][1:2] for p in accumulate(step, ys; init=start)])
+```
+
+```{julia}
+begin
+f2 = Figure()
+ax2 = f2[1, 1] = Axis(f2)
+plot!(true_x1s[1, :], true_x1s[2, :], label="true robot trajectory")
+plot!(progress[1, :], progress[2, :], label="inferred robot trajectory")
+f2[1,2] = Legend(f2, ax2)
+f2
+end
+```
+As we can see, although the robot's trajectory did not follow our dynamics model exactly thanks to the added noise at each step, conditioning on the observations allowed us to keep track of its approximate position regardless.

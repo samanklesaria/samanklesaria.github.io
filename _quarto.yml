@@ -1,0 +1,19 @@
+project:
+  type: website
+  # pre-render: pluto-to-qmd
+
+website:
+  description: "Dabbling in Data Science"
+  site-url: https://samanklesaria.github.io
+  title: "Sam's Blog"
+  navbar:
+    right:
+      - icon: github
+        href: https://github.com/samanklesaria
+format:
+  html:
+    theme:
+      - pandoc
+      - brand
+    css: styles.css
+    tml-math-method: katex

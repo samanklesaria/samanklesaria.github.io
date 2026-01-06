@@ -1,0 +1,225 @@
+---
+title: "Finite Basis Gaussian Processes"
+date: "2024-04-02"
+categories: ["machine_learning"]
+engine: julia
+---
+
+
+```{julia}
+using KernelFunctions,LinearAlgebra, AbstractGPs, Random
+```
+
+```{julia}
+using BenchmarkTools
+```
+
+By Mercer's theorem, every positive definite kernel $k(x, y) : \mathcal{X} \to \mathcal{X} \to \mathbb{R}$ that we might want to use in a Gaussian Process corresponds to some inner product $\langle \phi(x), \phi(y) \rangle$, where $\phi : \mathcal{X} \to \mathcal{V}$ maps our inputs into some other space.  For many kernels (like the venerable RBF), this space is infinite dimensional, and we can't work with it directly. But when it's finite dimensional (in say $d$ dimensions), we can! This lets us avoid the usual $O(n^3)$ scaling for Gaussian process regression, getting $O(nd+d^3)$ instead.
+
+
+```{julia}
+import AbstractGPs: AbstractGP, FiniteGP
+```
+
+```{julia}
+import Statistics
+```
+
+```{julia}
+struct FiniteBasis <: KernelFunctions.SimpleKernel end
+```
+We can define a finite dimensional kernel in Julia using the `KernelFunctions` library. The library assumes our kernel `k` has the form `k(x,y) = kappa(metric(x,y))`, and lets us fill in the definitions for `kappa` and `metric`.
+
+```{julia}
+KernelFunctions.kappa(::FiniteBasis, d::Real) = d
+```
+
+```{julia}
+KernelFunctions.metric(::FiniteBasis) = KernelFunctions.DotProduct()
+```
+
+We will use the *weight space* view of Gaussian processes, which interprets GP regression as Bayesian linear regression. We assume that there is a weight vector $w : \mathcal{V}$ with prior $\mathcal{N}(0, I)$, and that $y \sim \mathcal{N}(X w, I)$, where $X$ is the matrix for which row $i$ is given by $\phi(x_i)$.
+The posterior over $w$ remains Gaussian with precision $\Lambda = I + X^T X$ and mean $\mu = \Lambda^{-1} X^T y$. To make a prediction at $x_*$, we simply find $\langle \phi(x_*), w \rangle$.
+
+
+On the face of it, this seems like a very different generative model than the traditional depiction of Gaussian processes in which the observations $y$ are noisy versions of the function values $f$, which are all jointly Gaussian with a covariance matrix given by the associated kernel. But with a little algebra, one can show that the posterior over $f(x_*) = \langle \phi(x_*), w \rangle$ in the weight space view is the same as the posterior over $f(x_*)$ is the traditional function-space view.
+
+First, we can marginalize out $w$ to find that
+
+$$
+f(x_*) | y \sim \mathcal{N}(X_* \mu, X_* \Lambda^{-1} X_*^T)
+$$
+The mean expands to $X_*(I + X^T X)^{-1} X^T y$ and the variance expands to
+$X_*(I + X^T X)^{-1}X_*^T$.
+
+
+Now, we can use the Woodbury Matrix Identity, which says that
+$$
+(I + X^TX)^{-1} = I - X^T(I + XX^T)^{-1}X
+$$
+This lets the mean simplify to
+$X_*X^T (XX^T + I)^{-1}y$ and the variance simplify to $X_*X_*^T -X_*X^T(XX^T + I)^{-1}XX_*^T$. Letting $XX^T = K$, we recover the familiar function space representation of Gaussian process. See the first chapter of the [Rasmussen book](http://gaussianprocess.org/gpml/) for a more detailed derivation.
+
+
+```{julia}
+struct DegeneratePosterior{P,T,C} <: AbstractGP
+	prior::P
+	w_mean::T
+	w_prec::C
+end
+```
+
+```{julia}
+weight_form(A::KernelFunctions.ColVecs) = A.X'
+```
+
+```{julia}
+weight_form(A::KernelFunctions.RowVecs) = A.X
+```
+
+```{julia}
+function Statistics.mean(f::DegeneratePosterior, x::AbstractVector)
+	w = f.w_mean
+	X = weight_form(x)
+	X * w
+end
+```
+
+```{julia}
+function AbstractGPs.posterior(fx::FiniteGP{GP{M, B}}, y::AbstractVector{<:Real}) where {M, B <: FiniteBasis}
+	kern = fx.f.kernel
+	δ = y - mean(fx)
+	X = weight_form(fx.x)
+	X_prec = X' * inv(fx.Σy)
+	Λμ = X_prec * y
+	prec = cholesky(I + Symmetric(X_prec * X))
+	w = prec \ Λμ
+	DegeneratePosterior(fx.f, w, prec)
+end
+```
+
+```{julia}
+function Statistics.cov(f::DegeneratePosterior, x::AbstractVector)
+	X = weight_form(x)
+	AbstractGPs.Xt_invA_X(f.w_prec, X')
+end
+```
+
+```{julia}
+function Statistics.cov(f::DegeneratePosterior, x::AbstractVector, y::AbstractVector)
+	X = weight_form(x)
+	Y = weight_form(y)
+	AbstractGPs.Xt_invA_Y(X', f.w_prec, Y')
+end
+```
+
+```{julia}
+function Statistics.var(f::DegeneratePosterior, x::AbstractVector)
+	X = weight_form(x)
+	AbstractGPs.diag_Xt_invA_X(f.w_prec, X')
+end
+```
+
+```{julia}
+function Statistics.rand(rng::AbstractRNG, f::DegeneratePosterior, x::AbstractVector)
+	w = f.w_mean
+	X = weight_form(x)
+	X * (f.w_prec.U \ randn(rng, length(x)))
+end
+```
+We can compare the results of this optimized implementation with the standard posterior implementation to ensure that the two agree on the output.
+
+```{julia}
+x = rand(2, 2000)
+```
+
+```{julia}
+y = sin.(norm.(eachcol(x)))
+```
+
+```{julia}
+kern = FiniteBasis()
+```
+
+```{julia}
+f = GP(kern)
+```
+
+```{julia}
+fx = f(x, 0.001)
+```
+
+```{julia}
+x2 = ColVecs(rand(2, 2000))
+```
+
+```{julia}
+opt_m, opt_C = @btime mean_and_cov(posterior($fx, $y)($x2))
+```
+To compare against the implementation that uses a function-space perspective, we'll use a bit of a hack: by adding a `ZeroKernel` to our `FiniteBasis` kernel, we get a kernel for which our custom `posterior` method won't be called.
+
+```{julia}
+fx2 = GP(kern + ZeroKernel())(x, 0.001)
+```
+
+```{julia}
+m, C = @btime mean_and_cov(posterior($fx2, $y)($x2))
+```
+
+```{julia}
+max(maximum(abs.(opt_C .- C)), maximum(abs.(opt_m .- m)))
+```
+Our optimized technique produces the same results!
+
+## Random Fourier Features
+One application of this technique is the *Random Fourier Features* approximation. By Bochner's theorem, every kernel of the form $k(x,y) = f(x-y)$ for some $f$ can be expressed in the Fourier basis as $f(x-y) = E e^{i\omega (x-y)}$, where the distribution from which $\omega$ is sampled determines the kernel. A Monte Carlo estimate of this expectation is just $\sum_{w_j} e^{i w_j x}e^{-i w_j y}$, which is an inner product of features of the form $\phi_j(x) = e^{i w_j x}$. With some algebraic simplifications (see [here](https://gregorygundersen.com/blog/2019/12/23/random-fourier-features/#a4-alternative-random-fourier-features) for a good derivation) we can ignore the imaginary parts and express this as $\phi_j(x)=(\cos(w_j x), \sin(w_j x))$.
+
+
+```{julia}
+begin
+struct RandomFourierFeature
+	ws::Vector{Float64}
+end
+RandomFourierFeature(kern::SqExponentialKernel, k::Int) = RandomFourierFeature(randn(k))
+function (f::RandomFourierFeature)(x)
+	Float64[cos.(f.ws .* x); sin.(f.ws .* x)] .* sqrt(2/length(f.ws))
+end
+end
+```
+
+```{julia}
+begin
+FFApprox(kern::Kernel, k::Int) = FiniteBasis() ∘ FunctionTransform(RandomFourierFeature(kern, k))
+FFApprox(rng::AbstractRNG, kern::Kernel, k::Int) = FiniteBasis() ∘ FunctionTransform(RandomFourierFeature(rng, kern, k))
+end
+```
+To support other spectral densities besides the RBF, we could add constructors for `RandomFourierFeature`.
+
+```{julia}
+rbf = SqExponentialKernel()
+```
+
+```{julia}
+flat_x = rand(2000)
+```
+
+```{julia}
+flat_x2 = rand(100)
+```
+
+```{julia}
+ffkern = FFApprox(rbf, 100)
+```
+
+```{julia}
+ff_m, ff_C = mean_and_cov(posterior(GP(ffkern)(flat_x, 0.001), y)(flat_x2))
+```
+
+```{julia}
+m2, C2 = mean_and_cov(posterior(GP(rbf)(flat_x, 0.001), y)(flat_x2))
+```
+
+```{julia}
+max(maximum(abs.(m2 .- ff_m)), maximum(abs.(C2 .- ff_C)))
+```
+Even with only 100 samples, we get a pretty close approximation!

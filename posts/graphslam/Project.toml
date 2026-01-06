@@ -1,0 +1,23 @@
+
+[deps]
+AppleAccelerate = "13e28ba4-7ad8-5781-acae-3021b1ed3924"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+DiffResults = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+ExtendableSparse = "95c220a8-a1cf-11e9-0c77-dbfce5f500b3"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+RecursiveArrayTools = "731186ca-8d62-57ce-b412-fbd966d074cd"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Unzip = "41fe7b60-77ed-43a1-b4f0-825fd5a5650d"
+
+[compat]
+AppleAccelerate = "~0.4.1"
+CairoMakie = "~0.15.2"
+DiffResults = "~1.1.0"
+Distributions = "~0.25.120"
+ExtendableSparse = "~1.7.1"
+ForwardDiff = "~1.0.1"
+RecursiveArrayTools = "~3.33.0"
+Unzip = "~0.2.0"
+

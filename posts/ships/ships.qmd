@@ -1,0 +1,313 @@
+---
+title: "Classifying Ships with Gaussian Process Mixtures"
+date: "2025-11-19"
+categories: ["machine_learning"]
+engine: julia
+---
+
+
+```{julia}
+using DataFrames, PythonCall, CSV, Dates, DataFramesMeta, RecursiveArrayTools, StatsBase, CairoMakie, Distributions, SpecialFunctions, PDMats, LinearAlgebra, SizeCheck, KernelFunctions, AbstractGPs, LogExpFunctions, Random
+```
+
+```{julia}
+CairoMakie.enable_only_mime!("png")
+```
+
+I recently came across a dataset of container ship movement between Tallinn and Helsinki on Kaggle. In this notebook, we'll try to classify whether a given ship's trajectory seems similar to those of the container ships, or whether we're looking at something else (perhaps a pirate).
+
+
+I'll start by loading the ship tracking data, taking zscores of the latitude and longitude, and normalizing timing information for each trajectory. We can identify rows belonging to the same ship's trajectory by the ship's International Maritime Organization code (IMO) and its actual arrival time (ATA). For simplicity, we'll just consider 2k samples of trajectories leaving Helsinki for the time being.
+
+
+```{julia}
+function load_ship_data()
+    kagglehub = pyimport("kagglehub")
+    ships_path = pyconvert(String, kagglehub.dataset_download("bobaaayoung/container-ship-data-collection"))
+    raw_df = dropmissing(
+        CSV.read(joinpath(ships_path, "tracking_db.csv"), DataFrame,
+            dateformat="mm/dd/yyyy HH:MM",
+            types=Dict(:updated => DateTime, :ata => DateTime), silencewarnings=true))
+
+    df = @chain raw_df begin
+        @subset(:long .> 24)
+        @subset(:arrPort .== "FIHEL")
+        @select(:updated, :ata, :long, :lat, :imo)
+        @transform(:t = Minute.(:ata .- :updated), :long = zscore(:long), :lat = zscore(:lat))
+        @groupby :imo :ata
+        @transform(:nt = (:t .- minimum(:t)) ./ (maximum(:t) - minimum(:t)))
+        @subset((:nt .> 0) .& (:nt .< 1))
+    end
+
+    df, groupby(df, [:imo, :ata])
+end
+```
+
+```{julia}
+df, groups = load_ship_data()
+```
+Below, I've plotted the trajectories with color marking the passage of time.
+
+```{julia}
+scatter(df[!, :long], df[!, :lat], color=df[!, :nt], markersize=2, alpha=0.4)
+```
+## The Model
+
+It seems like there's more than one standard way of moving between these ports. I make out three different routes; trajectories seem to be scattered around a central curve for each route.
+
+We can model this behavior with a mixture of Gaussian processes. For each of the three different routes above ($i=1,2,3$), we'll assume a function $f_i$ mapping time to lattitude and longitude values was sampled from a Gaussian Process prior.  Container ships will trajectories will always be close to one of these routes- we just don't know which one. We'll also assume that other (non-container) ships follow trajectories sampled independently from the same Gaussian Process prior. To tell if a given trajectory seems to be that of a container ship, we just need to check whether it more closely resembles the posterior mixture of container routes or prior over all possible ship trajectories.
+
+Specifically, let $y$ refer to the observed trajectories and $y'$ refer to the new trajectory we're trying to classify. Say $B=0$ if $y'$ is a container ship and $B=1$ otherwise. We want to learn the posterior odds that $B=1$ given  $y$ and $y'$, which is just $\frac{P(y' | y, B=1)P(B=1)}{P(y' | y, B=O)P(B=O)}$. When $B=1$, we can get the likelihood of $y'$ by integrating over samples $f$ from the posterior GP mixture $\int P(y' | f)P(f | y) \, df$. When $B=0$, we can get the likelihood by integrating over samples $g$ from the prior GP: $\int P(y' | g)P(g) \, dg$.
+
+We don't know a priori what fraction of the ships in the region are container ships, but to be conservative, we'll give equal prior probabiliy to $B=0$ and $B=1$.
+
+
+## Modeling Sub-Trajectories
+Ideally, we'd like to identify out-of-distribution ships without having to observe their full port-to-port trajectories. To do this, we can marginalize the likelihood of a trajectory snippet over possible offsets in time.
+
+
+```{julia}
+function marginal_logprob(dist, val, t, σ2)
+    starts = LinRange(0, 1 - t[end], 200)
+    logsumexp([logpdf(dist(s .+ t, σ2), val) for s in starts])
+end
+```
+
+```{julia}
+function ok_prob(t, gp, y1p, y2p, y1, y2)
+    """Find the posterior probability that a ship with longitude/latitude trajectory pairs (`y1`, `y2`) at times `t` is a container ship (with trajectories coming from posterior GPs `y1p` and `y2p`) rather than some other kind of ship (with trajectories coming from prior `gp`).
+    """
+    logistic(marginal_logprob(y1p, y1, t) + marginal_logprob(y2p, y2, t) -
+             marginal_logprob(gp, y1, t) - marginal_logprob(gp, y2, t))
+end
+```
+
+## Approximating Posterior GP Mixtures
+We can't compute the posterior of a mixture of Gaussian processes analytically. But we can approximate it with mean field variational inference.
+
+
+Let $z_i$ be a 1-hot vector giving the route chosen in trajetory $i$. I assume $z_i \sim \text{Categorical}(\pi)$, and $\pi \sim \text{Dirichlet}(\alpha_0)$. The variational posterior for $\pi$ will be Dirichlet with parameters $\alpha$.
+
+
+For the likelihood, I'll introduce inducing inputs $c$ and outputs $u_k$ for each route and assume that $u_k = f_k(c)$ and $p(y_i | u_k, z_{ik})  = \mathcal{N}(K_{yu} K_{uu}^{-1}u, Q_{yy})$ where $Q_{yy} = \text{diag}(K_{yy} - K_{yu}K_{uu}^{-1}K_{uy}) + \sigma^2I$ (the Fully Indepenent Training Conditional assumption). Let $A = K_{yu}K_{uu}^{-1}$ and $Q = \Lambda^{-1}$. We can pre-calculate the kernel matrices and store them in a separate `KernelMats` struct for each trajectory. If we were more concered with performance, we would avoid finding $K_{uu}^{-1}$ explicitly, but this is good enough for a blog post.
+
+
+```{julia}
+σ = 0.03
+```
+
+```{julia}
+struct KernelMats
+    Λ::PDiagMat{Float64,Vector{Float64}}
+    A::Matrix{Float64}
+end
+```
+
+```{julia}
+@sizecheck function kernel_mats(kern, x_N, c_U)
+    K_UU_inv = inv(PDMat(kern.(c_U', c_U)))
+    k = kern(1, 1) # Assuming stationarity
+    K_N = [kern.(c_U, reshape(x, (1, :))) for x in x_N]
+    c = KernelMats[
+        let
+            K_UT = K_N[n]
+            KernelMats(
+                inv(PDiagMat(k .- diag(K_UT' * (K_UU_inv * K_UT)) .+ σ^2)),
+                K_UT' * K_UU_inv)
+        end for n in 1:N
+    ]
+    (K_UU_inv, c)
+end
+```
+
+The variational posterior for inducing points $u_k$ will be normal with mean $m_k$ and covariance matrix $S_k$.
+
+
+```{julia}
+struct VComp
+    S_inv::PDMat{Float64,Matrix{Float64}}
+    m1::Vector{Float64}
+    m2::Vector{Float64}
+end
+```
+
+Now to figure out the variational updates. We'll start by deriving the component update for $q(z_i)$. From the mean field assumption, we know the ELBO is maximized when $\log q(z_{ik}) = E_q \log p(y_i | u_k) + E_q \log p(z_{ik}) + \text{const}$. As the approximate posterior over $\pi$ is Dirichlet, $E_q \log p(z_{ik}) = E_q \pi_k = \psi(\alpha_k) - \psi(\sum_j \alpha_j)$. It remains to find
+
+$E_q \log p(y_i | u_k) =-\frac{1}{2} E_q (y-Au_k)\Lambda (y-Au_k) + \frac{1}{2} \log |\Lambda|$
+
+Expanding the quadratic term lets us compute the expectation:
+
+$-2 y^T\Lambda A m_k + y^T\Lambda y + \text{Tr}(E[u_ku_k^T])A^T \Lambda A$
+$= -2 y^T\Lambda A m_k + y^T\Lambda y + \text{Tr}(m_km_k^T + S_k)A^T \Lambda A$
+$= -2 y^T\Lambda A m_k + y^T\Lambda y + \text{Tr}(S_kA^T \Lambda A) + m_k^TA^T\Lambda A m_k$
+$= (y - Am_k)^T\Lambda (y - A m_k) + \text{Tr}(S_kA^T \Lambda A)$
+
+We can eliminate terms like $\psi(\sum_j \alpha _j)$ and $\log | \Lambda |$ which are the same for all components. The result is an expression for $q(z_i = k)$, which I'll write as $r_{ik}$.
+
+```{julia}
+function responsibilities(y1, y2, c::Vector{KernelMats}, o, alpha)
+    "Calculate r_ik for seeing `(y1, y2)` for each component in `o`"
+    Vector{Float64}[
+        softmax(Float64[isnothing(og) ? -Inf64 : let
+            μ1 = cn.A * og.m1
+            μ2 = cn.A * og.m2
+            V = og.S_inv \ (cn.A' * cn.Λ * cn.A)
+            q = quad(cn.Λ, y1n - μ1) + quad(cn.Λ, y2n - μ2)
+            -0.5 * q - tr(V) + digamma(alpha_g)
+        end for (og, alpha_g) in zip(o, alpha)])
+        for (cn, y1n, y2n) in zip(c, y1, y2)]
+end
+```
+
+Next, let's calculate the inducing point variational parameters. From the mean field assumption, the ELBO is maximized when
+
+$\log q(u_k) = \sum_i E_q 1_{z_i = k} \log  p(y_i | u_k, z_i = k) + \log p(u_k) + \text{const}$
+$= \sum_i r_{ik} (\langle u_ku_k^T, A^T\Lambda A \rangle + \langle \Lambda A u_k, y_i \rangle) + \langle u_ku_k^T, K_{uu}^{-1} \rangle + \text{const}$
+
+By combining like terms, we can see that
+$S_k^{-1} = K_{uu}^{-1} + \sum_i r_{ik} A^T \Lambda A$ and $S_k^{-1}m_k = \sum_i r_{ik} A^T \Lambda y_i$.
+
+
+```{julia}
+function fit_gp(g, K_UU_inv::PDMat{Float64,Matrix{Float64}}, r, y1, y2, c)
+    if sum(rn -> rn[g], r) < 1e-8
+        return nothing
+    end
+    S_inv = K_UU_inv + PDMat(sum(rn[g] * Xt_A_X(cn.Λ, cn.A) for (rn, cn) in zip(r, c) if rn[g] > 0))
+    m1 = S_inv \ sum(rn[g] * cn.A' * (cn.Λ * yn) for (rn, cn, yn) in zip(r, c, y1))
+    m2 = S_inv \ sum(rn[g] * cn.A' * (cn.Λ * yn) for (rn, cn, yn) in zip(r, c, y2))
+    VComp(S_inv, m1, m2)
+end
+```
+
+```{julia}
+function fit_gps(K_UU_inv::PDMat{Float64,Matrix{Float64}}, r, y1, y2, c)::Vector{Union{Nothing,VComp}}
+    Union{VComp,Nothing}[fit_gp(g, K_UU_inv, r, y1, y2, c) for g in 1:length(r[1])]
+end
+```
+
+Finally, we get to the mixture weight paramers. As before,
+
+$\log q(\pi) = \log p(\pi) + E \log p(z_i | \pi) + \text{const}$
+$= \langle \alpha_0 - 1, \pi \rangle + \sum_i \langle r_i, \pi \rangle$
+
+This gives $\alpha = \alpha_0 + \sum_i r_i$.
+
+
+Putting everything together gives the following variational inference algorithm.
+
+This uses an auxiliary function to compute fixed points.
+
+```{julia}
+function fixedpoint(f, arg::T; iters=500) where {T}
+    for _ in 1:iters
+        result = f(arg)::T
+        max_diff = maximum(abs, result - arg)
+        if max_diff < 1e-5
+            return result
+        end
+        arg = result
+    end
+    println("DID NOT CONVERGE")
+    arg
+end
+```
+
+```{julia}
+@sizecheck function fit_mixture(kern, alpha0, x_N, y1_N, y2_N, z_M, o; iters=50)
+    K_MM_inv, c = kernel_mats(kern, x_N, z_M)
+    alpha = fixedpoint(alpha0; iters) do alpha
+        r = responsibilities(y1_N, y2_N, c, o, alpha)
+        o = fit_gps(K_MM_inv, r, y1_N, y2_N, c)
+        alpha0 + sum(r)
+    end
+    alpha, c, o
+end
+```
+## Example on Synthetic Data
+
+```{julia}
+kern = with_lengthscale(Matern52Kernel(), 0.1)
+```
+
+```{julia}
+T = 100
+```
+
+```{julia}
+N = 100
+```
+
+```{julia}
+π_prior = Dirichlet(5 * ones(3))
+```
+
+```{julia}
+gp = GP(kern)
+```
+
+```{julia}
+rng = Xoshiro(9)
+```
+
+```{julia}
+pi = rand(π_prior)
+```
+
+```{julia}
+(true_f, y1_N, y2_N, x_N) = let
+    x_T = LinRange(0, 1, T)
+    true_f = [rand(rng, gp(x_T), 2) for _ in 1:3]
+    noise = [σ .* randn(T, 2) for _ in 1:N]
+    z = rand(rng, Distributions.Categorical(pi), N)
+    y_T2N = stack(true_f[z] .+ noise)
+    y1_N = eachcol(y_T2N[:, 1, :])
+    y2_N = eachcol(y_T2N[:, 2, :])
+    x_N = [x_T for _ in 1:N]
+    (true_f, y1_N, y2_N, x_N)
+end
+```
+
+```{julia}
+c_U = LinRange(0, 1, 25)
+```
+
+To kick off variational inference, we'll need to guess starting parameters for $S_k$ and $m_k$.
+
+
+```{julia}
+o_guess = let
+    f = gp(c_U, σ^2)
+    K_UU_inv = inv(PDMat(kern.(c_U', c_U)))
+    Union{Nothing,VComp}[VComp(K_UU_inv, rand(rng, f), rand(rng, f)) for _ in 1:3]
+end
+```
+
+```{julia}
+_, c, o = fit_mixture(kern, π_prior.alpha, x_N, y1_N, y2_N, c_U, o_guess; iters=50)
+```
+
+We can visualize how well the mixtures were recovered during inference by plotting a circle at our GP predictions over time. The radius of each circle will be the standard deviation of our posterior uncertainty at that point. I will draw the true synthetically generated functions as well for comparison.
+
+
+```{julia}
+function plot_example(o, kern, c_U, true_f)
+    f = Figure()
+    ax = Axis(f[1, 1])
+    x_N = [LinRange(0, 1, 100)]
+    _, c = kernel_mats(kern, x_N, c_U)
+    for on in filter(!isnothing, o)
+        μ = Point2d.(c[1].A * on.m1, c[1].A * on.m2)
+        σ = sqrt.(diag(inv(c[1].Λ)) .+ invquad(on.S_inv, c[1].A'))
+        poly!(ax, Circle.(μ, σ), alpha=0.2)
+    end
+    for i in 1:3
+        lines!(ax, true_f[i][:, 1], true_f[i][:, 2])
+    end
+    f
+end
+```
+
+```{julia}
+plot_example(o, kern, c_U, true_f)
+```

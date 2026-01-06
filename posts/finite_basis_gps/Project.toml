@@ -1,0 +1,14 @@
+
+[deps]
+AbstractGPs = "99985d1d-32ba-4be9-9821-2ec096f28918"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+KernelFunctions = "ec8451be-7e33-11e9-00cf-bbf324bd1392"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[compat]
+AbstractGPs = "~0.5.19"
+BenchmarkTools = "~1.4.0"
+KernelFunctions = "~0.10.63"
+

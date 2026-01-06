@@ -1,0 +1,385 @@
+---
+summary: Tracking a robot's motion with maximum likelihood estimation.
+title: Graph SLAM
+date: 07/22/2024
+categories: ["SLAM"]
+execute:
+  cache: true
+engine: julia
+---
+
+
+```{julia}
+using LinearAlgebra, SparseArrays, RecursiveArrayTools, Distributions, Unzip, ExtendableSparse, ForwardDiff, DiffResults, AppleAccelerate, CairoMakie
+```
+
+```{julia}
+CairoMakie.enable_only_mime!("svg")
+```
+
+For a robot to navigate autonomously, it needs to learn both its own location, as well as the locations of any potential obsticles around it, given its sensors' observations of the world. We'll create a probabilistic model of our environment and get a MAP estimate of these unknown quantities.
+
+- Let $x_t \in \mathbb{R}^2$ be the robot's location at time $t$.
+- Let $θ_t \in \mathbb{R}$ be the robot's heading angle at time $t$.
+- Let $m_i \in \mathbb{R}^2$ be the position of the $i$th obstacle.
+- Let $o_{t, i} \in \mathbb{R}^2$ be our robot's noisy observation of its distance at time $t$ to obstacle $i$.
+
+
+# Motion Model
+We will assume that the robot advances approximately one step forward (in its local coordiante system) at each timestep. Let $R(\theta)$ be a rotation matrix that converts coordinates in the $\theta$-rotated coordinate frame to global coordinates
+
+$$
+p(x_t | x_{t-1}) = \mathcal{N}\left(x_{t-1} + R(\theta_{t-1}) \begin{bmatrix} 1  1 \end{bmatrix}, \sigma^2_x I\right)
+$$
+
+We also assume that the heading angle increases by approximately $2\pi/100$ radians each step, so that  $p(\theta_t | \theta_{t-1}) = \mathcal{N}(\theta_{t-1} + \frac{2\pi}{100}, \sigma^2_θ)$. Let
+
+$$
+y_t = \begin{bmatrix} x_t  \theta_t \end{bmatrix}
+$$
+
+combine the location and heading parameters, and $y$ be the vector of all the $y_t$. In the code that follows, Gaussian distributions will be represented by their mean and covariance parameters. For reasons we'll see later on, it will be easiest to express the mean at time $t$ by indexing into $y_{t-1}$.
+
+
+```{julia}
+Σ_x = Diagonal(fill(0.05, 2))
+```
+
+```{julia}
+μ_θ(y, θ) = y[θ:θ] + fill(2π/100, 1)
+```
+
+```{julia}
+Σ_θ = 0.008
+```
+
+```{julia}
+rot(t) = [cos(t) -sin(t); sin(t) cos(t)]
+```
+
+```{julia}
+μ_x(y, x, θ) = y[x] + rot(y[θ]) * [1.0,0.0]
+```
+
+```{julia}
+start = zeros(3)
+```
+# Simulating the Model
+Let's simulate a robot trajectory that obeys this motion model for $T$ timesteps. We'll try to reconstruct this trajectory with a maximum likelihood approach in the next section.
+
+```{julia}
+T = 100
+```
+
+```{julia}
+mean_step(y) = [μ_x(y, 1:2, 3); μ_θ(y, 3)]
+```
+Without noise, the robot's trajectory would look like this, with the color changing from black to yellow over time.
+
+```{julia}
+yhat = VectorOfArray(accumulate((y,_)-> mean_step(y), 1:T; init=start))
+```
+
+```{julia}
+let f1 = Figure()
+	ax1 = f1[1, 1] = Axis(f1)
+	p1 = plot!(yhat[1, :], yhat[2, :], color=1:T)
+	Colorbar(f1[1,2], p1)
+	f1
+end
+```
+But as we've assumed some noise at each step, the true trajectory is a little more wiggly.
+
+```{julia}
+step(y) = [rand(MultivariateNormal(μ_x(y, 1:2, 3), Σ_x)); rand(Normal(μ_θ(y, 3)[1], Σ_θ))]
+```
+
+```{julia}
+true_y = VectorOfArray(accumulate((y,_)-> step(y), 1:T; init=start))
+```
+
+```{julia}
+let f1 = Figure()
+	ax1 = f1[1, 1] = Axis(f1)
+	p1 = plot!(true_y[1, :], true_y[2, :], color=1:T)
+	Colorbar(f1[1,2], p1)
+	f1
+end
+```
+
+# Obstacle Location Prior
+
+We will assume an uninformative prior over the locations of our $k$ potential obstacles $m$:  $m_i \sim \mathcal{N}(0, \Sigma_m)$. For consistency with the earlier mean method defined for positions $x$, the mean function for obstacles will take a dummy argument.
+
+
+```{julia}
+k = 10
+```
+
+```{julia}
+μ_m(_) = fill(10, 2)
+```
+
+```{julia}
+Σ_m = Diagonal(fill(100, 2))
+```
+
+```{julia}
+true_m = rand(MultivariateNormal(μ_m(nothing), Σ_m), k)
+```
+
+```{julia}
+let f1 = Figure()
+	ax1 = f1[1, 1] = Axis(f1)
+	p1 = plot!(true_y[1, :], true_y[2, :], color=1:T, label="robot trajectory")
+	plot!(true_m[1, :], true_m[2,:], color=:red, label="map points")
+	f1[1,2] = Legend(f1, ax1)
+	f1
+end
+```
+
+Let
+$$
+z = \begin{bmatrix} y  m \end{bmatrix}
+$$
+combine the ego and obstacle parameters.
+
+
+```{julia}
+true_z = [vec(true_y); vec(true_m)]
+```
+
+# Observation Model
+Let $p(o_{t, i} | x_t, θ_t, m_i) = \mathcal{N}(R(-θ_t)(m_i - x_t), Σ_o)$, so that the robot's sensor tells it approximately how close each map point is in its local coordinate frame.
+
+
+```{julia}
+μ_obs(z, x, θ, m) = rot(-z[θ]) * (z[m] - z[x])
+```
+
+```{julia}
+Σ_obs = Diagonal(fill(0.1, 2))
+```
+
+```{julia}
+obs = VectorOfArray([VectorOfArray([
+	rand(MultivariateNormal(μ_obs(true_z, 3t+1:3t+2, 3t+3, (3T+2m+1):(3T+2m+2)), Σ_obs)) for m in 0:(k-1)]) for t in 0:(T-1)])
+```
+The following plots our observations over time, from black at the start to yellow at time $T$. The swirling shape comes from the fact that the robot spins as it moves.
+
+```{julia}
+let f = Figure()
+	ax = f[1, 1] = Axis(f)
+	for i in 1:k
+		p1 = plot!(obs[1,i,:], obs[2, i,:], color=1:T)
+		if i == 1
+			Colorbar(f[1,2], p1)
+		end
+	end
+	f
+end
+```
+
+# Guessing an Initial Trajectory
+We'll start out with our guess $\hat{y}$ as the mean of the motion model. We'll guess $\hat{m}$ by just sampling from the prior.
+
+
+```{julia}
+mhat = rand(MultivariateNormal(μ_m(nothing), Σ_m), k)
+```
+
+```{julia}
+zhat = [vec(yhat); vec(mhat)]
+```
+
+# Assembling Trajectory Probability
+The negative joint log density of our guess and observations $L(y, m)$ is a sum of factors $L_i = (v_i - μ_i(z))^TΛ_i(v_i - μ_i(z))$ for different variables $v_i$ with means $\mu_i$ and precisions $\Lambda_i$. The following code assembles these factors for the observation model above.
+
+
+```{julia}
+start_x(_) = [0., 1.0]
+```
+
+```{julia}
+start_θ(_) = fill(2π/100, 1)
+```
+
+# Maximizing Trajectory Probability
+We know $L_i(z) = -f_i(z)^T\Lambda_i f(z)$ where $f_i$ is a potentially nonlinear transformation of $z$. Taylor expand $f_i(z) \approx f_i(\hat{z}) + J_i\Delta$ where $\Delta = z - \hat{z}$ and $J_i = \nabla_z f_i(\hat{z})$. Substitute this expression in definition of $L_i$ giving $L_i(z) \approx \Delta^T H_i\Delta + 2 b_i^T\Delta + c$, where $H_i = J_i^T\Lambda_i J_i$ and $b_i = J_i^T\Lambda_i f_i(\hat{z})$.
+When add up all these factors to get the full log probability, we get $\Delta^T H \Delta + 2 b^T \Delta + c$ where $b$ is the sum of the $b_i$ and $H$ is the sum of the $H_i$.
+
+To minimize this quantity, take the derivative. We find that $L$ will be approximately minimized when $H\Delta = -b$ or $\Delta = -H^{-1}b$. It remains to solve for $\Delta$ and modify $z$ appropriately. Repeating this gives the Gauss Newton algorithm.
+
+When $f$ is not well approximated by its first order Taylor expansion, instead of solving $H^{-1}b$, it works better to solve the smoothed version $(H + \lambda \text{Diag}(H))^{-1}b$, where $\lambda$ is a factor that gets slowly lowered to zero as $z$ nears its optimal value. This is the [Levenberg-Marquardt](https://en.wikipedia.org/wiki/Levenberg–Marquardt_algorithm) algorithm.
+
+
+### Understanding `log_prob_builder`
+The `log_prob_builder` function above has two forms, depending on its `jac` argument. If `jac=true`, the function builds a vector of terms $H_i$ and $b_i$ described above. Othewise, it builds a vector of the negative log probabilities $L_i$.
+
+
+```{julia}
+const QuadformBuilder = Vector{Tuple{<: ExtendableSparseMatrix, Vector}}
+```
+These terms are computed by the `factor` function, which assembles $H$ and $b$ out of $f_i(z)$ and its jacobian $J$.
+
+```{julia}
+factor(Λ, (fval,_)::Tuple{<:Any, Nothing}) = fval' * (Λ * fval)
+```
+
+```{julia}
+function factor(Λ, (fval, J))
+	ΛJ = Λ * J
+	b = (ΛJ)' * fval
+	H = J' * ΛJ
+	(ExtendableSparseMatrix(H), b)
+end
+```
+Finally, we compute $f_i(z)$ and its Jacobian using the following wrappers around the `sparse_jac` function, which computes a function and its sparse Jacobian.
+
+# Handling Sparsity
+To define the `sparse_jac` function, we'll wrap the `jacobian` function from the `ForwardDiff` library.
+
+
+```{julia}
+function sparse_jac(f, z, support, outs; jac=true)
+	jac || return f(z), nothing
+	M = nothing
+	fz = nothing
+	function f_wrapper(z_sup)
+		newz = collect(eltype(z_sup), z)
+		newz[support] .= z_sup
+		f(newz)
+	end
+	z_sup = z[support]
+	res = DiffResults.JacobianResult(zeros(outs), z_sup)
+	res = ForwardDiff.jacobian!(res, f_wrapper, z_sup)
+	J = DiffResults.jacobian(res)
+	M = ExtendableSparseMatrix(outs, length(z))
+	M[:, support] .= J
+	DiffResults.value(res), M
+end
+```
+
+```{julia}
+function term(z, target, μ, outs, ixs...; jac=true)
+	support = [target; reduce(vcat, ixs; init=Int[])]
+	f(z) = z[target] - μ(z, ixs...)
+	sparse_jac(f, z, support, outs; jac)
+end
+```
+
+```{julia}
+function obs_term(z, obs, ixs...; jac=true)
+	support = reduce(vcat, ixs; init=Int[])
+	f(z) = obs - μ_obs(z, ixs...)
+	sparse_jac(f, z, support, 2; jac)
+end
+```
+
+```{julia}
+function log_prob_builder(z; jac=true)
+	bld = jac ? QuadformBuilder() : Vector{Float64}()
+
+	# We know the location distribution at time 1
+	push!(bld, factor(inv(Σ_x), term(z, 1:2, start_x, 2; jac)))
+	push!(bld, factor(inv(Σ_θ), term(z, 3:3, start_θ, 1; jac)))
+
+	# Add the Markovian jump probabilities at each step
+	for t in 1:(T-1)
+		ix = 3t+1
+		pix = 3(t-1)+1
+		push!(bld, factor(inv(Σ_x), term(z, ix:ix+1, μ_x, 2, pix:pix+1, pix+2; jac)))
+		push!(bld, factor(inv(Σ_θ), term(z, ix+2:ix+2, μ_θ, 1, pix+2; jac)))
+	end
+
+	# Add the prior on map components
+	for i in 0:(k-1)
+		ix = 3T+2i+1
+		push!(bld, factor(inv(Σ_m), term(z, ix:(ix+1), μ_m, 2; jac)))
+	end
+
+	# Add the observations
+	for t in 0:(T-1)
+		for i in 1:k
+			m = 3T+2(i-1)
+			ix = 3t+1
+			push!(bld, factor(inv(Σ_obs), obs_term(z, obs[:, i, t+1], ix:(ix+1), ix+2,(m+1):(m+2); jac)))
+		end
+	end
+	jac ? sum.(unzip(bld)) : sum(bld)
+end
+```
+
+```{julia}
+function maximize_logprob(z; λ=1e-3, α=2, β=3, maxiter=100, eps=1e-4)
+	Δ = ones(length(z))
+	i = 0
+	prevL = log_prob_builder(z; jac=false)
+	L = 0.0
+	while any(abs.(Δ) .> eps)  && i < maxiter
+		H, b = log_prob_builder(z; jac=true)
+		while true
+			Δ = (H + λ * Diagonal(H)) \ b
+			L = log_prob_builder(z - Δ; jac=false)
+			L >= prevL || break
+			λ *= β
+		end
+		z[:] .-= Δ
+		λ /= α
+		prevL = L
+		i += 1
+	end
+	println("Concluded after $i iterations")
+	z
+end
+```
+# Running the Optimization
+Here's the negative log probability of the robot's true trajectory.
+
+```{julia}
+log_prob_builder(true_z; jac=false)
+```
+Wereas here's how likely our prior mean would be:
+
+```{julia}
+log_prob_builder(zhat; jac=false)
+```
+Running Levenberg-Marquardt gives us a solution that isn't our true trajectory, but is technically more likely under the generative model above.
+
+```{julia}
+z_guess = maximize_logprob(copy(zhat))
+```
+
+```{julia}
+log_prob_builder(z_guess; jac=false)
+```
+Below, we plot the guessed trajectory as a line, with the true trajectory represented as a scatter plot.
+
+```{julia}
+y_guess = reshape(z_guess[1:3T], (3, T))
+```
+
+```{julia}
+let f1 = Figure()
+	ax1 = f1[1, 1] = Axis(f1)
+	p1 = plot!(true_y[1, :], true_y[2, :], color=1:T)
+	lines!(y_guess[1,:], y_guess[2,:], color=1:T+1)
+	Colorbar(f1[1,2], p1)
+	f1
+end
+```
+We ended up with a pretty good estiamte of the map points' locations as well.
+
+```{julia}
+m_guess = reshape(z_guess[3T+1:end], (2, k))
+```
+
+```{julia}
+let f1 = Figure()
+	ax1 = f1[1, 1] = Axis(f1)
+	plot!(true_m[1, :], true_m[2,:], color=:red, label="map points")
+	plot!(m_guess[1, :], m_guess[2,:], color=:black, label="guesses")
+	f1[1,2] = Legend(f1, ax1)
+	f1
+end
+```

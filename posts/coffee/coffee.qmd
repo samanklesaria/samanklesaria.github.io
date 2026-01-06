@@ -1,0 +1,131 @@
+---
+title: "Analyzing Coffee Yields"
+date: "2025-10-19"
+categories: [statistics]
+---
+
+```{r}
+library(tidyverse)
+library(lme4)
+library(rstanarm)
+options(mc.cores = 4)
+```
+
+This post demonstrates working with generalized linear mixed models in the context of coffee bean yield data. Each row in the following dataset is an observation of coffee bean yield from a single farm over the past year. Note that this dataset comes from cluster sampling. First, a random sample of supply units were chosen. Then, within each supply unit, a random sample of farms in the same cluster is taken. The number of farms sampled from each sampling unit is proportional to the size of the sampling unit, making sample means unbiased estimates of population means.
+
+```{r}
+data <- read_csv("coffee.csv")
+data |> select(ipm_methods, region, supply_unit, obs_shade)
+```
+
+We'll need to do a little pre-processing first. The column listing pest management techniques (ipm_methods) can contain multiple treatment names, separated by a space. We'll expand these into binary categories.
+
+```{r}
+extract_categories <- function(data, s) {
+  data |> separate_longer_delim(cols = {{ s }}, delim=" ") |> mutate(value = 1) |>
+  pivot_wider(
+    names_from = {{ s }},
+    values_from = value,
+    values_fill = 0
+  )
+}
+```
+
+We'll also convert the *obs_shade* and *last_replanted* columns to factors.
+
+```{r}
+data <- data |>
+  mutate(
+    obs_shade=strtoi(str_match(obs_shade, "_(\\d+)_percent")[,2]),
+    last_replanted=factor(last_replanted,
+                          levels=c("more_than_5_years_ago", "2_5_years_ago", "within_the_last_two_years"),
+                          ordered=TRUE),
+    obs_shade=factor(obs_shade, ordered = TRUE)) |>
+  extract_categories(ipm_methods)
+```
+
+Now, on to the main question: does shade decrease yield? The following plot certainly suggests it does.
+
+```{r}
+data |> ggplot(aes(obs_shade, yield_kg_ha_green)) + geom_boxplot()
+```
+
+
+But there's likely confounders here. Higher altitude farms might both get less shade and have soils less amenable to high yields.
+
+```{r}
+data |> ggplot(aes(scale(farm_altitude_meters), log(yield_kg_ha_green))) + geom_point() + facet_wrap(~obs_shade) + geom_smooth()
+```
+
+ Let's try modeling this more carefully.
+
+```{r}
+fit <- lmer(log(yield_kg_ha_green) ~ obs_shade + (1|region/supply_unit) + scale(farm_altitude_meters), data=data)
+tdat <- tibble(resid=residuals(fit))
+tdat |> ggplot(aes(resid)) + geom_histogram()
+```
+
+A log linear model seems a little skewed.
+
+```{r}
+ggplot(tdat,aes(sample=resid)) + stat_qq() + stat_qq_line()
+```
+A GLM with a Gamma family works better here.
+
+```{r}
+fit2 <- glmer(yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) + (1|region/supply_unit), data=data, family=Gamma(link="log"))
+plot(fit2)
+```
+
+```{r}
+tibble(resid=residuals(fit2)) |> ggplot(aes(sample=resid)) + stat_qq() + stat_qq_line()
+```
+
+```{r}
+summary(fit2)
+```
+
+
+We see a pretty clear negative linear relationship between shade coverage and yield. To decrease the variance of our estimate, we can try controlling for other factors. Let's factor in fertilizer use.
+
+```{r}
+data |> ggplot(aes(scale(average_fertilizer_per_hectare), log(yield_kg_ha_green))) + geom_point() + geom_smooth(span=0.2)
+```
+It seems like fertilizer has a highly nonlinear relationship with yield. Let's just look at quantiles.
+
+```{r}
+data <- data |> mutate(fertilizer_quantile = ntile(average_fertilizer_per_hectare, 4))
+```
+
+```{r}
+data |> ggplot(aes(fertilizer_quantile, log(yield_kg_ha_green))) + geom_bar(stat="identity")
+
+```
+
+
+
+```{r}
+fit3 <- glmer(yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) + fertilizer_quantile + (1|region/supply_unit), data=data, family=Gamma(link="log"))
+summary(fit3)
+```
+
+The AIC and residual variance decreased, and the standard error for shade's negative linear effect shrunk even smaller.
+
+
+```{r}
+plot(fit3)
+```
+ Finally, we can add in factors for the pest control efforts we extracted initially.
+
+```{r}
+fit4 <- glmer(yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) + fertilizer_quantile + use_insect_traps + biological_control + (1|region/supply_unit), data=data, family=Gamma(link="log"))
+summary(fit4)
+```
+
+Interestingly, controlling for pest mitigation methods makes the effect of altitude seem much less significant.
+An analysis of deviance lets us compare the nested models.
+
+```{r}
+anova(fit2, fit3, fit4)
+```
+The difference in deviances (likelihood ratio) for model 4 is still significant.
