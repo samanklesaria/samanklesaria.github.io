@@ -3144,6 +3144,55 @@ font-style: inherit;">=</span> attention(q, k, v)</span></code></pre></div></div
   <pubDate>Sat, 30 Aug 2025 05:00:00 GMT</pubDate>
 </item>
 <item>
+  <title>So You Want to Learn [X]</title>
+  <link>https://samanklesaria.github.io/posts/books.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>In the style of Susan Rigetti’s classic <a href="https://www.susanrigetti.com/physics">“So You Want to Learn Physics”</a>, this post lists some of my favorite resources for learning stuff.</p>
+<section id="statistics" class="level2">
+<h2 class="anchored" data-anchor-id="statistics">Statistics</h2>
+<ul>
+<li><strong>Statistical Modeling: A Fresh Approach</strong> <em>(Daniel Kaplan)</em> is a great introduction to frequentist statistics with as little math is possible.</li>
+<li><strong>Regression and Other Stories</strong> <em>(Andrew Gelman et al)</em> is similar, but uses a Bayesian approach.</li>
+<li><strong>Statistical Inference</strong> <em>(George Casella and Roger L. Berger)</em> is great for learning about estimation and hypothesis testing.</li>
+<li><strong>Plane Analysis to Complex Questions</strong> <em>(George E. Forsythe and Cleve B. Moler)</em> is great for learning about analysis of variance if you already know linear algebra.</li>
+<li><strong>Generalized Linear Models with Examples in R</strong> <em>(Peter Dunn et al)</em> tells you all about exponential dispersion models and how the residuals we know from linear regression get generalized as “deviances” in GLMs.</li>
+<li><strong>Statistical Rethinking</strong> <em>(Richard McElreath)</em> is a great introduction to Bayesian statistics with a focus on modeling.</li>
+<li><strong>Bayesian Data Analysis</strong> <em>(Andrew Gelman et al)</em> goes into more detail. It’s the definitive text on Bayesian methods.</li>
+<li><strong>All of Nonparametric Statistics</strong> <em>(Larry Wasserman)</em> gives an accessible introduction to nonparametric methods (bootstrap, jackknife, kernel smoothing) and why they work (influence functions, Hadamard differentiability).</li>
+<li><strong>Complex Surveys: A guide to Analysis</strong> <em>(Thomas Lumley)</em> talks about estimating statistics of finite populations, which requires different kinds of estimators than those we’ve seen so far.</li>
+<li><strong>Survival Analysis: Techniques for Censored and Truncated Data</strong> <em>(John P. Klein and Melvin L. Moeschberger)</em> got me up to speed on survival analysis.</li>
+<li><strong>Causal Inference: The Mixtape</strong> <em>(Scott Cunningham)</em> is a great resource for observational studies, with plenty of worked examples.</li>
+<li><strong>Handbook of Markov Chain Monte Carlo</strong> is great for understanding and diagnosing failures of fancier MCMC techniques.</li>
+<li><strong>Elements of Sequential Monte Carlo</strong> <em>(Christian Naesseth el al)</em> is the simplest tutorial on sequential Monte Carlo methods I’ve seen.</li>
+</ul>
+</section>
+<section id="machine-learning" class="level2">
+<h2 class="anchored" data-anchor-id="machine-learning">Machine Learning</h2>
+<ul>
+<li><strong>Pattern Recognition and Machine Learning</strong> <em>(Christopher M. Bishop)</em> is my go-to reference for machine learning fundamentals.</li>
+<li><strong>Gaussian Processes for Machine Learning</strong> <em>(Carl Rasmussen and Christopher K. I. Williams)</em> is the classic text on Gaussian processes.</li>
+<li><strong>Reinforcement Learning: An Introduction</strong> <em>(Richard S. Sutton and Andrew G. Barto)</em> is a very accessible introduction to reinforcement learning.</li>
+<li><strong>Bandit Algorithms</strong> <em>(Tor Lattimore and Csaba Szepesvári)</em> is a comprehensive guide to multi-armed bandit problems.</li>
+<li><strong>Online Learning and Online Convex Optimization</strong> <em>(Shai Shalev-Shwartz and Yoram Singer)</em> is a short introduction to online learning.</li>
+<li><strong>Convex Optimization</strong> <em>(Stephen Boyd and Lieven Vandenberghe)</em> is the canonical reference for convex optimization.</li>
+<li><strong>Understanding Machine Learning: From Theory to Algorithms</strong> <em>(Shai Shalev-Shwartz and Shai Ben-David)</em> gives you a taste of learning theory.</li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>statistics</category>
+  <category>machine_learning</category>
+  <guid>https://samanklesaria.github.io/posts/books.html</guid>
+  <pubDate>Thu, 21 Aug 2025 05:00:00 GMT</pubDate>
+</item>
+<item>
   <title>Frequentist Sample Size Estimation</title>
   <link>https://samanklesaria.github.io/posts/Frequentist_Sample_Size_Estimation.html</link>
   <description><![CDATA[ 
@@ -3648,100 +3697,6 @@ font-style: inherit;">list</span>(ks))</span></code></pre></div></div>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/Frequentist_Sample_Size_Estimation.html</guid>
   <pubDate>Fri, 15 Aug 2025 05:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>So You Want to Learn [X]</title>
-  <link>https://samanklesaria.github.io/posts/books.html</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<p>In the style of Susan Rigetti’s classic <a href="https://www.susanrigetti.com/physics">“So You Want to Learn Physics”</a>, this post lists some of my favorite resources for learning stuff.</p>
-<section id="statistics" class="level2">
-<h2 class="anchored" data-anchor-id="statistics">Statistics</h2>
-<ul>
-<li><strong>Statistical Modeling: A Fresh Approach</strong> <em>(Daniel Kaplan)</em> is a great introduction to frequentist statistics with as little math is possible.</li>
-<li><strong>Regression and Other Stories</strong> <em>(Andrew Gelman et al)</em> is similar, but uses a Bayesian approach.</li>
-<li><strong>Statistical Inference</strong> <em>(George Casella and Roger L. Berger)</em> is great for learning about estimation and hypothesis testing.</li>
-<li><strong>Plane Analysis to Complex Questions</strong> <em>(George E. Forsythe and Cleve B. Moler)</em> is great for learning about analysis of variance if you already know linear algebra.</li>
-<li><strong>Generalized Linear Models with Examples in R</strong> <em>(Peter Dunn et al)</em> tells you all about exponential dispersion models and how the residuals we know from linear regression get generalized as “deviances” in GLMs.</li>
-<li><strong>Statistical Rethinking</strong> <em>(Richard McElreath)</em> is a great introduction to Bayesian statistics with a focus on modeling.</li>
-<li><strong>Bayesian Data Analysis</strong> <em>(Andrew Gelman et al)</em> goes into more detail. It’s the definitive text on Bayesian methods.</li>
-<li><strong>All of Nonparametric Statistics</strong> <em>(Larry Wasserman)</em> gives an accessible introduction to nonparametric methods (bootstrap, jackknife, kernel smoothing) and why they work (influence functions, Hadamard differentiability).</li>
-<li><strong>Complex Surveys: A guide to Analysis</strong> <em>(Thomas Lumley)</em> talks about estimating statistics of finite populations, which requires different kinds of estimators than those we’ve seen so far.</li>
-<li><strong>Survival Analysis: Techniques for Censored and Truncated Data</strong> <em>(John P. Klein and Melvin L. Moeschberger)</em> got me up to speed on survival analysis.</li>
-<li><strong>Causal Inference: The Mixtape</strong> <em>(Scott Cunningham)</em> is a great resource for observational studies, with plenty of worked examples.</li>
-<li><strong>Handbook of Markov Chain Monte Carlo</strong> is great for understanding and diagnosing failures of fancier MCMC techniques.</li>
-<li><strong>Elements of Sequential Monte Carlo</strong> <em>(Christian Naesseth el al)</em> is the simplest tutorial on sequential Monte Carlo methods I’ve seen.</li>
-</ul>
-</section>
-<section id="machine-learning" class="level2">
-<h2 class="anchored" data-anchor-id="machine-learning">Machine Learning</h2>
-<ul>
-<li><strong>Pattern Recognition and Machine Learning</strong> <em>(Christopher M. Bishop)</em> is my go-to reference for machine learning fundamentals.</li>
-<li><strong>Gaussian Processes for Machine Learning</strong> <em>(Carl Rasmussen and Christopher K. I. Williams)</em> is the classic text on Gaussian processes.</li>
-<li><strong>Reinforcement Learning: An Introduction</strong> <em>(Richard S. Sutton and Andrew G. Barto)</em> is a very accessible introduction to reinforcement learning.</li>
-<li><strong>Bandit Algorithms</strong> <em>(Tor Lattimore and Csaba Szepesvári)</em> is a comprehensive guide to multi-armed bandit problems.</li>
-<li><strong>Online Learning and Online Convex Optimization</strong> <em>(Shai Shalev-Shwartz and Yoram Singer)</em> is a short introduction to online learning.</li>
-<li><strong>Convex Optimization</strong> <em>(Stephen Boyd and Lieven Vandenberghe)</em> is the canonical reference for convex optimization.</li>
-<li><strong>Understanding Machine Learning: From Theory to Algorithms</strong> <em>(Shai Shalev-Shwartz and Shai Ben-David)</em> gives you a taste of learning theory.</li>
-</ul>
-
-
-</section>
-
- ]]></description>
-  <category>statistics</category>
-  <category>machine_learning</category>
-  <guid>https://samanklesaria.github.io/posts/books.html</guid>
-  <pubDate>Thu, 31 Jul 2025 05:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>An Opinionated Tooling Guide</title>
-  <link>https://samanklesaria.github.io/posts/Tooling Guide.html</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<p><strong>Statistics and Data Analysis:</strong> Overall: use R. Its has the largest ecosystem of statistical packages.</p>
-<ul>
-<li><p>For Bayesian modeling, Stan has bindings for everything, but it’s easiest to use from R, and the rest of the toolkit <em>(brms, loo, bayesplot, etc)</em> doesn’t have an equivalent outside of R. Turing.jl and PyMC3 are substantially slower, and Numpyro is less mature (although it can be faster on a GPU).</p></li>
-<li><p>For visualization, R has ggplot2 and ggpairs, Julia has AlgebraOfGraphics and Python has Seaborn. They’re all about as good as each other.</p></li>
-<li><p>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find Dataframes.jl to be the nicest of the bunch (with DataframesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and the rest of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</p></li>
-<li><p>For geographic queries, R’s <em>sf</em>&nbsp;and Julia’s <em>GeoStats</em>&nbsp;are lovely. Python’s <em>GeoPandas</em>,&nbsp;being based on Pandas, is much more annoying to use.</p></li>
-<li><p>For frequentist statistics, Python’s <em>statsmodels</em> and Julia’s <em>GLMs, MixedModels</em> and <em>Survival</em> packages give you much of base R and its <em>lmer</em> and <em>survival</em> packages, but neither Julia nor Python have anything like <em>survey</em>.</p></li>
-<li><p>For Gaussian Process modeling, Python’s <em>GPytorch</em> is far faster and more feature-complete than anything else. Julia’s <em>AbstractGPs</em> has a nicer interface and is easier to extend, but it’s slower and lacks the approximate inference algorithms necessary for large datasets.</p></li>
-</ul>
-<p><strong>Neural Nets</strong></p>
-<ul>
-<li>There’s a plethora of SAAS companies that promise easier experiment tracking. But in my experience, the easiest option is just to use git worktrees. Each experiment should live in a separate branch with a README documenting exactly what’s being tested. This makes it easy to fork and cherry-pick pieces of different experiments. Use git-lfs for weights and training data.</li>
-<li>For training, use Jax with equinox.</li>
-<li>For visualization, use Tensorboard.</li>
-</ul>
-<p><strong>Other Programming</strong></p>
-<ul>
-<li>Use Julia for anything numerical</li>
-<li>Use Python for scripting</li>
-<li>Use Rust if you want to be super-efficient.</li>
-<li>Otherwise, use Haskell.</li>
-</ul>
-<p><strong>Text Editors:</strong> Currently, I use Zed on a Mac. It’s very fast, and has excellent support for language servers and LLM assisted editing. When I used arch linux with xmonad, I favored kakoune (which has an order of magnitude smaller binary size and memory use) but kakoune really needs a tiling window manager to work well.</p>
-<p><strong>Notebooks:</strong> I use Pluto for Julia, Marimo for Python, and Quarto (in RStudio) for R. It would be nice if there was a unified tool for this kind of thing- maybe Positron will get there eventually.</p>
-<p><strong>Static Site Generation:</strong> Use Quarto. Compared to Jekyll, niceties like latex math, computational notebooks and bibliography management are built in.</p>
-<p><strong>Databases</strong> - For OLTP, use postgres with pgvector &amp; pgvectorscale for vector search and postGIS for spatial data. - For analytical workloads, use DuckDB - For local RAGs, use ChromaDB.</p>
-<p><strong>Documents</strong> - If you’re the only one editing it, use Typora. - If you need to collaborate with others, use Google Docs.</p>
-<p><strong>Other</strong> - Zulip is much nicer than Slack. - Ollama is great for local LLMs. - Pixi is essential for package management across languages.</p>
-
-
-
- ]]></description>
-  <category>tools</category>
-  <guid>https://samanklesaria.github.io/posts/Tooling Guide.html</guid>
-  <pubDate>Thu, 31 Jul 2025 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Bayesian Power Analysis for A/B/n Tests</title>
@@ -4796,6 +4751,51 @@ font-style: inherit;">end</span></span></code></pre></div></div>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/bayesian_logistic_regression/bayesian_logistic_regression.html</guid>
   <pubDate>Thu, 31 Jul 2025 05:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>An Opinionated Tooling Guide</title>
+  <link>https://samanklesaria.github.io/posts/tooling_guide.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p><strong>Statistics and Data Analysis:</strong> Overall: use R. Its has the largest ecosystem of statistical packages.</p>
+<ul>
+<li><p>For Bayesian modeling, Stan has bindings for everything, but it’s easiest to use from R, and the rest of the toolkit <em>(brms, loo, bayesplot, etc)</em> doesn’t have an equivalent outside of R. Turing.jl and PyMC3 are substantially slower, and Numpyro is less mature (although it can be faster on a GPU).</p></li>
+<li><p>For visualization, R has ggplot2 and ggpairs, Julia has AlgebraOfGraphics and Python has Seaborn. They’re all about as good as each other.</p></li>
+<li><p>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find Dataframes.jl to be the nicest of the bunch (with DataframesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and the rest of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</p></li>
+<li><p>For geographic queries, R’s <em>sf</em>&nbsp;and Julia’s <em>GeoStats</em>&nbsp;are lovely. Python’s <em>GeoPandas</em>,&nbsp;being based on Pandas, is much more annoying to use.</p></li>
+<li><p>For frequentist statistics, Python’s <em>statsmodels</em> and Julia’s <em>GLMs, MixedModels</em> and <em>Survival</em> packages give you much of base R and its <em>lmer</em> and <em>survival</em> packages, but neither Julia nor Python have anything like <em>survey</em>.</p></li>
+<li><p>For Gaussian Process modeling, Python’s <em>GPytorch</em> is far faster and more feature-complete than anything else. Julia’s <em>AbstractGPs</em> has a nicer interface and is easier to extend, but it’s slower and lacks the approximate inference algorithms necessary for large datasets.</p></li>
+</ul>
+<p><strong>Neural Nets</strong></p>
+<ul>
+<li>There’s a plethora of SAAS companies that promise easier experiment tracking. But in my experience, the easiest option is just to use git worktrees. Each experiment should live in a separate branch with a README documenting exactly what’s being tested. This makes it easy to fork and cherry-pick pieces of different experiments. Use git-lfs for weights and training data.</li>
+<li>For training, use Jax with equinox.</li>
+<li>For visualization, use Tensorboard.</li>
+</ul>
+<p><strong>Other Programming</strong></p>
+<ul>
+<li>Use Julia for anything numerical</li>
+<li>Use Python for scripting</li>
+<li>Use Rust if you want to be super-efficient.</li>
+<li>Otherwise, use Haskell.</li>
+</ul>
+<p><strong>Text Editors:</strong> Currently, I use Zed on a Mac. It’s very fast, and has excellent support for language servers and LLM assisted editing. When I used arch linux with xmonad, I favored kakoune (which has an order of magnitude smaller binary size and memory use) but kakoune really needs a tiling window manager to work well.</p>
+<p><strong>Notebooks:</strong> I use Pluto for Julia, Marimo for Python, and Quarto (in RStudio) for R. It would be nice if there was a unified tool for this kind of thing- maybe Positron will get there eventually.</p>
+<p><strong>Static Site Generation:</strong> Use Quarto. Compared to Jekyll, niceties like latex math, computational notebooks and bibliography management are built in.</p>
+<p><strong>Databases</strong> - For OLTP, use postgres with pgvector &amp; pgvectorscale for vector search and postGIS for spatial data. - For analytical workloads, use DuckDB - For local RAGs, use ChromaDB.</p>
+<p><strong>Documents</strong> - If you’re the only one editing it, use Typora. - If you need to collaborate with others, use Google Docs.</p>
+<p><strong>Other</strong> - Zulip is much nicer than Slack. - Ollama is great for local LLMs. - Pixi is essential for package management across languages.</p>
+
+
+
+ ]]></description>
+  <category>tools</category>
+  <guid>https://samanklesaria.github.io/posts/tooling_guide.html</guid>
+  <pubDate>Sun, 01 Jun 2025 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Finding Common Topics</title>
