@@ -1,0 +1,32 @@
+---
+title: "So You Want to Learn [X]"
+date: "2025-07-31"
+categories: ["statistics", "machine_learning"]
+---
+
+In the style of Susan Rigetti's classic ["So You Want to Learn Physics"](https://www.susanrigetti.com/physics), this post
+lists some of my favorite resources for learning stuff.
+
+## Statistics
+- **Statistical Modeling: A Fresh Approach** *(Daniel  Kaplan)* is a great introduction to frequentist statistics with as little math is possible.
+- **Regression and Other Stories** *(Andrew Gelman et al)* is similar, but uses a Bayesian approach.
+- **Statistical Inference** *(George Casella and Roger L. Berger)* is great for learning about estimation and hypothesis testing.
+- **Plane Analysis to Complex Questions** *(George E. Forsythe and Cleve B. Moler)* is great for learning about analysis of variance if you already know linear algebra.
+- **Generalized Linear Models with Examples in R** *(Peter Dunn et al)* tells you all about exponential dispersion models and how the residuals we know from linear regression get generalized as "deviances" in GLMs.
+- **Statistical Rethinking** *(Richard McElreath)* is a great introduction to Bayesian statistics with a focus on modeling.
+- **Bayesian Data Analysis** *(Andrew Gelman et al)* goes into more detail. It's the definitive text on Bayesian methods.
+- **All of Nonparametric Statistics** *(Larry Wasserman)* gives an accessible introduction to nonparametric methods (bootstrap, jackknife, kernel smoothing) and why they work (influence functions, Hadamard differentiability).
+- **Complex Surveys: A guide to Analysis** *(Thomas Lumley)* talks about estimating statistics of finite populations, which requires different kinds of estimators than those we've seen so far.
+- **Survival Analysis: Techniques for Censored and Truncated Data** *(John P. Klein and Melvin L. Moeschberger)* got me up to speed on survival analysis.
+- **Causal Inference: The Mixtape** *(Scott Cunningham)* is a great resource for observational studies, with plenty of worked examples.
+- **Handbook of Markov Chain Monte Carlo** is great for understanding and diagnosing failures of fancier MCMC techniques.
+- **Elements of Sequential Monte Carlo** *(Christian Naesseth el al)* is the simplest tutorial on sequential Monte Carlo methods I've seen.
+
+## Machine Learning
+- **Pattern Recognition and Machine Learning** *(Christopher M. Bishop)* is my go-to reference for machine learning fundamentals.
+- **Gaussian Processes for Machine Learning** *(Carl Rasmussen and Christopher K. I. Williams)* is the classic text on Gaussian processes.
+- **Reinforcement Learning: An Introduction** *(Richard S. Sutton and Andrew G. Barto)* is a very accessible introduction to reinforcement learning.
+- **Bandit Algorithms** *(Tor Lattimore and Csaba Szepesvári)* is a comprehensive guide to multi-armed bandit problems.
+- **Online Learning and Online Convex Optimization** *(Shai Shalev-Shwartz and Yoram Singer)* is a short introduction to online learning.
+- **Convex Optimization** *(Stephen Boyd and Lieven Vandenberghe)* is the canonical reference for convex optimization.
+- **Understanding Machine Learning: From Theory to Algorithms** *(Shai Shalev-Shwartz and Shai Ben-David)* gives you a taste of learning theory.
