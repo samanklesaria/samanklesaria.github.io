@@ -3650,6 +3650,100 @@ font-style: inherit;">list</span>(ks))</span></code></pre></div></div>
   <pubDate>Fri, 15 Aug 2025 05:00:00 GMT</pubDate>
 </item>
 <item>
+  <title>So You Want to Learn [X]</title>
+  <link>https://samanklesaria.github.io/posts/books.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>In the style of Susan Rigetti’s classic <a href="https://www.susanrigetti.com/physics">“So You Want to Learn Physics”</a>, this post lists some of my favorite resources for learning stuff.</p>
+<section id="statistics" class="level2">
+<h2 class="anchored" data-anchor-id="statistics">Statistics</h2>
+<ul>
+<li><strong>Statistical Modeling: A Fresh Approach</strong> <em>(Daniel Kaplan)</em> is a great introduction to frequentist statistics with as little math is possible.</li>
+<li><strong>Regression and Other Stories</strong> <em>(Andrew Gelman et al)</em> is similar, but uses a Bayesian approach.</li>
+<li><strong>Statistical Inference</strong> <em>(George Casella and Roger L. Berger)</em> is great for learning about estimation and hypothesis testing.</li>
+<li><strong>Plane Analysis to Complex Questions</strong> <em>(George E. Forsythe and Cleve B. Moler)</em> is great for learning about analysis of variance if you already know linear algebra.</li>
+<li><strong>Generalized Linear Models with Examples in R</strong> <em>(Peter Dunn et al)</em> tells you all about exponential dispersion models and how the residuals we know from linear regression get generalized as “deviances” in GLMs.</li>
+<li><strong>Statistical Rethinking</strong> <em>(Richard McElreath)</em> is a great introduction to Bayesian statistics with a focus on modeling.</li>
+<li><strong>Bayesian Data Analysis</strong> <em>(Andrew Gelman et al)</em> goes into more detail. It’s the definitive text on Bayesian methods.</li>
+<li><strong>All of Nonparametric Statistics</strong> <em>(Larry Wasserman)</em> gives an accessible introduction to nonparametric methods (bootstrap, jackknife, kernel smoothing) and why they work (influence functions, Hadamard differentiability).</li>
+<li><strong>Complex Surveys: A guide to Analysis</strong> <em>(Thomas Lumley)</em> talks about estimating statistics of finite populations, which requires different kinds of estimators than those we’ve seen so far.</li>
+<li><strong>Survival Analysis: Techniques for Censored and Truncated Data</strong> <em>(John P. Klein and Melvin L. Moeschberger)</em> got me up to speed on survival analysis.</li>
+<li><strong>Causal Inference: The Mixtape</strong> <em>(Scott Cunningham)</em> is a great resource for observational studies, with plenty of worked examples.</li>
+<li><strong>Handbook of Markov Chain Monte Carlo</strong> is great for understanding and diagnosing failures of fancier MCMC techniques.</li>
+<li><strong>Elements of Sequential Monte Carlo</strong> <em>(Christian Naesseth el al)</em> is the simplest tutorial on sequential Monte Carlo methods I’ve seen.</li>
+</ul>
+</section>
+<section id="machine-learning" class="level2">
+<h2 class="anchored" data-anchor-id="machine-learning">Machine Learning</h2>
+<ul>
+<li><strong>Pattern Recognition and Machine Learning</strong> <em>(Christopher M. Bishop)</em> is my go-to reference for machine learning fundamentals.</li>
+<li><strong>Gaussian Processes for Machine Learning</strong> <em>(Carl Rasmussen and Christopher K. I. Williams)</em> is the classic text on Gaussian processes.</li>
+<li><strong>Reinforcement Learning: An Introduction</strong> <em>(Richard S. Sutton and Andrew G. Barto)</em> is a very accessible introduction to reinforcement learning.</li>
+<li><strong>Bandit Algorithms</strong> <em>(Tor Lattimore and Csaba Szepesvári)</em> is a comprehensive guide to multi-armed bandit problems.</li>
+<li><strong>Online Learning and Online Convex Optimization</strong> <em>(Shai Shalev-Shwartz and Yoram Singer)</em> is a short introduction to online learning.</li>
+<li><strong>Convex Optimization</strong> <em>(Stephen Boyd and Lieven Vandenberghe)</em> is the canonical reference for convex optimization.</li>
+<li><strong>Understanding Machine Learning: From Theory to Algorithms</strong> <em>(Shai Shalev-Shwartz and Shai Ben-David)</em> gives you a taste of learning theory.</li>
+</ul>
+
+
+</section>
+
+ ]]></description>
+  <category>statistics</category>
+  <category>machine_learning</category>
+  <guid>https://samanklesaria.github.io/posts/books.html</guid>
+  <pubDate>Thu, 31 Jul 2025 05:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>An Opinionated Tooling Guide</title>
+  <link>https://samanklesaria.github.io/posts/Tooling Guide.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p><strong>Statistics and Data Analysis:</strong> Overall: use R. Its has the largest ecosystem of statistical packages.</p>
+<ul>
+<li><p>For Bayesian modeling, Stan has bindings for everything, but it’s easiest to use from R, and the rest of the toolkit <em>(brms, loo, bayesplot, etc)</em> doesn’t have an equivalent outside of R. Turing.jl and PyMC3 are substantially slower, and Numpyro is less mature (although it can be faster on a GPU).</p></li>
+<li><p>For visualization, R has ggplot2 and ggpairs, Julia has AlgebraOfGraphics and Python has Seaborn. They’re all about as good as each other.</p></li>
+<li><p>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find Dataframes.jl to be the nicest of the bunch (with DataframesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and the rest of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</p></li>
+<li><p>For geographic queries, R’s <em>sf</em>&nbsp;and Julia’s <em>GeoStats</em>&nbsp;are lovely. Python’s <em>GeoPandas</em>,&nbsp;being based on Pandas, is much more annoying to use.</p></li>
+<li><p>For frequentist statistics, Python’s <em>statsmodels</em> and Julia’s <em>GLMs, MixedModels</em> and <em>Survival</em> packages give you much of base R and its <em>lmer</em> and <em>survival</em> packages, but neither Julia nor Python have anything like <em>survey</em>.</p></li>
+<li><p>For Gaussian Process modeling, Python’s <em>GPytorch</em> is far faster and more feature-complete than anything else. Julia’s <em>AbstractGPs</em> has a nicer interface and is easier to extend, but it’s slower and lacks the approximate inference algorithms necessary for large datasets.</p></li>
+</ul>
+<p><strong>Neural Nets</strong></p>
+<ul>
+<li>There’s a plethora of SAAS companies that promise easier experiment tracking. But in my experience, the easiest option is just to use git worktrees. Each experiment should live in a separate branch with a README documenting exactly what’s being tested. This makes it easy to fork and cherry-pick pieces of different experiments. Use git-lfs for weights and training data.</li>
+<li>For training, use Jax with equinox.</li>
+<li>For visualization, use Tensorboard.</li>
+</ul>
+<p><strong>Other Programming</strong></p>
+<ul>
+<li>Use Julia for anything numerical</li>
+<li>Use Python for scripting</li>
+<li>Use Rust if you want to be super-efficient.</li>
+<li>Otherwise, use Haskell.</li>
+</ul>
+<p><strong>Text Editors:</strong> Currently, I use Zed on a Mac. It’s very fast, and has excellent support for language servers and LLM assisted editing. When I used arch linux with xmonad, I favored kakoune (which has an order of magnitude smaller binary size and memory use) but kakoune really needs a tiling window manager to work well.</p>
+<p><strong>Notebooks:</strong> I use Pluto for Julia, Marimo for Python, and Quarto (in RStudio) for R. It would be nice if there was a unified tool for this kind of thing- maybe Positron will get there eventually.</p>
+<p><strong>Static Site Generation:</strong> Use Quarto. Compared to Jekyll, niceties like latex math, computational notebooks and bibliography management are built in.</p>
+<p><strong>Databases</strong> - For OLTP, use postgres with pgvector &amp; pgvectorscale for vector search and postGIS for spatial data. - For analytical workloads, use DuckDB - For local RAGs, use ChromaDB.</p>
+<p><strong>Documents</strong> - If you’re the only one editing it, use Typora. - If you need to collaborate with others, use Google Docs.</p>
+<p><strong>Other</strong> - Zulip is much nicer than Slack. - Ollama is great for local LLMs. - Pixi is essential for package management across languages.</p>
+
+
+
+ ]]></description>
+  <category>tools</category>
+  <guid>https://samanklesaria.github.io/posts/Tooling Guide.html</guid>
+  <pubDate>Thu, 31 Jul 2025 05:00:00 GMT</pubDate>
+</item>
+<item>
   <title>Bayesian Power Analysis for A/B/n Tests</title>
   <link>https://samanklesaria.github.io/posts/bayesian_logistic_regression/bayesian_logistic_regression.html</link>
   <description><![CDATA[ 
@@ -13029,853 +13123,6 @@ font-style: inherit;">;</span></span></code></pre></div></div>
   <category>machine_learning</category>
   <guid>https://samanklesaria.github.io/posts/conjugate_computation/Conjugate-Computation.html</guid>
   <pubDate>Wed, 16 Aug 2023 05:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Generative ODE Models are VAEs</title>
-  <link>https://samanklesaria.github.io/posts/Diffusion-is-a-fancy-VAE.html</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<p>Generative image models based on ordinary differential equations can be seen as forms of variational auto-encoders with a partially deterministic inference network. <img src="https://latex.codecogs.com/png.latex?%5Cnewcommand%7B%5Ccoloneqq%7D%7B%5Cmathrel%7B%5Cvcenter%7B:%7D%7D=%7D"></p>
-<section id="variational-auto-encoders" class="level1">
-<h1>Variational Auto-encoders</h1>
-<p>Given a dataset of samples <img src="https://latex.codecogs.com/png.latex?y"> from an unknown distribution <img src="https://latex.codecogs.com/png.latex?%5Cpi_1">, generative models attempt to find parameters <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> for a fixed family that maximizes the likelihood <img src="https://latex.codecogs.com/png.latex?p_%5Ctheta(y)">. When the family implicitly marginalizes over a latent variable <img src="https://latex.codecogs.com/png.latex?z"> so that <img src="https://latex.codecogs.com/png.latex?%5Clog%20p_%5Ctheta(y)%20=%20%5Clog%20E_%7Bz%20%5Csim%20p%7D%20p_%5Ctheta(y%20%5Cvert%20%20z)">, maximum likelihood estimation becomes intractable in general. Variational auto-encoders address this problem by maximizing a lower bound on the likelihood: <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Clog%20p_%5Ctheta(y)%20&amp;=%20%5Clog%20E_%7Bz%20%5Csim%20p%7D%20p_%5Ctheta(y%20%5Cvert%20%20z)%20%5C%5C%0A&amp;=%5Clog%20E_%7Bq(z%20%5Cvert%20%20y)%7D%20%5Cfrac%7Bp(y%5Cvert%20z)%20p(z)%7D%7Bq(z%5Cvert%20y)%7D%20&amp;%5Ctext%7B%20(importance%20sampling)%7D%5C%5C%0A&amp;%20%5Cgeq%20E_%7Bq(z%20%5Cvert%20%20y)%7D%20%5Clog%20%5Cfrac%7Bp(y%5Cvert%20z)%20p(z)%7D%7Bq(z)%7D%20&amp;%5Ctext%7B%20(Jensen's%20inequality)%7D%0A%5Cend%7Balign*%7D%0A"></p>
-<p>This quantity <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BL%7D%20%5Ccoloneqq%20E_%7Bq(z%20%5Cvert%20%20y)%7D%20%5Clog%20p(y,z)%20-%20%5Clog%20q(z)"> is known as the <em>evidence lower bound</em> or ELBO. The distribution <img src="https://latex.codecogs.com/png.latex?q(z%5Cvert%20y)"> used for importance sampling is usually parameterized by a neural net and is known as the <em>inference network</em>. In what follows, we will implicitly assume that <img src="https://latex.codecogs.com/png.latex?q"> is a function of neural net parameters <img src="https://latex.codecogs.com/png.latex?%5Cphi">.</p>
-</section>
-<section id="from-variational-auto-encoders-to-rectified-flows" class="level1">
-<h1>From Variational Auto-encoders to Rectified Flows</h1>
-<p>Assume that the model’s prior over <img src="https://latex.codecogs.com/png.latex?z"> factors as <img src="https://latex.codecogs.com/png.latex?p(z)%20=%20p(z_0)%5Cprod_t%20p(z_%7Bt+%5CDelta%7D%20%5Cvert%20%20z_t)">, where <img src="https://latex.codecogs.com/png.latex?t"> ranges from <img src="https://latex.codecogs.com/png.latex?0"> to <img src="https://latex.codecogs.com/png.latex?1"> in increments of <img src="https://latex.codecogs.com/png.latex?%5CDelta"> and <img src="https://latex.codecogs.com/png.latex?z_1"> is observed (taking the place of <img src="https://latex.codecogs.com/png.latex?y"> in the discussion so far). Instead of fixing the model <img src="https://latex.codecogs.com/png.latex?p"> and learning parameters for a distribution <img src="https://latex.codecogs.com/png.latex?q"> to approximate its posterior, with diffusion-based approaches, we do the opposite.. Fix the posterior approximation <img src="https://latex.codecogs.com/png.latex?q(z_t%20%5Cvert%20%20z_1,%20z_0)"> to be a Delta distribution at <img src="https://latex.codecogs.com/png.latex?tz_1%20+%20(1%20-%20t)z_0"> (linearly interpolating between observations). Let <img src="https://latex.codecogs.com/png.latex?p(z_%7Bt+%5CDelta%7D%20%5Cvert%20%20z_t)"> be distributed as <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BN%7D(z_t%20+%20%5CDelta%20f_%5Ctheta(z_t,%20t),%20%5Csigma%5E2/%5CDelta%5E2)">, where <img src="https://latex.codecogs.com/png.latex?f_%5Ctheta"> is a neural network parameterized by <img src="https://latex.codecogs.com/png.latex?%5Ctheta">. Under this linear interpolation scheme, <img src="https://latex.codecogs.com/png.latex?z_%7Bt%20+%20%5CDelta%7D%20-%20z_t%20=%20%5CDelta%20(z_1%20-%20z_0)">. This means that <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%20%20%20%20&amp;E%5Cleft%5B%5Clog%20p((z_%7Bt+%5CDelta%7D%20%5Cvert%20%20z_t)%5Cright%5D%20%5C%5C%0A%20%20%20%20&amp;=%20E%5Cleft%5B-%5Cfrac%7B1%7D%7B2%7D%20%5Cfrac%7B(z_%7Bt%20+%20%5CDelta%7D%20-%20%5Bz_t%20+%20%5CDelta%20f_%5Ctheta%20(z_t,%20t)%5D)%5E2%7D%7B%5Csigma%5E2%20%5CDelta%5E2%7D%5Cright%5D%20%5C%5C%0A%20%20%20%20&amp;=%20E%5Cleft%5B%5Cfrac%7B-1%7D%7B2%5Csigma%5E2%20%5CDelta%7D%20((z_1%20-%20z_0)%20-%20f_%5Ctheta%20(z_t,%20t))%5E2%5Cright%5D%0A%5Cend%7Balign*%7D%0A"></p>
-<p>We can plug this simplification into the full ELBO, noting that the sum over time can be written as an expectation.</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0AE_%7Bz_0%7D%20%5Cleft%5B%20%5Clog%20p(z_0)%20-%20%5Clog%20q(z_0%5Cvert%20z_1)%20+%20%5Csum_t%20%5Clog%20p(z_%7Bt+%5CDelta%7D%20%5Cvert%20%20z_t)%20%5Cright%5D%20=%20%5C%5C%0A-KL%5Bq(z_0%5Cvert%20z_1)%20%5Cvert%20p(z_0)%5D%20+%20%5Cfrac%7B-1%7D%7B2%5Csigma%5E2%7D%20E_%7Bt,%20z_0%7D%20%5Cleft%5B%20((z_1%20-%20z_0)%20-%20f_%5Ctheta%20(z_t,%20t))%5E2%20%5Cright%5D%0A"></p>
-<p>It breaks into two parts: a KL divergence keeping <img src="https://latex.codecogs.com/png.latex?q(z_0%5Cvert%20z_1)"> close to <img src="https://latex.codecogs.com/png.latex?p(z_0)">, and a stochastic squared loss in which both time and latent code are sampled. As <img src="https://latex.codecogs.com/png.latex?%5CDelta%20%5Cto%200">, the distribution over times approaches uniform. This is precisely the loss for the <em>Rectified Flow</em> model for the case of a fixed <img src="https://latex.codecogs.com/png.latex?q(z_0%20%5Cvert%20%20z_1)">. Originally, the authors interpreted this loss as a way to learn an ODE <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20z%7D%7B%5Cpartial%20t%7D%20=%20f(z,%20t)"> which transports samples <img src="https://latex.codecogs.com/png.latex?z_0"> to observations <img src="https://latex.codecogs.com/png.latex?z_1">. By casting the loss in the language of variational auto-encoders, however, we can learn a posterior distribution for <img src="https://latex.codecogs.com/png.latex?z_0"> at the same time.</p>
-
-
-</section>
-
- ]]></description>
-  <category>machine_learning</category>
-  <guid>https://samanklesaria.github.io/posts/Diffusion-is-a-fancy-VAE.html</guid>
-  <pubDate>Tue, 15 Aug 2023 05:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Sparse Variational Gaussian Processes</title>
-  <link>https://samanklesaria.github.io/posts/sparse_variational_gp/Sparse-Variational-Gaussian-Processes.html</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<p>This notebook introduces <em>Fully Independent Training Conditional</em> (FITC) sparse variational Gaussian process model. You shouldn’t need any prior knowledge about Gaussian processes- it’s enough to know how to condition and marginalize finite dimensional Gaussian distributions. I’ll assume you know about variational inference and Pyro, though.</p>
-<div id="b84661b7" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> pyro</span>
-<span id="cb1-2"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> pyro.distributions <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">as</span> dist</span>
-<span id="cb1-3"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">from</span> pyro <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> poutine</span>
-<span id="cb1-4"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> torch</span>
-<span id="cb1-5"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> torch.nn.functional <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">as</span> F</span>
-<span id="cb1-6"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> matplotlib.pyplot <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">as</span> plt</span>
-<span id="cb1-7"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">from</span> pyro.infer <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> SVI, Trace_ELBO, Predictive</span>
-<span id="cb1-8"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">from</span> torch.distributions.transforms <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> LowerCholeskyTransform</span>
-<span id="cb1-9"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> gpytorch <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">as</span> gp</span></code></pre></div></div>
-</div>
-<p>Say we observe some data <img src="https://latex.codecogs.com/png.latex?x_1,%20x_2,%20%5Cdotsc">.</p>
-<div id="7b42cda5" class="cell" data-execution_count="2">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1">xs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> torch.linspace(<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">50</span>)</span></code></pre></div></div>
-</div>
-<p>Assume there’s an unknown function <img src="https://latex.codecogs.com/png.latex?f"> that maps each data point <img src="https://latex.codecogs.com/png.latex?x_i"> to an unknown value <img src="https://latex.codecogs.com/png.latex?f_i">.</p>
-<div id="2260da1e" class="cell" data-execution_count="3">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1">fs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>torch.sin(xs)</span></code></pre></div></div>
-</div>
-<p>And each <img src="https://latex.codecogs.com/png.latex?f_i"> is associated with an observed noisy version <img src="https://latex.codecogs.com/png.latex?y_i">.</p>
-<div id="71c7fa37" class="cell" data-execution_count="4">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1">ys <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> fs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.4</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>torch.randn(xs.shape)</span></code></pre></div></div>
-</div>
-<div id="eafecd7c" class="cell" data-execution_count="5">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1">plt.plot(xs, ys)<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/sparse_variational_gp/Sparse-Variational-Gaussian-Processes_files/figure-html/cell-6-output-1.png" width="569" height="411" class="figure-img"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>Say we have some additional inputs <img src="https://latex.codecogs.com/png.latex?x_1%5E%5Cast,%20x_2%5E%5Cast,%20%5Cdotsc"> and we want to estimate the associated <img src="https://latex.codecogs.com/png.latex?f%5E%5Cast_1,%20f%5E%5Cast_2,%20%5Cdotsc">. We’ll assume that the <img src="https://latex.codecogs.com/png.latex?f_i"> and <img src="https://latex.codecogs.com/png.latex?f%5E%5Cast">, along with a latent vector <img src="https://latex.codecogs.com/png.latex?u"> of outouts at known inputs <img src="https://latex.codecogs.com/png.latex?z">, are all jointly Gaussian. The <img src="https://latex.codecogs.com/png.latex?u_i"> are known as <em>inducing points</em>. We’ll ensure that the conditional covariance structure is sparse, however: <img src="https://latex.codecogs.com/png.latex?f_i"> will be conditionally independent given <img src="https://latex.codecogs.com/png.latex?u">. This will keep the computation of the posterior tractable, even when we have a large number of training points <img src="https://latex.codecogs.com/png.latex?f">.</p>
-<p>Specifically, say <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Bbmatrix%7D%20u%20%5C%5C%20f%20%5C%5C%20f%5E*%20%5Cend%7Bbmatrix%7D%20%5Csim%20%5Cmathcal%7BN%7D%5Cleft(0,%20%5Cbegin%7Bbmatrix%7D%20K_%7Buu%7D%20%20&amp;%20K_%7Buf%7D%20&amp;%20K_%7Bu*%7D%20%5C%5C%20K_%7Bfu%7D%20&amp;%20D_%7Bff%7D%20&amp;%20K_%7Bfu%7DK_%7Buu%7D%5E%7B-1%7DK_%7Bu*%7D%20%5C%5C%20K_%7B*u%7D%20&amp;%20K_%7B*u%7DK_%7Buu%7D%5E%7B-1%7DK_%7Buf%7D%20&amp;%20K_%7B**%7D%20%5Cend%7Bbmatrix%7D%20%5Cright)%0A"></p>
-<p>The expressions for conditionally independent covariances keep popping up, so We’ll abbreviate <img src="https://latex.codecogs.com/png.latex?K_%7Bau%7DK_%7Buu%7D%5E%7B-1%7DK_%7Bub%7D"> as <img src="https://latex.codecogs.com/png.latex?Q_%7Bab%7D">. Using the standard Gaussian conditioning formula, we find that</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Bbmatrix%7D%20f%20%5C%5C%20f%5E*%20%5Cend%7Bbmatrix%7D%20%5C,%20%20%5Cbigg%20%5Cvert%20%5C,%20u%20%5Csim%20%5Cmathcal%7BN%7D%20%5Cleft(%0A%5Cbegin%7Bbmatrix%7D%20K_%7Bfu%7DK_%7Buu%7D%5E%7B-1%7Du%20%5C%5C%20K_%7B*u%7DK_%7Buu%7D%5E%7B-1%7Du%20%5Cend%7Bbmatrix%7D%0A,%20%5Cbegin%7Bbmatrix%7D%20%20D_%7Bff%7D%20-%20Q_%7Bff%7D%20&amp;%20Q_%7Bf*%7D%20%5C%5C%20Q_%7B*f%7D%20&amp;%20K_%7B**%7D%20-%20Q_%7B**%7D%5Cend%7Bbmatrix%7D%20%5Cright)%0A"></p>
-<p>We’ll choose <img src="https://latex.codecogs.com/png.latex?D_%7Bff%7D"> so that <img src="https://latex.codecogs.com/png.latex?D_%7Bff%7D%20-%20Q_%7Bff%7D"> is diagonal. Specifically, we’ll let <img src="https://latex.codecogs.com/png.latex?D_%7Bff%7D%20=%20Q_%7Bff%7D%20+%20%5Ctext%7BDiag%7D(I%20-%20Q_%7Bff%7D)">.</p>
-<p>It remains to choose the dense covariances <img src="https://latex.codecogs.com/png.latex?K_%7Buu%7D">. We’ll choose a covariance structure that makes <img src="https://latex.codecogs.com/png.latex?u_i"> and <img src="https://latex.codecogs.com/png.latex?u_j"> close when <img src="https://latex.codecogs.com/png.latex?z_i"> and <img src="https://latex.codecogs.com/png.latex?z_j"> are.</p>
-<div id="c49dcae4" class="cell" data-execution_count="6">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> kernel(a,b):</span>
-<span id="cb6-2">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> torch.exp(<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.5</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>((a[:,<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span>] <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> b[<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span>,:])<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>)<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>)</span></code></pre></div></div>
-</div>
-<div id="51eb3b2d" class="cell" data-execution_count="7">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1">z <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> torch.linspace(<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">8</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">8</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>)</span></code></pre></div></div>
-</div>
-<div id="f2e68f36" class="cell" data-execution_count="8">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1">k_uu <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> kernel(z, z)</span>
-<span id="cb8-2">k_uu_chol <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> torch.linalg.cholesky(k_uu)</span>
-<span id="cb8-3">k_uu_inv <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> torch.cholesky_inverse(k_uu_chol)</span>
-<span id="cb8-4">k_fu <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> kernel(xs, z)</span>
-<span id="cb8-5">k_ff_given_u <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> torch.diag(torch.eye(fs.shape[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>]) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> (k_fu <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">@</span> k_uu_inv <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">@</span> k_fu.T)) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1e-5</span></span>
-<span id="cb8-6">conditioner <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> k_fu <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">@</span> k_uu_inv</span></code></pre></div></div>
-</div>
-<p>This gives us a fully generative prior for the function values <img src="https://latex.codecogs.com/png.latex?f"> and inducing points <img src="https://latex.codecogs.com/png.latex?u">.</p>
-<div id="93ea01d4" class="cell" data-execution_count="9">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> model(obs):</span>
-<span id="cb9-2">    u <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pyro.sample(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"u"</span>, dist.MultivariateNormal(torch.zeros(k_uu_inv.shape[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>]), precision_matrix<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> k_uu_inv))</span>
-<span id="cb9-3">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">with</span> pyro.plate(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"data"</span>):</span>
-<span id="cb9-4">        f <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pyro.sample(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"f"</span>, dist.Normal(conditioner <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">@</span> u, k_ff_given_u))</span>
-<span id="cb9-5">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> pyro.sample(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"obs"</span>, dist.Normal(f, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.16</span>), obs<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>obs)</span></code></pre></div></div>
-</div>
-<p>We’ll assume that the posterior over <img src="https://latex.codecogs.com/png.latex?u"> given our observations <img src="https://latex.codecogs.com/png.latex?y"> is Gaussian as well.</p>
-<div id="fa1a5426" class="cell" data-execution_count="10">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1">lower_cholesky <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> LowerCholeskyTransform()</span></code></pre></div></div>
-</div>
-<div id="6835e8ec" class="cell" data-execution_count="11">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> guide(obs):</span>
-<span id="cb11-2">    M <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> k_uu_inv.shape[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>]</span>
-<span id="cb11-3">    m <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pyro.param(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"m"</span>, torch.randn(M))</span>
-<span id="cb11-4">    S <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> lower_cholesky(pyro.param(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"S"</span>, k_uu_chol))</span>
-<span id="cb11-5">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> pyro.sample(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"u"</span>, dist.MultivariateNormal(m, scale_tril<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>S))</span></code></pre></div></div>
-</div>
-<p>This guide only covers <img src="https://latex.codecogs.com/png.latex?u">, not <img src="https://latex.codecogs.com/png.latex?f">. The conditional distribution of <img src="https://latex.codecogs.com/png.latex?f"> given <img src="https://latex.codecogs.com/png.latex?u"> will be the same as in the prior because it’s independent of <img src="https://latex.codecogs.com/png.latex?y">. To let the model know that the associated guide has the same conditional distribution for <img src="https://latex.codecogs.com/png.latex?f">, we use Pyro’s <code>block</code> function. As <img src="https://latex.codecogs.com/png.latex?y"> here is Normally distributed about <img src="https://latex.codecogs.com/png.latex?f">, we could analytically marginalize out <img src="https://latex.codecogs.com/png.latex?f">. But we’ll keep things simple and use samples of <img src="https://latex.codecogs.com/png.latex?f"> instead.</p>
-<div id="e72cff9c" class="cell" data-execution_count="12">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1">marginalized_model <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> poutine.block(model, hide<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"f"</span>)</span></code></pre></div></div>
-</div>
-<section id="training" class="level2">
-<h2 class="anchored" data-anchor-id="training">Training</h2>
-<p>We can fit the parameters in our variational approximation to maximize the ELBO using a standard Pyro training loop.</p>
-<div id="32588827" class="cell" data-execution_count="13">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1">adam <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pyro.optim.Adam({<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"lr"</span>: <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.03</span>})</span>
-<span id="cb13-2">svi <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> SVI(marginalized_model, guide, adam, loss<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>Trace_ELBO())</span>
-<span id="cb13-3">pyro.clear_param_store()</span>
-<span id="cb13-4"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> j <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1500</span>):</span>
-<span id="cb13-5">    loss <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> svi.step(ys)</span>
-<span id="cb13-6">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> j <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>:</span>
-<span id="cb13-7">        <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(loss)</span></code></pre></div></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>7876.168869018555
-1096.6914720535278
-678.0399866104126
-410.22321701049805
-347.35849380493164
-295.4183578491211
-338.96053409576416
-299.43280029296875
-245.88098907470703
-397.6497116088867
-272.0316352844238
-280.7838191986084
-233.17931365966797
-235.1186876296997
-250.67036628723145</code></pre>
-</div>
-</div>
-<div id="89b3ed02" class="cell" data-execution_count="14">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1">pred <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> Predictive(model, guide<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>guide, num_samples<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span>)</span>
-<span id="cb15-2">samples <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pred(<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span>)[<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'f'</span>].numpy()</span>
-<span id="cb15-3">plt.figure(figsize<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">15</span>,<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>))</span>
-<span id="cb15-4">plt.plot(xs, samples.T, alpha<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.1</span>)<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span>
-<span id="cb15-5">plt.scatter(z, pyro.param(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"m"</span>).detach().numpy())</span>
-<span id="cb15-6">plt.scatter(xs.numpy(), ys.numpy())<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/sparse_variational_gp/Sparse-Variational-Gaussian-Processes_files/figure-html/cell-15-output-1.png" width="1164" height="781" class="figure-img"></p>
-</figure>
-</div>
-</div>
-</div>
-</section>
-<section id="using-gpytorch" class="level1">
-<h1>Using GPytorch</h1>
-<p>This approach to inference is also available in pre-packaged from the GPytorch library.</p>
-<div id="f8a22d33" class="cell" data-execution_count="15">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">class</span> GPModel(gp.models.ApproximateGP):</span>
-<span id="cb16-2">    <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">self</span>, num_inducing<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>):</span>
-<span id="cb16-3">        variational_strategy <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> gp.variational.VariationalStrategy(</span>
-<span id="cb16-4">            <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">self</span>, torch.linspace(<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">8</span>, <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">8</span>, num_inducing),</span>
-<span id="cb16-5">            gp.variational.CholeskyVariationalDistribution(num_inducing_points<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>num_inducing))</span>
-<span id="cb16-6">        <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">super</span>().<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">__init__</span>(variational_strategy)</span>
-<span id="cb16-7">        <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">self</span>.mean_module <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> gp.means.ConstantMean()</span>
-<span id="cb16-8">        <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">self</span>.covar_module <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> gp.kernels.ScaleKernel(gp.kernels.RBFKernel())</span>
-<span id="cb16-9"></span>
-<span id="cb16-10">    <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> forward(<span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">self</span>, x):</span>
-<span id="cb16-11">        mean <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">self</span>.mean_module(x)</span>
-<span id="cb16-12">        covar <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">self</span>.covar_module(x)</span>
-<span id="cb16-13">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> gp.distributions.MultivariateNormal(mean, covar)</span></code></pre></div></div>
-</div>
-<div id="b9efc7b5" class="cell" data-execution_count="16">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1">gp_model <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> GPModel()</span>
-<span id="cb17-2"></span>
-<span id="cb17-3"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> guide(x, y):</span>
-<span id="cb17-4">    pyro.module(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"gp"</span>, gp_model)</span>
-<span id="cb17-5">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">with</span> pyro.plate(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"data"</span>):</span>
-<span id="cb17-6">        pyro.sample(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"f"</span>, gp_model.pyro_guide(x))</span>
-<span id="cb17-7"></span>
-<span id="cb17-8"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> model(x, y):</span>
-<span id="cb17-9">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">with</span> pyro.plate(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"data"</span>):</span>
-<span id="cb17-10">        f <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pyro.sample(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"f"</span>, gp_model.pyro_model(x))</span>
-<span id="cb17-11">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> pyro.sample(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"obs"</span>, dist.Normal(f, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.</span>), obs<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>y)</span>
-<span id="cb17-12"></span>
-<span id="cb17-13">gp_model.train()<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span>
-<span id="cb17-14"></span>
-<span id="cb17-15">adam <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pyro.optim.Adam({<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"lr"</span>: <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.03</span>})</span>
-<span id="cb17-16">svi <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> SVI(model, guide, adam, loss<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>Trace_ELBO(retain_graph<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">True</span>))</span>
-<span id="cb17-17"></span>
-<span id="cb17-18">pyro.clear_param_store()</span>
-<span id="cb17-19"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> j <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1000</span>):</span>
-<span id="cb17-20">    gp_model.zero_grad()</span>
-<span id="cb17-21">    loss <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> svi.step(xs, ys)</span>
-<span id="cb17-22">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> j <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>:</span>
-<span id="cb17-23">        <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(loss)</span></code></pre></div></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>113.40755844116211
-71.39605712890625
-74.9711046218872
-68.54665279388428
-76.04235744476318
-78.64530992507935
-73.61101055145264
-75.58063983917236
-76.11869812011719
-75.50554418563843</code></pre>
-</div>
-</div>
-<div id="f23aaaaf" class="cell" data-execution_count="17">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1">gp_model.<span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">eval</span>()<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span>
-<span id="cb19-2">pred <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> Predictive(model, guide<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>guide, num_samples<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span>)</span>
-<span id="cb19-3"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">with</span> torch.no_grad():</span>
-<span id="cb19-4">    samples <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pred(xs, <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span>)[<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'f'</span>]</span></code></pre></div></div>
-</div>
-<div id="c19b2853" class="cell" data-execution_count="18">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1">z <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> gp_model.variational_strategy.inducing_points.detach().numpy()</span>
-<span id="cb20-2">m <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> gp_model.variational_strategy._variational_distribution.variational_mean.detach().numpy()</span>
-<span id="cb20-3">plt.figure(figsize<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">15</span>,<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>))</span>
-<span id="cb20-4">plt.plot(xs.numpy(), samples.T.numpy(), alpha<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.1</span>)</span>
-<span id="cb20-5">plt.scatter(z, m)</span>
-<span id="cb20-6">plt.scatter(xs.numpy(), ys.numpy())</span></code></pre></div></div>
-<div class="cell-output cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/sparse_variational_gp/Sparse-Variational-Gaussian-Processes_files/figure-html/cell-19-output-1.png" width="1164" height="781" class="figure-img"></p>
-</figure>
-</div>
-</div>
-</div>
-</section>
-<section id="using-a-non-gaussian-likelihood" class="level1">
-<h1>Using a non-Gaussian Likelihood</h1>
-<p>We don’t always need <img src="https://latex.codecogs.com/png.latex?y"> to be a version of <img src="https://latex.codecogs.com/png.latex?f"> with added noise. We can use an arbitrary stochastic function of <img src="https://latex.codecogs.com/png.latex?f">. For example, say we observe discrete count data instead. We’d like our likelihood to be Poisson.</p>
-<div id="9e27466b" class="cell" data-execution_count="19">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1">gp_model <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> GPModel()</span></code></pre></div></div>
-</div>
-<div id="75f5e054" class="cell" data-execution_count="20">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> model(x, y):</span>
-<span id="cb22-2">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">with</span> pyro.plate(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"data"</span>):</span>
-<span id="cb22-3">        f <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pyro.sample(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"f"</span>, gp_model.pyro_model(x))</span>
-<span id="cb22-4">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> pyro.sample(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"obs"</span>, dist.Poisson(F.softplus(f)), obs<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>y)</span></code></pre></div></div>
-</div>
-<div id="d8dd5746" class="cell" data-execution_count="21">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1">latent_fs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> xs<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span></span></code></pre></div></div>
-</div>
-<div id="866ba964" class="cell" data-execution_count="22">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1">ys <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> dist.Poisson(latent_fs).sample()</span></code></pre></div></div>
-</div>
-<div id="4b159ae1" class="cell" data-execution_count="23">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1">plt.plot(xs, latent_fs)</span></code></pre></div></div>
-<div class="cell-output cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/sparse_variational_gp/Sparse-Variational-Gaussian-Processes_files/figure-html/cell-24-output-1.png" width="575" height="411" class="figure-img"></p>
-</figure>
-</div>
-</div>
-</div>
-<div id="9c5a798c" class="cell" data-execution_count="24">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1">plt.plot(xs, ys)</span></code></pre></div></div>
-<div class="cell-output cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/sparse_variational_gp/Sparse-Variational-Gaussian-Processes_files/figure-html/cell-25-output-1.png" width="575" height="411" class="figure-img"></p>
-</figure>
-</div>
-</div>
-</div>
-<div id="54276ed9" class="cell" data-execution_count="25">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1">gp_model.train()<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span></code></pre></div></div>
-</div>
-<div id="b6a8b572" class="cell" data-execution_count="26">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1">adam <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pyro.optim.Adam({<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"lr"</span>: <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.03</span>})</span>
-<span id="cb28-2">svi <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> SVI(model, guide, adam, loss<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>Trace_ELBO(retain_graph<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">True</span>))</span></code></pre></div></div>
-</div>
-<div id="d09e392e" class="cell" data-execution_count="27">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1">pyro.clear_param_store()</span>
-<span id="cb29-2"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> j <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1000</span>):</span>
-<span id="cb29-3">    gp_model.zero_grad()</span>
-<span id="cb29-4">    loss <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> svi.step(xs, ys)</span>
-<span id="cb29-5">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> j <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">%</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>:</span>
-<span id="cb29-6">        <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(loss)</span></code></pre></div></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>6083.084411621094
-1781.496367931366
-883.2217831611633
-674.2122783660889
-640.2556610107422
-531.372368812561
-520.1974086761475
-500.5093593597412
-485.35011196136475
-544.6471176147461</code></pre>
-</div>
-</div>
-<div id="aa57d313" class="cell" data-execution_count="28">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1">gp_model.<span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">eval</span>()<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">;</span></span></code></pre></div></div>
-</div>
-<div id="b4f377f8" class="cell" data-execution_count="29">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1">pred <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> Predictive(model, guide<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>guide, num_samples<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span>)</span></code></pre></div></div>
-</div>
-<div id="9116e68e" class="cell" data-execution_count="30">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">with</span> torch.no_grad():</span>
-<span id="cb33-2">    samples <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pred(xs, <span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">None</span>)[<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'f'</span>]</span></code></pre></div></div>
-</div>
-<div id="8fc361cc" class="cell" data-execution_count="31">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1">plt.figure(figsize<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">15</span>,<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span>))</span>
-<span id="cb34-2">plt.plot(xs, F.softplus(samples.T).numpy(), alpha<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.1</span>)</span>
-<span id="cb34-3">plt.scatter(xs, ys)</span></code></pre></div></div>
-<div class="cell-output cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/sparse_variational_gp/Sparse-Variational-Gaussian-Processes_files/figure-html/cell-32-output-1.png" width="1170" height="781" class="figure-img"></p>
-</figure>
-</div>
-</div>
-</div>
-
-
-</section>
-
- ]]></description>
-  <category>statistics</category>
-  <guid>https://samanklesaria.github.io/posts/sparse_variational_gp/Sparse-Variational-Gaussian-Processes.html</guid>
-  <pubDate>Mon, 20 Sep 2021 05:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
