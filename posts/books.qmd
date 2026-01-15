@@ -1,6 +1,6 @@
 ---
 title: "So You Want to Learn [X]"
-date: "2025-07-31"
+date: "2025-08-21"
 categories: ["statistics", "machine_learning"]
 ---
 

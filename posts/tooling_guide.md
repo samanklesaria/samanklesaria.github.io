@@ -1,6 +1,6 @@
 ---
 title: "An Opinionated Tooling Guide"
-date: "2025-06-31"
+date: "2025-06-01"
 categories: ["tools"]
 ---
 

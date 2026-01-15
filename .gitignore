@@ -1,0 +1,29 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+/.quarto/
+/_site/
+/_freeze/
+**/*.quarto_ipynb
+*.rds
+*.rds
+*.Rproj.user
+*.Rproj
+*.Rhistory
+*.RData
+*.DS_Store
+*.bib
+
+uv.lock
+Manifest.toml
+.cache
+Notebook_cache
+Notebook_files
