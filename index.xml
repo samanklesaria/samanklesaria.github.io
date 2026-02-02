@@ -9,7 +9,7 @@
 <link>https://samanklesaria.github.io/</link>
 <atom:link href="https://samanklesaria.github.io/index.xml" rel="self" type="application/rss+xml"/>
 <description>Dabbling in Data Science</description>
-<generator>quarto-1.8.26</generator>
+<generator>quarto-1.8.27</generator>
 <lastBuildDate>Fri, 19 Dec 2025 06:00:00 GMT</lastBuildDate>
 <item>
   <title>Air Quality and Congestion Pricing</title>
@@ -3144,7 +3144,7 @@ font-style: inherit;">=</span> attention(q, k, v)</span></code></pre></div></div
   <pubDate>Sat, 30 Aug 2025 05:00:00 GMT</pubDate>
 </item>
 <item>
-  <title>So You Want to Learn [X]</title>
+  <title>Books and Guides</title>
   <link>https://samanklesaria.github.io/posts/books.html</link>
   <description><![CDATA[ 
 
@@ -3174,13 +3174,49 @@ font-style: inherit;">=</span> attention(q, k, v)</span></code></pre></div></div
 <section id="machine-learning" class="level2">
 <h2 class="anchored" data-anchor-id="machine-learning">Machine Learning</h2>
 <ul>
+<li>Stanford’s CS231n course is a great introduction to deep learning.</li>
+<li>MathematicalMonk’s machine learning videos on YouTube are good for older ML algorithms (the kind in scikit-learn).</li>
 <li><strong>Pattern Recognition and Machine Learning</strong> <em>(Christopher M. Bishop)</em> is my go-to reference for machine learning fundamentals.</li>
+<li><strong>Understanding Machine Learning: From Theory to Algorithms</strong> <em>(Shai Shalev-Shwartz and Shai Ben-David)</em> gives you a taste of learning theory.</li>
 <li><strong>Gaussian Processes for Machine Learning</strong> <em>(Carl Rasmussen and Christopher K. I. Williams)</em> is the classic text on Gaussian processes.</li>
 <li><strong>Reinforcement Learning: An Introduction</strong> <em>(Richard S. Sutton and Andrew G. Barto)</em> is a very accessible introduction to reinforcement learning.</li>
 <li><strong>Bandit Algorithms</strong> <em>(Tor Lattimore and Csaba Szepesvári)</em> is a comprehensive guide to multi-armed bandit problems.</li>
 <li><strong>Online Learning and Online Convex Optimization</strong> <em>(Shai Shalev-Shwartz and Yoram Singer)</em> is a short introduction to online learning.</li>
-<li><strong>Convex Optimization</strong> <em>(Stephen Boyd and Lieven Vandenberghe)</em> is the canonical reference for convex optimization.</li>
-<li><strong>Understanding Machine Learning: From Theory to Algorithms</strong> <em>(Shai Shalev-Shwartz and Shai Ben-David)</em> gives you a taste of learning theory.</li>
+<li><strong>Convex Optimization</strong> <em>(Stephen Boyd and Lieven Vandenberghe)</em> is the canonical reference for convex optimization. Not exactly ML, but extremely relevant.</li>
+</ul>
+</section>
+<section id="algorithms-and-data-structures" class="level2">
+<h2 class="anchored" data-anchor-id="algorithms-and-data-structures">Algorithms and Data Structures</h2>
+<ul>
+<li>Algorithm Design (Tardos)</li>
+<li>Randomized Algorithms</li>
+<li>Planar Graphs</li>
+<li>All MIT’s open courseware taught by Erik Demaine is awesome. That includes 6.006 Introduction to Algorithms and 6.851 Advanced Data Structures.</li>
+<li>Graph algorithms in the language of linear algebra.</li>
+<li>Spectral graph theory.</li>
+</ul>
+</section>
+<section id="compilers-programming-languages" class="level2">
+<h2 class="anchored" data-anchor-id="compilers-programming-languages">Compilers &amp; Programming Languages</h2>
+<ul>
+<li>Implementing Functional Languages</li>
+<li>Purely Functional Data Structures</li>
+<li>Types and Programming Languages</li>
+<li>Calculus of Computation</li>
+<li>HOTT</li>
+<li>The Catsters have a YouTube channel on category theory</li>
+</ul>
+</section>
+<section id="math" class="level2">
+<h2 class="anchored" data-anchor-id="math">Math</h2>
+<ul>
+<li>Math for Computer Science</li>
+<li>Nonlinear dynamics and chaos</li>
+<li>Visual Group Theory</li>
+<li>7 Sketches</li>
+<li>Visual Complex Analysis</li>
+<li>Infinite Napkin.</li>
+<li>“The Bright Side of Mathematics” is a YouTube channel with good videos on measure theory.</li>
 </ul>
 
 
@@ -4763,12 +4799,12 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 
 <p><strong>Statistics and Data Analysis:</strong> Overall: use R. Its has the largest ecosystem of statistical packages.</p>
 <ul>
-<li><p>For Bayesian modeling, Stan has bindings for everything, but it’s easiest to use from R, and the rest of the toolkit <em>(brms, loo, bayesplot, etc)</em> doesn’t have an equivalent outside of R. Turing.jl and PyMC3 are substantially slower, and Numpyro is less mature (although it can be faster on a GPU).</p></li>
-<li><p>For visualization, R has ggplot2 and ggpairs, Julia has AlgebraOfGraphics and Python has Seaborn. They’re all about as good as each other.</p></li>
-<li><p>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find Dataframes.jl to be the nicest of the bunch (with DataframesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and the rest of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</p></li>
-<li><p>For geographic queries, R’s <em>sf</em>&nbsp;and Julia’s <em>GeoStats</em>&nbsp;are lovely. Python’s <em>GeoPandas</em>,&nbsp;being based on Pandas, is much more annoying to use.</p></li>
-<li><p>For frequentist statistics, Python’s <em>statsmodels</em> and Julia’s <em>GLMs, MixedModels</em> and <em>Survival</em> packages give you much of base R and its <em>lmer</em> and <em>survival</em> packages, but neither Julia nor Python have anything like <em>survey</em>.</p></li>
-<li><p>For Gaussian Process modeling, Python’s <em>GPytorch</em> is far faster and more feature-complete than anything else. Julia’s <em>AbstractGPs</em> has a nicer interface and is easier to extend, but it’s slower and lacks the approximate inference algorithms necessary for large datasets.</p></li>
+<li>For Bayesian modeling, Stan has bindings for everything, but it’s easiest to use from R, and the rest of the toolkit <em>(brms, loo, bayesplot, etc)</em> doesn’t have an equivalent outside of R. Turing.jl and PyMC3 are substantially slower, and Numpyro is less mature (although it can be faster on a GPU).</li>
+<li>For visualization, R has ggplot2 and ggpairs, Julia has AlgebraOfGraphics and Python has Seaborn. They’re all about as good as each other.</li>
+<li>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find Dataframes.jl to be the nicest of the bunch (with DataframesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and the rest of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</li>
+<li>For geographic queries, R’s <em>sf</em>&nbsp;and Julia’s <em>GeoStats</em>&nbsp;are lovely. Python’s <em>GeoPandas</em>,&nbsp;being based on Pandas, is much more annoying to use.</li>
+<li>For frequentist statistics, Python’s <em>statsmodels</em> and Julia’s <em>GLMs, MixedModels</em>, <em>Survey</em> and <em>Survival</em> packages give you much of base R and its <em>lmer</em>, <em>survey</em> and <em>survival</em> packages.</li>
+<li>For Gaussian Process modeling, Python’s <em>GPytorch</em> is far faster and more feature-complete than anything else. Julia’s <em>AbstractGPs</em> has a nicer interface and is easier to extend, but it’s slower and lacks the approximate inference algorithms necessary for large datasets.</li>
 </ul>
 <p><strong>Neural Nets</strong></p>
 <ul>
@@ -4780,15 +4816,27 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 <ul>
 <li>Use Julia for anything numerical</li>
 <li>Use Python for scripting</li>
+<li>Use awk for text processing and jq for JSON processing</li>
 <li>Use Rust if you want to be super-efficient.</li>
 <li>Otherwise, use Haskell.</li>
 </ul>
-<p><strong>Text Editors:</strong> Currently, I use Zed on a Mac. It’s very fast, and has excellent support for language servers and LLM assisted editing. When I used arch linux with xmonad, I favored kakoune (which has an order of magnitude smaller binary size and memory use) but kakoune really needs a tiling window manager to work well.</p>
-<p><strong>Notebooks:</strong> I use Pluto for Julia, Marimo for Python, and Quarto (in RStudio) for R. It would be nice if there was a unified tool for this kind of thing- maybe Positron will get there eventually.</p>
+<p><strong>Notebooks:</strong> I use Pluto for Julia, Marimo for Python, and Jupyter for everything else.</p>
 <p><strong>Static Site Generation:</strong> Use Quarto. Compared to Jekyll, niceties like latex math, computational notebooks and bibliography management are built in.</p>
-<p><strong>Databases</strong> - For OLTP, use postgres with pgvector &amp; pgvectorscale for vector search and postGIS for spatial data. - For analytical workloads, use DuckDB - For local RAGs, use ChromaDB.</p>
-<p><strong>Documents</strong> - If you’re the only one editing it, use Typora. - If you need to collaborate with others, use Google Docs.</p>
-<p><strong>Other</strong> - Zulip is much nicer than Slack. - Ollama is great for local LLMs. - Pixi is essential for package management across languages.</p>
+<p><strong>Databases</strong></p>
+<ul>
+<li>For OLTP, use postgres with pgvector &amp; pgvectorscale for vector search and postGIS for spatial data.</li>
+<li>For analytical workloads, use DuckDB</li>
+<li>For local RAGs, use ChromaDB.</li>
+</ul>
+<p><strong>Other</strong></p>
+<ul>
+<li>Zulip is much nicer than Slack.</li>
+<li>I write down everything I might want to remember later in Anki. It’s effectively a notes app for me.<br>
+</li>
+<li>Zotero has remained fast for me despite adding gigabytes of papers to its library.</li>
+<li>Ollama is great for local LLMs.</li>
+<li>Pixi is essential for package management across languages.</li>
+</ul>
 
 
 
@@ -11598,7 +11646,9 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 <p>When the likelihood is conjugate to the prior, <img src="https://latex.codecogs.com/png.latex?%5Clog%20p(y%5Cvert%20x)"> can be written as <img src="https://latex.codecogs.com/png.latex?%5Clangle%20T(X),%20%5Cphi(y)%20%5Crangle%20+%20c">, where <img src="https://latex.codecogs.com/png.latex?c"> does not depend on <img src="https://latex.codecogs.com/png.latex?x"> and <img src="https://latex.codecogs.com/png.latex?%5Cphi"> is a transformation of the observations. This means that <img src="https://latex.codecogs.com/png.latex?%5Clog%20p(y%5Cvert%20x)%20+%20%5Clog%20p(x)%20=%20%5Clangle%20T(x),%20%5Cphi(y)%20+%20%5Ceta%20%5Crangle%20+%20c">. Taking the gradient as above, we get <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Cnabla_%5Ctheta%20L%20&amp;=%20%5Cnabla_%5Ctheta%20%5Clangle%20E%5BT(X)%5D,%20%5Cphi(y)%20+%20%5Ceta%20-%20%5Ctheta%20%5Crangle%20+%20%5Cnabla_%7B%5Ctheta%7D%20A(%5Ctheta)%20%5C%5C%0A&amp;=%20%5Cnabla_%5Ctheta%5E2A(%5Ctheta)(%5Cphi(y)%20+%20%5Ceta%20-%20%5Ctheta)%20%5C%5C%0A%5Cend%7Balign*%7D%0A"></p>
 <p>This means that the natural gradient is <img src="https://latex.codecogs.com/png.latex?%5Cphi(y)%20+%20%5Ceta%20-%20%5Ctheta">; a unit length step along the natural gradient recovers the conjugate update.</p>
 <p>When <img src="https://latex.codecogs.com/png.latex?q"> factors as <img src="https://latex.codecogs.com/png.latex?q(X_1;%20%5Ctheta_1)q(X_2;%20%5Ctheta_2)"> and non-leaf children in <img src="https://latex.codecogs.com/png.latex?p"> are always conjugate to their parents, we can update each component separately. Say <img src="https://latex.codecogs.com/png.latex?f"> is a function of <img src="https://latex.codecogs.com/png.latex?X_1"> alone, <img src="https://latex.codecogs.com/png.latex?%5Ceta_1"> is a function of <img src="https://latex.codecogs.com/png.latex?X_2">, and <img src="https://latex.codecogs.com/png.latex?%5Ceta_2"> is a constant. The gradient of the ELBO with respect to <img src="https://latex.codecogs.com/png.latex?%5Ctheta_1"> becomes <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Cnabla_%7B%5Ctheta_1%7D%20L%20&amp;=%20%5Cnabla_%7B%5Ctheta_1%7D%20f%20+%20%5Cnabla_%7B%5Ctheta_1%7D%20%5Clangle%20E%5BT(X_1)%5D,%20E%5B%5Ceta_1(X_2)%5D%20-%20%5Ctheta_1%20%5Crangle%20+%20%5Cnabla_%7B%5Ctheta_1%7D%20A(%5Ctheta_1)%20%5C%5C%0A&amp;=%20%5Cnabla_%7B%5Ctheta_1%7D%20f%20+%20%5Cnabla_%7B%5Ctheta_1%7D%5E2A(%5Ctheta_1)(%20E%5B%5Ceta_1(X_2)%5D%20-%20%5Ctheta_1)%20%5C%5C%0A%5Cend%7Balign*%7D%0A"></p>
-<p>Similarly, the gradient for <img src="https://latex.codecogs.com/png.latex?%5Ctheta_2"> is $ _{_2}^2A(_2)(E[(X_1)] + _2 - _2)$. This coordinate-wise natural gradient update is called “variational message passing”.</p>
+<p>Similarly, the gradient for <img src="https://latex.codecogs.com/png.latex?%5Ctheta_2"> is</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cnabla_%7B%5Ctheta_2%7D%5E2A(%5Ctheta_2)(E%5B%5Cphi(X_1)%5D%20+%20%5Ceta_2%20-%20%5Ctheta_2)%0A"></p>
+<p>This coordinate-wise natural gradient update is called “variational message passing”.</p>
 <p>We can find <img src="https://latex.codecogs.com/png.latex?F%5E%7B-1%7D%20%5Cnabla_%5Ctheta%20f"> by using the “conjugate computation” trick. Let <img src="https://latex.codecogs.com/png.latex?%5Chat%7B%5Ctheta%7D"> be the expected-statistic parameterization corresponding to natural parameters <img src="https://latex.codecogs.com/png.latex?%5Ctheta">. Observe that, by the chain rule:</p>
 <p><img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20f%7D%7B%5Cpartial%20%5Ctheta%7D%20=%20%5Cfrac%7B%5Cpartial%20f%7D%7B%5Cpartial%20%5Chat%7B%5Ctheta%7D%7D%5Cfrac%7B%5Cpartial%20%5Chat%7B%5Ctheta%7D%7D%7B%5Cpartial%20%5Ctheta%7D"></p>
 <p>As <img src="https://latex.codecogs.com/png.latex?%5Chat%7B%5Ctheta%7D%20=%20%5Cnabla_%5Ctheta%20A(%5Ctheta)">, this simiplies to <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Cpartial%20f%7D%7B%5Cpartial%20%5Ctheta%7D%20=%20%5Cfrac%7B%5Cpartial%20f%7D%7B%5Cpartial%20%5Chat%7B%5Ctheta%7D%7D%20%5Cnabla_%5Ctheta%5E2%20A(%5Ctheta)%20"> So <img src="https://latex.codecogs.com/png.latex?%20%5Cnabla_%5Ctheta%5E%7B-2%7D%20A(%5Ctheta)%20%5Cfrac%7B%5Cpartial%20f%7D%7B%5Cpartial%20%5Ctheta%7D%20=%20%5Cfrac%7B%5Cpartial%20f%7D%7B%5Cpartial%20%5Chat%7B%5Ctheta%7D%7D%20"> That is, the natural gradient with respect to the natural parameterization is just the ordinary gradient with respect to the mean parameterization.</p>
@@ -11608,7 +11658,8 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 <p>To see how this works in practice, consider doing variational inference for a hierarchical latent Gaussian mixture model. Let our observations <img src="https://latex.codecogs.com/png.latex?y_i"> have log density <img src="https://latex.codecogs.com/png.latex?f(y_i;%20%5Cmu_%7Bc_i%7D)"> where <img src="https://latex.codecogs.com/png.latex?f"> is some complicated function like a neural net and <img src="https://latex.codecogs.com/png.latex?c_i"> is the known mixture component responsible for <img src="https://latex.codecogs.com/png.latex?z_i">. The <img src="https://latex.codecogs.com/png.latex?%5Cmu_j%20%5Csim%20%5Cmathcal%7BN%7D(m_%7Bd_j%7D,%20%5Ctau_2)">, where <img src="https://latex.codecogs.com/png.latex?d_j"> is the known mixture component responsible for <img src="https://latex.codecogs.com/png.latex?%5Cmu_j">, and <img src="https://latex.codecogs.com/png.latex?m_k%20%5Csim%20%5Cmathcal%7BN%7D(0,%20%5Ctau_3)">. In our variational approximation, we will assume the <img src="https://latex.codecogs.com/png.latex?%5Cmu_j"> and <img src="https://latex.codecogs.com/png.latex?m_k"> are all independently Gaussian distributed with natural parameters <img src="https://latex.codecogs.com/png.latex?%5Ctheta_j"> and <img src="https://latex.codecogs.com/png.latex?%5Ctheta_k"> respectively. Then the natural gradient update for <img src="https://latex.codecogs.com/png.latex?%5Cmu_j"> is <img src="https://latex.codecogs.com/png.latex?F%5E%7B-1%7D%20%5Cnabla_%7B%5Ctheta_j%7D%20f%20+%20%5Cbegin%7Bbmatrix%7D%20%5Ctau_2%20m_%7Bd_j%7D%20%5C%5C%20-%5Ctau_2/2%20%5Cend%7Bbmatrix%7D%20-%20%5Ctheta_j"> The update for <img src="https://latex.codecogs.com/png.latex?m_k"> is <img src="https://latex.codecogs.com/png.latex?%5Csum_j%20%5Cbegin%7Bbmatrix%7D%20%5Ctau_2%20E%5B%5Cmu_j%5D%20%5C%5C%20-%5Ctau_2/2%20%5Cend%7Bbmatrix%7D%20+%20%5Cbegin%7Bbmatrix%7D%200%20%5C%5C%20-%5Ctau_3/2%20%5Cend%7Bbmatrix%7D%20-%20%5Ctheta_k"></p>
 <p>If the number of observations <img src="https://latex.codecogs.com/png.latex?N"> is large, it may be hard to find <img src="https://latex.codecogs.com/png.latex?%5Cnabla_%7B%5Ctheta_j%7D%20f%20=%20%5Csum_i%5EN%20%5Clog%20p(y_i%20%5Cvert%20%20%5Cmu_%7Bc_i%7D)"> exactly. In this case, we can take a Monte Carlo estimate <img src="https://latex.codecogs.com/png.latex?N%20%5Cnabla_%7B%5Ctheta_j%7D%20E_%7Bi%20%5Cin%20%5BN%5D%7D%20%5Clog%20p(y_i%20%5Cvert%20%20%5Cmu_%7Bc_i%7D)">. Alternately, we can divide the learning rate by <img src="https://latex.codecogs.com/png.latex?N">, so that the natural gradient is <img src="https://latex.codecogs.com/png.latex?%0AF%5E%7B-1%7D_i%20%5Cnabla_%7B%5Ctheta_i%7D%20%5Clog%20p(y_i%20%5Cvert%20%20%5Cmu_%7Bc_i%7D)%20+%20%5Cfrac%7B1%7D%7BN%7D%20%5Cleft(%20%5Cbegin%7Bbmatrix%7D%20%5Ctau_2%20m_%7Bd_j%7D%20%5C%5C%20-%5Ctau_2/2%20%5Cend%7Bbmatrix%7D%20-%20%5Ctheta_j%20%5Cright)%0A"> The same goes for the sums involved in the variational message passing updates.</p>
 <p>In Jax, we’ll represent our posterior distributions in vectorized form; each <code>Normal</code> will actually represent a plate of <img src="https://latex.codecogs.com/png.latex?n"> normal distributions. Plates of distributions will have methods for their means and natural gradient updates.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
+<div id="11907b1e" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
 background-color: null;
 font-style: inherit;">from</span> typing <span class="im" style="color: #00769E;
 background-color: null;
@@ -11653,7 +11704,9 @@ background-color: null;
 font-style: inherit;">import</span> functools <span class="im" style="color: #00769E;
 background-color: null;
 font-style: inherit;">as</span> ft</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="kw" style="color: #003B4F;
+</div>
+<div id="07156c22" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">class</span> Normal(NamedTuple):</span>
@@ -11858,8 +11911,10 @@ background-color: null;
 font-style: inherit;">self</span>._replace(prior_mean<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>prior_mean)</span></code></pre></div></div>
+</div>
 <p>We’ll make a helper function to initialize one of these variational posterior plates given a plate of prior distributions.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="kw" style="color: #003B4F;
+<div id="0697da83" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> normal(mean_dist, prec, n_obs, parent_ixs, lr, key):</span>
@@ -11881,7 +11936,9 @@ font-style: inherit;">*</span> jr.normal(key, mean.shape)</span>
 background-color: null;
 font-weight: bold;
 font-style: inherit;">return</span> Normal(normal_nats(post_mu, prec), n_obs, lr, mean_dist, prec, parent_ixs)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="kw" style="color: #003B4F;
+</div>
+<div id="e3e032a5" class="cell" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> normal_nats(mu, prec):</span>
@@ -11906,8 +11963,10 @@ background-color: null;
 font-style: inherit;">=-</span><span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1</span>)</span></code></pre></div></div>
+</div>
 <p>The prior mean for <img src="https://latex.codecogs.com/png.latex?m_k"> is a delta distribution, so we’ll need a representation of this as well.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="kw" style="color: #003B4F;
+<div id="55f6b542" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">class</span> Delta(NamedTuple):</span>
@@ -11946,7 +12005,9 @@ font-weight: bold;
 font-style: inherit;">return</span> <span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">self</span></span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1">colon <span class="op" style="color: #5E5E5E;
+</div>
+<div id="86cab7f2" class="cell" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1">colon <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="bu" style="color: null;
 background-color: null;
@@ -11957,11 +12018,13 @@ background-color: null;
 font-style: inherit;">None</span>,<span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">None</span>)</span></code></pre></div></div>
+</div>
 </section>
 <section id="example-simple-nonlinearity" class="level2">
 <h2 class="anchored" data-anchor-id="example-simple-nonlinearity">Example: Simple Nonlinearity</h2>
 <p>Let the expected likelihood <img src="https://latex.codecogs.com/png.latex?f"> be a monte carlo estimate of a normal distribution around a transformation of <img src="https://latex.codecogs.com/png.latex?z"> with precision <img src="https://latex.codecogs.com/png.latex?%5Ctau_1">. We’ll have two <img src="https://latex.codecogs.com/png.latex?m">s, two <img src="https://latex.codecogs.com/png.latex?%5Cmu">s for each <img src="https://latex.codecogs.com/png.latex?m">, and 20 <img src="https://latex.codecogs.com/png.latex?z">s for each <img src="https://latex.codecogs.com/png.latex?%5Cmu">.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1">TAU3 <span class="op" style="color: #5E5E5E;
+<div id="e20410c6" class="cell" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1">TAU3 <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
 background-color: null;
@@ -11976,7 +12039,9 @@ background-color: null;
 font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">5</span></span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><span class="kw" style="color: #003B4F;
+</div>
+<div id="e7e7d439" class="cell" data-execution_count="8">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> init_posteriors(n_obs_ms, n_obs_mus, mu_parents, key):</span>
@@ -12005,7 +12070,9 @@ font-style: inherit;">1e-3</span>, key2)</span>
 background-color: null;
 font-weight: bold;
 font-style: inherit;">return</span> mu</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1">data_key, post_key, obs_key, key <span class="op" style="color: #5E5E5E;
+</div>
+<div id="a8a09d23" class="cell" data-execution_count="9">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1">data_key, post_key, obs_key, key <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> jr.split(jr.PRNGKey(<span class="dv" style="color: #AD0000;
 background-color: null;
@@ -12063,10 +12130,14 @@ font-style: inherit;">=</span> jnp.ravel(true_z)</span>
 <span id="cb9-8">mu <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> init_posteriors(n_obs_ms, n_obs_mus, mu_parents, post_key)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1">init_mu <span class="op" style="color: #5E5E5E;
+</div>
+<div id="5f7734a2" class="cell" data-execution_count="10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1">init_mu <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> init_posteriors(n_obs_ms, n_obs_mus, mu_parents, post_key)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1">plt.hist(<span class="bu" style="color: null;
+</div>
+<div id="37a63fe4" class="cell" data-execution_count="11">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1">plt.hist(<span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">list</span>(jnp.reshape(true_z, (<span class="dv" style="color: #AD0000;
 background-color: null;
@@ -12092,8 +12163,17 @@ background-color: null;
 font-style: inherit;">'D'</span>])<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">;</span></span></code></pre></div></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/conjugate_computation/Conjugate-Computation_files/figure-html/cell-12-output-1.png" width="566" height="411" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
 <p>We’ll keep the nonlinear log likelihood simple for now:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><span class="kw" style="color: #003B4F;
+<div id="b63ab03d" class="cell" data-execution_count="12">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> trans_val(z):</span>
@@ -12101,7 +12181,9 @@ font-style: inherit;">def</span> trans_val(z):</span>
 background-color: null;
 font-weight: bold;
 font-style: inherit;">return</span> jnp.square(z)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><span class="at" style="color: #657422;
+</div>
+<div id="c3e79923" class="cell" data-execution_count="13">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">@jax.value_and_grad</span></span>
 <span id="cb13-2"><span class="kw" style="color: #003B4F;
@@ -12162,10 +12244,14 @@ font-style: inherit;">-</span> trans_val(z_sample)))</span>
 background-color: null;
 font-weight: bold;
 font-style: inherit;">return</span> obs_lik</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1">y <span class="op" style="color: #5E5E5E;
+</div>
+<div id="6960504e" class="cell" data-execution_count="14">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1">y <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> trans_val(true_z)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1">plt.hist(<span class="bu" style="color: null;
+</div>
+<div id="18dca4bf" class="cell" data-execution_count="15">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1">plt.hist(<span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">list</span>(jnp.reshape(y, (<span class="dv" style="color: #AD0000;
 background-color: null;
@@ -12178,8 +12264,17 @@ background-color: null;
 font-style: inherit;">True</span>)<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">;</span></span></code></pre></div></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/conjugate_computation/Conjugate-Computation_files/figure-html/cell-16-output-1.png" width="566" height="411" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
 <p>Although it’s unnecessary for this toy example, we’ll process the observations in batches to demonstrate how to handle a big-data setting.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1">orig_ixs <span class="op" style="color: #5E5E5E;
+<div id="ab59a809" class="cell" data-execution_count="16">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1">orig_ixs <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> repeat(jnp.arange(<span class="dv" style="color: #AD0000;
 background-color: null;
@@ -12190,7 +12285,9 @@ background-color: null;
 font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">20</span>)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1">permkey, key <span class="op" style="color: #5E5E5E;
+</div>
+<div id="136e3e28" class="cell" data-execution_count="17">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1">permkey, key <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> jr.split(key, <span class="dv" style="color: #AD0000;
 background-color: null;
@@ -12204,7 +12301,9 @@ background-color: null;
 font-style: inherit;">4</span>, <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">20</span>))</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><span class="at" style="color: #657422;
+</div>
+<div id="3d395c75" class="cell" data-execution_count="18">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">@jax.jit</span></span>
 <span id="cb18-2"><span class="kw" style="color: #003B4F;
@@ -12228,7 +12327,9 @@ font-weight: bold;
 font-style: inherit;">return</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span>jnp.mean(logprob), mu.update(ng, oix)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><span class="cf" style="color: #003B4F;
+</div>
+<div id="24648fd3" class="cell" data-execution_count="19">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> epoch <span class="kw" style="color: #003B4F;
@@ -12271,48 +12372,72 @@ background-color: null;
 font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"Loss"</span>, loss)</span></code></pre></div></div>
-<pre><code>Loss 100.12155
+<div class="cell-output cell-output-stdout">
+<pre><code>Loss 100.121574
 Loss 23.347706
-Loss 15.448761
-Loss 9.154531
-Loss 6.0349517
-Loss 8.66155
-Loss 6.0191417
-Loss 6.167668
-Loss 3.9419441
-Loss 4.059013</code></pre>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1">true_mu_dist.mean(colon)</span></code></pre></div></div>
+Loss 15.44876
+Loss 9.154525
+Loss 6.034951
+Loss 8.661549
+Loss 6.019141
+Loss 6.1676702
+Loss 3.9419427
+Loss 4.0590124</code></pre>
+</div>
+</div>
+<div id="c5c4e9a3" class="cell" data-execution_count="20">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1">true_mu_dist.mean(colon)</span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="128">
 <pre><code>Array([ 0.93337744, -0.959161  , -2.7729065 , -2.4498918 ], dtype=float32)</code></pre>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1">mu.mean(colon)</span></code></pre></div></div>
-<pre><code>Array([-1.8313473, -1.6707655,  2.7105517,  2.4046152], dtype=float32)</code></pre>
+</div>
+</div>
+<div id="008a7686" class="cell" data-execution_count="21">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1">mu.mean(colon)</span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="129">
+<pre><code>Array([-1.8313475, -1.6707653,  2.7105508,  2.4046154], dtype=float32)</code></pre>
+</div>
+</div>
 <p>Inference got pretty close to the true values (up to sign, which isn’t identifiable here). Compare this to where we started:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1">init_mu.mean(colon)</span></code></pre></div></div>
+<div id="311da5c2" class="cell" data-execution_count="22">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1">init_mu.mean(colon)</span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="130">
 <pre><code>Array([-7.319654  , -6.7709327 ,  1.2107476 ,  0.45153332], dtype=float32)</code></pre>
+</div>
+</div>
 </section>
 <section id="example-simple-neural-nonlinearity" class="level2">
 <h2 class="anchored" data-anchor-id="example-simple-neural-nonlinearity">Example: Simple Neural Nonlinearity</h2>
 <p>For a slightly more sophisticated example, let’s try to generate some related sin-curves from noise. Our linlinearity will come from a neural net.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1">jax.clear_caches()</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1">RES <span class="op" style="color: #5E5E5E;
+<div id="610c6f46" class="cell" data-execution_count="23">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1">jax.clear_caches()</span></code></pre></div></div>
+</div>
+<div id="9b7af949" class="cell" data-execution_count="24">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1">RES <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">64</span></span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1">inputs <span class="op" style="color: #5E5E5E;
+</div>
+<div id="1a48f97e" class="cell" data-execution_count="25">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1">inputs <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> jnp.linspace(<span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">6</span>, RES)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1">post_key, net_key, data_key, key <span class="op" style="color: #5E5E5E;
+</div>
+<div id="d3756a3e" class="cell" data-execution_count="26">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1">post_key, net_key, data_key, key <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> jr.split(jr.PRNGKey(<span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1</span>), <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">4</span>)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1">w_base <span class="op" style="color: #5E5E5E;
+</div>
+<div id="254177c4" class="cell" data-execution_count="27">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1">w_base <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> jnp.array([<span class="fl" style="color: #AD0000;
 background-color: null;
@@ -12373,7 +12498,9 @@ background-color: null;
 font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1</span>))</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><span class="cf" style="color: #003B4F;
+</div>
+<div id="6deef396" class="cell" data-execution_count="28">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> ix, yi <span class="kw" style="color: #003B4F;
@@ -12404,7 +12531,16 @@ background-color: null;
 font-style: inherit;">}</span><span class="ss" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"</span>)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><span class="cf" style="color: #003B4F;
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/conjugate_computation/Conjugate-Computation_files/figure-html/cell-29-output-1.png" width="590" height="411" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<div id="38aee408" class="cell" data-execution_count="29">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> ix, yi <span class="kw" style="color: #003B4F;
@@ -12435,7 +12571,16 @@ background-color: null;
 font-style: inherit;">}</span><span class="ss" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"</span>)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><span class="kw" style="color: #003B4F;
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/conjugate_computation/Conjugate-Computation_files/figure-html/cell-30-output-1.png" width="590" height="411" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<div id="dd39de50" class="cell" data-execution_count="30">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> init_posteriors(n_obs_ms, n_obs_mus, mu_parents, key):</span>
@@ -12462,7 +12607,9 @@ font-style: inherit;">1e-3</span>, key2)</span>
 background-color: null;
 font-weight: bold;
 font-style: inherit;">return</span> mu</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><span class="at" style="color: #657422;
+</div>
+<div id="499dbd0b" class="cell" data-execution_count="31">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">@ft.partial</span>(eqx.filter_vmap, in_axes<span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -12541,7 +12688,9 @@ font-weight: bold;
 font-style: inherit;">return</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span>obs_lik</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><span class="at" style="color: #657422;
+</div>
+<div id="9636ca80" class="cell" data-execution_count="32">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">@eqx.filter_jit</span></span>
 <span id="cb36-2"><span class="kw" style="color: #003B4F;
@@ -12587,7 +12736,9 @@ font-weight: bold;
 font-style: inherit;">return</span> jnp.mean(neg_logprob), mu.update(<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span>ng, oix), net, opt_state</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1">mu <span class="op" style="color: #5E5E5E;
+</div>
+<div id="beb456e1" class="cell" data-execution_count="33">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1">mu <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> init_posteriors(n_obs_ms, n_obs_mus, mu_parents, post_key)</span>
 <span id="cb37-2">net <span class="op" style="color: #5E5E5E;
@@ -12616,7 +12767,9 @@ background-color: null;
 font-style: inherit;">=</span> opt.init(eqx.<span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">filter</span>(net, eqx.is_inexact_array))</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><span class="cf" style="color: #003B4F;
+</div>
+<div id="6c16f2fc" class="cell" data-execution_count="34">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> epoch <span class="kw" style="color: #003B4F;
@@ -12659,19 +12812,39 @@ background-color: null;
 font-style: inherit;">print</span>(<span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"Loss"</span>, loss)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1">params <span class="op" style="color: #5E5E5E;
+<div class="cell-output cell-output-stdout">
+<pre><code>Loss 4.2189593
+Loss 0.06498263
+Loss 0.06837138
+Loss 0.090302944
+Loss 0.061788883</code></pre>
+</div>
+</div>
+<div id="e613f84f" class="cell" data-execution_count="35">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1">params <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> mu.mean(colon)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb40" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><span class="cf" style="color: #003B4F;
+</div>
+<div id="44035ad8" class="cell" data-execution_count="36">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> p <span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">in</span> params:</span>
-<span id="cb40-2">    plt.plot(inputs, net(p))</span></code></pre></div></div>
+<span id="cb41-2">    plt.plot(inputs, net(p))</span></code></pre></div></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/conjugate_computation/Conjugate-Computation_files/figure-html/cell-37-output-1.png" width="590" height="411" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
 <p>The distances between <img src="https://latex.codecogs.com/png.latex?%5Cmu"> values correspond to what we’d assume given the prior.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb41" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1">plt.imshow(jnp.<span class="bu" style="color: null;
+<div id="cddddb2d" class="cell" data-execution_count="37">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1">plt.imshow(jnp.<span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">sum</span>(jnp.square(params[:, <span class="va" style="color: #111111;
 background-color: null;
@@ -12684,13 +12857,24 @@ background-color: null;
 font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>))</span>
-<span id="cb41-2">plt.colorbar()</span></code></pre></div></div>
+<span id="cb42-2">plt.colorbar()</span></code></pre></div></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/conjugate_computation/Conjugate-Computation_files/figure-html/cell-38-output-1.png" width="510" height="416" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
 </section>
 <section id="example-diffusion-nonlinearity" class="level2">
 <h2 class="anchored" data-anchor-id="example-diffusion-nonlinearity">Example: Diffusion Nonlinearity</h2>
 <p>We can try to accomplish the same task using a ODE-based model. We learn a neural network describing a vector field. Integrating along this vector field maps from our latent space to the space of observations.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb42" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1">jax.clear_caches()</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><span class="at" style="color: #657422;
+<div id="12e8d4a5" class="cell" data-execution_count="38">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1">jax.clear_caches()</span></code></pre></div></div>
+</div>
+<div id="d5e51ee0" class="cell" data-execution_count="39">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">@ft.partial</span>(eqx.filter_vmap, in_axes<span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -12703,22 +12887,22 @@ background-color: null;
 font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>))</span>
-<span id="cb43-2"><span class="at" style="color: #657422;
+<span id="cb44-2"><span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">@eqx.filter_value_and_grad</span></span>
-<span id="cb43-3"><span class="kw" style="color: #003B4F;
+<span id="cb44-3"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> f(args, y, key):</span>
-<span id="cb43-4">    moments, net <span class="op" style="color: #5E5E5E;
+<span id="cb44-4">    moments, net <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> args</span>
-<span id="cb43-5">    key, key2, key3 <span class="op" style="color: #5E5E5E;
+<span id="cb44-5">    key, key2, key3 <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> jr.split(key, <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">3</span>)</span>
-<span id="cb43-6">    std <span class="op" style="color: #5E5E5E;
+<span id="cb44-6">    std <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> jnp.sqrt(moments[:,<span class="dv" style="color: #AD0000;
 background-color: null;
@@ -12727,7 +12911,7 @@ background-color: null;
 font-style: inherit;">-</span> jnp.square(moments[:, <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>]))</span>
-<span id="cb43-7">    mu_sample <span class="op" style="color: #5E5E5E;
+<span id="cb44-7">    mu_sample <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> moments[:,<span class="dv" style="color: #AD0000;
 background-color: null;
@@ -12736,7 +12920,7 @@ background-color: null;
 font-style: inherit;">+</span> std <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span> jr.normal(key, std.shape)</span>
-<span id="cb43-8">    noise <span class="op" style="color: #5E5E5E;
+<span id="cb44-8">    noise <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> jnp.sqrt(<span class="dv" style="color: #AD0000;
 background-color: null;
@@ -12745,15 +12929,15 @@ background-color: null;
 font-style: inherit;">/</span> TAU1) <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span> jr.normal(key2, std.shape)</span>
-<span id="cb43-9">    z_sample <span class="op" style="color: #5E5E5E;
+<span id="cb44-9">    z_sample <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> mu_sample <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">+</span> noise</span>
-<span id="cb43-10">    t <span class="op" style="color: #5E5E5E;
+<span id="cb44-10">    t <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> jr.uniform(key3)</span>
-<span id="cb43-11">    pos <span class="op" style="color: #5E5E5E;
+<span id="cb44-11">    pos <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> t <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -12766,12 +12950,12 @@ background-color: null;
 font-style: inherit;">-</span> t) <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span> z_sample</span>
-<span id="cb43-12">    target <span class="op" style="color: #5E5E5E;
+<span id="cb44-12">    target <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> y <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span> z_sample</span>
-<span id="cb43-13">    obs_lik <span class="op" style="color: #5E5E5E;
+<span id="cb44-13">    obs_lik <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -12784,18 +12968,20 @@ background-color: null;
 font-style: inherit;">sum</span>(jnp.square(target <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span> net(t, pos)))</span>
-<span id="cb43-14">    <span class="cf" style="color: #003B4F;
+<span id="cb44-14">    <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">return</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span>obs_lik</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb44" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><span class="kw" style="color: #003B4F;
+</div>
+<div id="c176c2df" class="cell" data-execution_count="40">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">class</span> Net(eqx.Module):</span>
-<span id="cb44-2">    net: nn.MLP</span>
-<span id="cb44-3">    <span class="kw" style="color: #003B4F;
+<span id="cb45-2">    net: nn.MLP</span>
+<span id="cb45-3">    <span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
@@ -12803,12 +12989,12 @@ background-color: null;
 font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">self</span>, key):</span>
-<span id="cb44-4">        <span class="bu" style="color: null;
+<span id="cb45-4">        <span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">super</span>().<span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">__init__</span>()</span>
-<span id="cb44-5">        <span class="va" style="color: #111111;
+<span id="cb45-5">        <span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">self</span>.net <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -12825,7 +13011,7 @@ background-color: null;
 font-style: inherit;">=</span>jax.nn.swish, key<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>key)</span>
-<span id="cb44-6">    <span class="kw" style="color: #003B4F;
+<span id="cb45-6">    <span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
@@ -12835,42 +13021,46 @@ background-color: null;
 font-style: inherit;">self</span>, t, y, <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span>args):</span>
-<span id="cb44-7">        t <span class="op" style="color: #5E5E5E;
+<span id="cb45-7">        t <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> repeat(t, <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"-&gt; 1"</span>)</span>
-<span id="cb44-8">        <span class="cf" style="color: #003B4F;
+<span id="cb45-8">        <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">return</span> <span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">self</span>.net(jnp.concatenate([y, t]))</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb45" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1">mu <span class="op" style="color: #5E5E5E;
+</div>
+<div id="07c02157" class="cell" data-execution_count="41">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1">mu <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> init_posteriors(n_obs_ms, n_obs_mus, mu_parents, post_key)</span>
-<span id="cb45-2">lr<span class="op" style="color: #5E5E5E;
+<span id="cb46-2">lr<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1e-3</span></span>
-<span id="cb45-3">net <span class="op" style="color: #5E5E5E;
+<span id="cb46-3">net <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Net(net_key)</span>
-<span id="cb45-4">opt <span class="op" style="color: #5E5E5E;
+<span id="cb46-4">opt <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> optax.adabelief(learning_rate<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span>lr)</span>
-<span id="cb45-5">opt_state <span class="op" style="color: #5E5E5E;
+<span id="cb46-5">opt_state <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> opt.init(eqx.<span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">filter</span>(net, eqx.is_inexact_array))</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb46" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1">losses <span class="op" style="color: #5E5E5E;
+</div>
+<div id="cbfa2881" class="cell" data-execution_count="42">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1">losses <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> []</span>
-<span id="cb46-2"><span class="cf" style="color: #003B4F;
+<span id="cb47-2"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> epoch <span class="kw" style="color: #003B4F;
@@ -12881,22 +13071,22 @@ background-color: null;
 font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">3000</span>):</span>
-<span id="cb46-3">    <span class="cf" style="color: #003B4F;
+<span id="cb47-3">    <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> ix <span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">in</span> ixs:</span>
-<span id="cb46-4">        noise_key, key <span class="op" style="color: #5E5E5E;
+<span id="cb47-4">        noise_key, key <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> jr.split(key, <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>)</span>
-<span id="cb46-5">        loss, mu, net, opt_state <span class="op" style="color: #5E5E5E;
+<span id="cb47-5">        loss, mu, net, opt_state <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> step(mu, net, y, noise_key, ix, opt_state, opt.update)</span>
-<span id="cb46-6">    <span class="cf" style="color: #003B4F;
+<span id="cb47-6">    <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">if</span> epoch <span class="op" style="color: #5E5E5E;
@@ -12908,17 +13098,30 @@ background-color: null;
 font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>:</span>
-<span id="cb46-7">        losses.append(loss)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb47" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1">plt.plot(losses)</span>
-<span id="cb47-2">plt.yscale(<span class="st" style="color: #20794D;
+<span id="cb47-7">        losses.append(loss)</span></code></pre></div></div>
+</div>
+<div id="15d771ea" class="cell" data-execution_count="43">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb48-1">plt.plot(losses)</span>
+<span id="cb48-2">plt.yscale(<span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">'log'</span>)<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">;</span></span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb48" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb48-1">params <span class="op" style="color: #5E5E5E;
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/conjugate_computation/Conjugate-Computation_files/figure-html/cell-44-output-1.png" width="574" height="411" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<div id="c0b6a573" class="cell" data-execution_count="44">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1">params <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> mu.mean(colon)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb49" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><span class="at" style="color: #657422;
+</div>
+<div id="6b06e2c8" class="cell" data-execution_count="45">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">@ft.partial</span>(jax.vmap, in_axes<span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -12927,17 +13130,17 @@ background-color: null;
 font-style: inherit;">None</span>, <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>))</span>
-<span id="cb49-2"><span class="kw" style="color: #003B4F;
+<span id="cb50-2"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> forwardflow(net, z):</span>
-<span id="cb49-3">    term <span class="op" style="color: #5E5E5E;
+<span id="cb50-3">    term <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> dfx.ODETerm(net)</span>
-<span id="cb49-4">    solver <span class="op" style="color: #5E5E5E;
+<span id="cb50-4">    solver <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> dfx.ReversibleHeun()</span>
-<span id="cb49-5">    sol <span class="op" style="color: #5E5E5E;
+<span id="cb50-5">    sol <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> dfx.diffeqsolve(term, solver, <span class="dv" style="color: #AD0000;
 background-color: null;
@@ -12946,24 +13149,37 @@ background-color: null;
 font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1e-3</span>, z)</span>
-<span id="cb49-6">    <span class="cf" style="color: #003B4F;
+<span id="cb50-6">    <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">return</span> sol.ys[<span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>]</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb50" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1">results <span class="op" style="color: #5E5E5E;
+</div>
+<div id="b74494ca" class="cell" data-execution_count="46">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1">results <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> forwardflow(net, params)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb51" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1"><span class="cf" style="color: #003B4F;
+</div>
+<div id="68350514" class="cell" data-execution_count="47">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb52-1"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> p <span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">in</span> results:</span>
-<span id="cb51-2">    plt.plot(inputs, p)</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb52" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb52-1">plt.imshow(jnp.<span class="bu" style="color: null;
+<span id="cb52-2">    plt.plot(inputs, p)</span></code></pre></div></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/conjugate_computation/Conjugate-Computation_files/figure-html/cell-48-output-1.png" width="582" height="411" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<div id="29469cc4" class="cell" data-execution_count="48">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb53-1">plt.imshow(jnp.<span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">sum</span>(jnp.square(params[:, <span class="va" style="color: #111111;
 background-color: null;
@@ -12976,9 +13192,18 @@ background-color: null;
 font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>))</span>
-<span id="cb52-2">plt.colorbar()</span></code></pre></div></div>
+<span id="cb53-2">plt.colorbar()</span></code></pre></div></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/conjugate_computation/Conjugate-Computation_files/figure-html/cell-49-output-1.png" width="510" height="416" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
 <p>One of the nice things about ODE models is that we can use them for prediction as well as generation.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb53" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb53-1"><span class="at" style="color: #657422;
+<div id="52feb65b" class="cell" data-execution_count="49">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb54" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb54-1"><span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">@ft.partial</span>(jax.vmap, in_axes<span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -12987,17 +13212,17 @@ background-color: null;
 font-style: inherit;">None</span>, <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>))</span>
-<span id="cb53-2"><span class="kw" style="color: #003B4F;
+<span id="cb54-2"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> backflow(net, x):</span>
-<span id="cb53-3">    term <span class="op" style="color: #5E5E5E;
+<span id="cb54-3">    term <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> dfx.ODETerm(net)</span>
-<span id="cb53-4">    solver <span class="op" style="color: #5E5E5E;
+<span id="cb54-4">    solver <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> dfx.ReversibleHeun()</span>
-<span id="cb53-5">    sol <span class="op" style="color: #5E5E5E;
+<span id="cb54-5">    sol <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> dfx.diffeqsolve(term, solver, <span class="dv" style="color: #AD0000;
 background-color: null;
@@ -13008,14 +13233,16 @@ background-color: null;
 font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1e-3</span>, x)</span>
-<span id="cb53-6">    <span class="cf" style="color: #003B4F;
+<span id="cb54-6">    <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">return</span> sol.ys[<span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>]</span></code></pre></div></div>
+</div>
 <p>We’ll take one sample from each class.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb54" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb54-1">ry <span class="op" style="color: #5E5E5E;
+<div id="d5893610" class="cell" data-execution_count="50">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb55" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb55-1">ry <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> jnp.reshape(y, (<span class="dv" style="color: #AD0000;
 background-color: null;
@@ -13024,25 +13251,38 @@ background-color: null;
 font-style: inherit;">20</span>, <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">64</span>))</span>
-<span id="cb54-2">topy <span class="op" style="color: #5E5E5E;
+<span id="cb55-2">topy <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> ry[:,<span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>,:]</span></code></pre></div></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb55" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb55-1"><span class="cf" style="color: #003B4F;
+</div>
+<div id="707d9fa5" class="cell" data-execution_count="51">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb56-1"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> yi <span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">in</span> topy:</span>
-<span id="cb55-2">    plt.plot(inputs, yi)</span></code></pre></div></div>
+<span id="cb56-2">    plt.plot(inputs, yi)</span></code></pre></div></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/conjugate_computation/Conjugate-Computation_files/figure-html/cell-52-output-1.png" width="590" height="411" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
 <p>We can integrate backwards through time to get the latent code associated with each sample.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb56" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb56-1">zs <span class="op" style="color: #5E5E5E;
+<div id="7fbb6ea0" class="cell" data-execution_count="52">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb57" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb57-1">zs <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> backflow(net, topy)</span></code></pre></div></div>
+</div>
 <p>The latent codes are well separated in Euclidean space.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb57" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb57-1">plt.imshow(jnp.<span class="bu" style="color: null;
+<div id="2e8408f6" class="cell" data-execution_count="53">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb58-1">plt.imshow(jnp.<span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">sum</span>(jnp.square(zs[:, <span class="va" style="color: #111111;
 background-color: null;
@@ -13055,38 +13295,47 @@ background-color: null;
 font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>))</span>
-<span id="cb57-2">plt.colorbar()<span class="op" style="color: #5E5E5E;
+<span id="cb58-2">plt.colorbar()<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">;</span></span></code></pre></div></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/conjugate_computation/Conjugate-Computation_files/figure-html/cell-54-output-1.png" width="510" height="416" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
 <p>We can visualize the embeddings with PCA.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb58" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb58-1"><span class="im" style="color: #00769E;
+<div id="97b13f05" class="cell" data-execution_count="54">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb59" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb59-1"><span class="im" style="color: #00769E;
 background-color: null;
 font-style: inherit;">from</span> numpy.linalg <span class="im" style="color: #00769E;
 background-color: null;
 font-style: inherit;">import</span> eig</span>
-<span id="cb58-2">pmu <span class="op" style="color: #5E5E5E;
+<span id="cb59-2">pmu <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> jnp.mean(params, axis<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>)</span>
-<span id="cb58-3">Xbar <span class="op" style="color: #5E5E5E;
+<span id="cb59-3">Xbar <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> params <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span> pmu[<span class="va" style="color: #111111;
 background-color: null;
 font-style: inherit;">None</span>,:]</span>
-<span id="cb58-4">S <span class="op" style="color: #5E5E5E;
+<span id="cb59-4">S <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Xbar.T <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">@</span> Xbar</span>
-<span id="cb58-5">res <span class="op" style="color: #5E5E5E;
+<span id="cb59-5">res <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> eig(S)</span>
-<span id="cb58-6">proj <span class="op" style="color: #5E5E5E;
+<span id="cb59-6">proj <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Xbar <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -13095,7 +13344,7 @@ background-color: null;
 font-style: inherit;">1</span>][:, :<span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>]</span>
-<span id="cb58-7">plt.scatter(proj[:<span class="dv" style="color: #AD0000;
+<span id="cb59-7">plt.scatter(proj[:<span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>, <span class="dv" style="color: #AD0000;
 background-color: null;
@@ -13104,7 +13353,7 @@ background-color: null;
 font-style: inherit;">2</span>, <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1</span>])</span>
-<span id="cb58-8">plt.scatter(proj[<span class="dv" style="color: #AD0000;
+<span id="cb59-8">plt.scatter(proj[<span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>:, <span class="dv" style="color: #AD0000;
 background-color: null;
@@ -13115,6 +13364,14 @@ background-color: null;
 font-style: inherit;">1</span>])<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">;</span></span></code></pre></div></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/conjugate_computation/Conjugate-Computation_files/figure-html/cell-55-output-1.png" width="569" height="416" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
 
 
 </section>
