@@ -42,7 +42,13 @@ $$
 \end{align*}
 $$
 
-Similarly, the gradient for $\theta_2$ is $ \nabla_{\theta_2}^2A(\theta_2)(E[\phi(X_1)] + \eta_2 - \theta_2)$. This coordinate-wise natural gradient update is called "variational message passing".
+Similarly, the gradient for $\theta_2$ is
+
+$$
+\nabla_{\theta_2}^2A(\theta_2)(E[\phi(X_1)] + \eta_2 - \theta_2)
+$$
+
+This coordinate-wise natural gradient update is called "variational message passing".
 
 We can find $F^{-1} \nabla_\theta f$ by using the "conjugate computation" trick. Let $\hat{\theta}$ be the expected-statistic parameterization corresponding to natural parameters $\theta$. Observe that, by the chain rule:
 
@@ -257,41 +263,15 @@ for epoch in range(100):
         print("Loss", loss)
 ```
 
-    Loss 100.12155
-    Loss 23.347706
-    Loss 15.448761
-    Loss 9.154531
-    Loss 6.0349517
-    Loss 8.66155
-    Loss 6.0191417
-    Loss 6.167668
-    Loss 3.9419441
-    Loss 4.059013
-
-
 
 ```{python}
 true_mu_dist.mean(colon)
 ```
 
 
-
-
-    Array([ 0.93337744, -0.959161  , -2.7729065 , -2.4498918 ], dtype=float32)
-
-
-
-
 ```{python}
 mu.mean(colon)
 ```
-
-
-
-
-    Array([-1.8313473, -1.6707655,  2.7105517,  2.4046152], dtype=float32)
-
-
 
 Inference got pretty close to the true values (up to sign, which isn't identifiable here). Compare this to where we started:
 
@@ -299,12 +279,6 @@ Inference got pretty close to the true values (up to sign, which isn't identifia
 ```{python}
 init_mu.mean(colon)
 ```
-
-
-
-
-    Array([-7.319654  , -6.7709327 ,  1.2107476 ,  0.45153332], dtype=float32)
-
 
 
 ## Example: Simple Neural Nonlinearity

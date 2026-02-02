@@ -1,5 +1,5 @@
 ---
-title: "So You Want to Learn [X]"
+title: "Books and Guides"
 date: "2025-08-21"
 categories: ["statistics", "machine_learning"]
 ---
@@ -23,10 +23,37 @@ lists some of my favorite resources for learning stuff.
 - **Elements of Sequential Monte Carlo** *(Christian Naesseth el al)* is the simplest tutorial on sequential Monte Carlo methods I've seen.
 
 ## Machine Learning
+- Stanford's CS231n course is a great introduction to deep learning.
+- MathematicalMonk's machine learning videos on YouTube are good for older ML algorithms (the kind in scikit-learn).
 - **Pattern Recognition and Machine Learning** *(Christopher M. Bishop)* is my go-to reference for machine learning fundamentals.
+- **Understanding Machine Learning: From Theory to Algorithms** *(Shai Shalev-Shwartz and Shai Ben-David)* gives you a taste of learning theory.
 - **Gaussian Processes for Machine Learning** *(Carl Rasmussen and Christopher K. I. Williams)* is the classic text on Gaussian processes.
 - **Reinforcement Learning: An Introduction** *(Richard S. Sutton and Andrew G. Barto)* is a very accessible introduction to reinforcement learning.
 - **Bandit Algorithms** *(Tor Lattimore and Csaba Szepesvári)* is a comprehensive guide to multi-armed bandit problems.
 - **Online Learning and Online Convex Optimization** *(Shai Shalev-Shwartz and Yoram Singer)* is a short introduction to online learning.
-- **Convex Optimization** *(Stephen Boyd and Lieven Vandenberghe)* is the canonical reference for convex optimization.
-- **Understanding Machine Learning: From Theory to Algorithms** *(Shai Shalev-Shwartz and Shai Ben-David)* gives you a taste of learning theory.
+- **Convex Optimization** *(Stephen Boyd and Lieven Vandenberghe)* is the canonical reference for convex optimization. Not exactly ML, but extremely relevant.
+
+## Algorithms and Data Structures
+- Algorithm Design (Tardos)
+- Randomized Algorithms
+- Planar Graphs
+- All MIT's open courseware taught by Erik Demaine is awesome. That includes 6.006 Introduction to Algorithms and 6.851 Advanced Data Structures.
+- Graph algorithms in the language of linear algebra.
+- Spectral graph theory.
+
+## Compilers & Programming Languages
+- Implementing Functional Languages
+- Purely Functional Data Structures
+- Types and Programming Languages
+- Calculus of Computation
+- HOTT
+- The Catsters have a YouTube channel on category theory
+
+## Math
+- Math for Computer Science
+- Nonlinear dynamics and chaos
+- Visual Group Theory
+- 7 Sketches
+- Visual Complex Analysis
+- Infinite Napkin.
+- "The Bright Side of Mathematics" is a YouTube channel with good videos on measure theory.
