@@ -1,6 +1,6 @@
 project:
   type: website
-  # pre-render: pluto-to-qmd
+  pre-render: pluto-to-qmd
 
 website:
   description: "Dabbling in Data Science"
