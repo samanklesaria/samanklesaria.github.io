@@ -37,21 +37,20 @@ font-style: inherit;">Random</span>, <span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">Distributions</span></span></code></pre></div></div>
 </div>
-<p>Say you want to fit a multivariate Normal distribution to some data.</p>
+<p>Say you want to fit a multivariate Normal distribution to some data. We’ll show how to generalize the complete data case to the missing data case. Let’s start by generating some data.</p>
 <div id="4" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><span class="bu" style="color: null;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">begin</span></span>
+<span id="cb2-2"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">Random</span>.<span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">seed!</span>(<span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">0</span>)</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>TaskLocalRNG()</code></pre>
-</div>
-</div>
-<div id="6" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1">Σ <span class="op" style="color: #5E5E5E;
+font-style: inherit;">0</span>)</span>
+<span id="cb2-3">Σ <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -61,31 +60,15 @@ font-style: inherit;">LKJ</span>(<span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">3</span>, <span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">1</span>))</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>3×3 Matrix{Float64}:
-  1.0       -0.192969  -0.194527
- -0.192969   1.0       -0.846977
- -0.194527  -0.846977   1.0</code></pre>
-</div>
-</div>
-<div id="8" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1">μ <span class="op" style="color: #5E5E5E;
+font-style: inherit;">1</span>))</span>
+<span id="cb2-4">μ <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">rand</span>(<span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">3</span>)</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>3-element Vector{Float64}:
- 0.2895098423219379
- 0.028549977665983994
- 0.538639413965653</code></pre>
-</div>
-</div>
-<div id="10" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1">X <span class="op" style="color: #5E5E5E;
+font-style: inherit;">3</span>)</span>
+<span id="cb2-5">X <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> (μ <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -101,7 +84,11 @@ font-style: inherit;">3</span>, <span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">300</span>))<span class="ch" style="color: #20794D;
 background-color: null;
-font-style: inherit;">'</span></span></code></pre></div></div>
+font-style: inherit;">'</span></span>
+<span id="cb2-6"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span></code></pre></div></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>300×3 adjoint(::Matrix{Float64}) with eltype Float64:
  -0.258093     0.0699272   0.515201
@@ -128,14 +115,14 @@ font-style: inherit;">'</span></span></code></pre></div></div>
 </div>
 <p>The obvious way to do this is with maximum likelihood estimation. In natural parameter form, the log likelihood is given by</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Csum_i%20x_i%5ET%20%5CLambda%20%5Cmu%20-%20%5Cfrac%7B1%7D%7B2%7D%20%5Ctext%7BTr%7D(%5CLambda%20x_i%20x_i%5ET)%20-%20N%20A(%5Ceta)%0A"> Derive wrt the natural parameters <img src="https://latex.codecogs.com/png.latex?%5Ceta%20=%20(%5CLambda,%20%5CLambda%20%5Cmu)"> to get</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20x_i%20&amp;=%20E%5Bx%5D%0A%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20x_i%20x_i%5ET%20&amp;=%20E%5Bxx%5ET%5D%0A%5Cend%7Balign*%7D%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20x_i%20&amp;=%20E%5Bx%5D%20%5C%5C%0A%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20x_i%20x_i%5ET%20&amp;=%20E%5Bxx%5ET%5D%0A%5Cend%7Balign*%7D%0A"></p>
 <p>Easy. But now, how might you do this if some subset of the data is missing? We’ll assume that the data isn’t missing completely at random, so that our observed marginals aren’t unbiased estimators of the true marginals.</p>
-<div id="12" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb10-1"><span class="cf" style="color: #003B4F;
+<div id="6" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">begin</span></span>
-<span id="cb10-2">missing_mask <span class="op" style="color: #5E5E5E;
+<span id="cb4-2">missing_mask <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -164,7 +151,7 @@ background-color: null;
 font-style: inherit;">2</span>), <span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">3</span>))</span>
-<span id="cb10-3">Xm <span class="op" style="color: #5E5E5E;
+<span id="cb4-3">Xm <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -177,13 +164,13 @@ background-color: null;
 font-style: inherit;">Float64</span>, <span class="dt" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">Missing</span>}}, X)</span>
-<span id="cb10-4">Xm[missing_mask] <span class="op" style="color: #5E5E5E;
+<span id="cb4-4">Xm[missing_mask] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">.=</span> <span class="cn" style="color: #8f5902;
 background-color: null;
 font-style: inherit;">missing</span></span>
-<span id="cb10-5">Xm</span>
-<span id="cb10-6"><span class="cf" style="color: #003B4F;
+<span id="cb4-5">Xm</span>
+<span id="cb4-6"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">end</span></span></code></pre></div></div>
@@ -211,8 +198,8 @@ font-style: inherit;">end</span></span></code></pre></div></div>
   0.260026     0.651592    0.155827</code></pre>
 </div>
 </div>
-<div id="14" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb12-1"><span class="fu" style="color: #4758AB;
+<div id="8" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">sum</span>(<span class="fu" style="color: #4758AB;
 background-color: null;
@@ -234,31 +221,31 @@ font-style: inherit;">1</span>)</span></code></pre></div></div>
 </div>
 <p>We’re trying to find a maximum likelihood estimate in the presence of latent variables (in this case, all the unobserved values). It’s a classic situation for the EM algorithm!</p>
 <p>At each step of EM, we want to find parameters <img src="https://latex.codecogs.com/png.latex?%5Cmu,%20%5CSigma"> that maximize the expected log likelihood, where the expectation is taken with respect to <img src="https://latex.codecogs.com/png.latex?p(x_%5Ctext%7Bunobserved%7D%20%7C%20x_%5Ctext%7Bobserved%7D)">. That’s</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0AE%5Cleft%5B%5Csum_i%20x_i%5ET%20%5CLambda%20%5Cmu%20-%20%5Cfrac%7B1%7D%7B2%7D%20%5Ctext%7BTr%7D(%5CLambda%20x_i%20x_i%5ET)%20-%20N%20A(%5Ceta)%5Cright%5D%20=%0A%5Csum_i%20E%5Bx_i%5D%5ET%20%5CLambda%20%5Cmu%20-%20%5Cfrac%7B1%7D%7B2%7D%20%5Ctext%7BTr%7D(%5CLambda%20E%5Bx_i%20x_i%5ET%5D)%20-%20N%20A(%5Ceta)%0A%5Cend%7Balign*%7D%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0AE%5Cleft%5B%5Csum_i%20x_i%5ET%20%5CLambda%20%5Cmu%20-%20%5Cfrac%7B1%7D%7B2%7D%20%5Ctext%7BTr%7D(%5CLambda%20x_i%20x_i%5ET)%20-%20N%20A(%5Ceta)%5Cright%5D%20=%20%5C%5C%0A%5Csum_i%20E%5Bx_i%5D%5ET%20%5CLambda%20%5Cmu%20-%20%5Cfrac%7B1%7D%7B2%7D%20%5Ctext%7BTr%7D(%5CLambda%20E%5Bx_i%20x_i%5ET%5D)%20-%20N%20A(%5Ceta)%0A%5Cend%7Balign*%7D%0A"></p>
 <p>Take the gradient as before to get</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Cmu%20&amp;=%20%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20E%5By_i%5D%0A%5CSigma%20&amp;=%20%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20E%5By_i%20y_i%5ET%5D%0A%5Cend%7Balign*%7D%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Cmu%20&amp;=%20%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20E%5By_i%5D%20%5C%5C%0A%5CSigma%20&amp;=%20%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20E%5By_i%20y_i%5ET%5D%0A%5Cend%7Balign*%7D%0A"></p>
 <p>It remains to find out what <img src="https://latex.codecogs.com/png.latex?E%5Bx_i%5D"> and <img src="https://latex.codecogs.com/png.latex?E%5Bx_i%20x_i%5ET%5D"> are. For the components of <img src="https://latex.codecogs.com/png.latex?x_i"> that are observed (call this subvector <img src="https://latex.codecogs.com/png.latex?x_o">), <img src="https://latex.codecogs.com/png.latex?E%5Bx_o%5D%20=%20x_o">. For the components <img src="https://latex.codecogs.com/png.latex?x_u"> that are not observed, the Gaussian conditioning formula gives <img src="https://latex.codecogs.com/png.latex?x_u%20=%20%CE%BC_u%20+%20%CE%A3_%7Buo%7D%20%CE%A3_%7Boo%7D%5E%7B-1%7D(y_o%20-%20%CE%BC_o)"></p>
-<div id="16" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb14-1"><span class="kw" style="color: #003B4F;
+<div id="10" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">E_m1</span>(x, μ, Σ)</span>
-<span id="cb14-2">    x2 <span class="op" style="color: #5E5E5E;
+<span id="cb8-2">    x2 <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">copy</span>(x)</span>
-<span id="cb14-3">    u <span class="op" style="color: #5E5E5E;
+<span id="cb8-3">    u <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">ismissing</span>.(x)</span>
-<span id="cb14-4">    o <span class="op" style="color: #5E5E5E;
+<span id="cb8-4">    o <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> .!u</span>
-<span id="cb14-5">    x2[u] <span class="op" style="color: #5E5E5E;
+<span id="cb8-5">    x2[u] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">.=</span> μ[u] <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -269,8 +256,8 @@ background-color: null;
 font-style: inherit;">\</span> (x[o] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span> μ[o]))</span>
-<span id="cb14-6">    x2</span>
-<span id="cb14-7"><span class="kw" style="color: #003B4F;
+<span id="cb8-6">    x2</span>
+<span id="cb8-7"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">end</span></span></code></pre></div></div>
@@ -279,16 +266,16 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 </div>
 </div>
 <p>The second moment breaks down similarly. <img src="https://latex.codecogs.com/png.latex?E%5Bx_i%20x_i%5ET%5D"> can be thought of (up to permutation) as a block matrix:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Bbmatrix%7D%0Ax_o%20x_o%5ET%20&amp;%20x_o%20x_u%5ET%0Ax_u%20x_o%5ET%20&amp;%20x_u%20x_u%5ET%0A%5Cend%7Bbmatrix%7D%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Bbmatrix%7D%0Ax_o%20x_o%5ET%20&amp;%20x_o%20x_u%5ET%20%5C%5C%0Ax_u%20x_o%5ET%20&amp;%20x_u%20x_u%5ET%0A%5Cend%7Bbmatrix%7D%0A"></p>
 <p>As <img src="https://latex.codecogs.com/png.latex?x_0"> and <img src="https://latex.codecogs.com/png.latex?x_o%20x_o%5ET"> are known, that just leaves <img src="https://latex.codecogs.com/png.latex?E%5Bx_o%20x_u%5ET%5D%20=%20x_o%20%5Cmu_u%5ET"> and <img src="https://latex.codecogs.com/png.latex?E%5Bx_u%20x_u%5ET%5D%20=%20%5Ctext%7BVar%7D(x_u%20%7C%20x_o)%20+%20%5Cmu_u%20%5Cmu_u%5ET">. The formula for conditional Gaussians tell us <img src="https://latex.codecogs.com/png.latex?%5Ctext%7BVar%7D(x_u)%20=%20%5CSigma_%7Buu%7D%20-%20%5CSigma_%7Buo%7D%20%5CSigma_%7Boo%7D%5E%7B-1%7D%20%5CSigma_%7Bou%7D">.</p>
-<div id="18" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb16-1"><span class="kw" style="color: #003B4F;
+<div id="12" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb10-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">E_m2</span>(x, μ, Σ)</span>
-<span id="cb16-2">    x2 <span class="op" style="color: #5E5E5E;
+<span id="cb10-2">    x2 <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -299,34 +286,34 @@ background-color: null;
 font-style: inherit;">undef</span>, <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">size</span>(Σ))</span>
-<span id="cb16-3">    u <span class="op" style="color: #5E5E5E;
+<span id="cb10-3">    u <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">ismissing</span>.(x)</span>
-<span id="cb16-4">    o <span class="op" style="color: #5E5E5E;
+<span id="cb10-4">    o <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> .!u</span>
-<span id="cb16-5">    x2[o,o] <span class="op" style="color: #5E5E5E;
+<span id="cb10-5">    x2[o,o] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">.=</span> x[o] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span> x[o]<span class="ch" style="color: #20794D;
 background-color: null;
 font-style: inherit;">'</span></span>
-<span id="cb16-6">    x2[o, u] <span class="op" style="color: #5E5E5E;
+<span id="cb10-6">    x2[o, u] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">.=</span> x[o] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span> μ[u]<span class="ch" style="color: #20794D;
 background-color: null;
 font-style: inherit;">'</span></span>
-<span id="cb16-7">    x2[u, o] <span class="op" style="color: #5E5E5E;
+<span id="cb10-7">    x2[u, o] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">.=</span> x2[o, u]<span class="ch" style="color: #20794D;
 background-color: null;
 font-style: inherit;">'</span></span>
-<span id="cb16-8">    x2[u,u] <span class="op" style="color: #5E5E5E;
+<span id="cb10-8">    x2[u,u] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Σ[u,u] <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -341,8 +328,8 @@ background-color: null;
 font-style: inherit;">*</span>μ[u]<span class="ch" style="color: #20794D;
 background-color: null;
 font-style: inherit;">'</span></span>
-<span id="cb16-9">    x2</span>
-<span id="cb16-10"><span class="kw" style="color: #003B4F;
+<span id="cb10-9">    x2</span>
+<span id="cb10-10"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">end</span></span></code></pre></div></div>
@@ -351,14 +338,14 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 </div>
 </div>
 <p>Let’s put it all together!</p>
-<div id="20" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb18-1"><span class="kw" style="color: #003B4F;
+<div id="14" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb12-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">em_step</span>(X, μ, Σ)</span>
-<span id="cb18-2">    μ <span class="op" style="color: #5E5E5E;
+<span id="cb12-2">    μ <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -373,7 +360,7 @@ font-weight: bold;
 font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">eachrow</span>(X))</span>
-<span id="cb18-3">    m2 <span class="op" style="color: #5E5E5E;
+<span id="cb12-3">    m2 <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -388,14 +375,14 @@ font-weight: bold;
 font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">eachrow</span>(X))</span>
-<span id="cb18-4">    (μ, m2 <span class="op" style="color: #5E5E5E;
+<span id="cb12-4">    (μ, m2 <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span> μ <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span> μ<span class="ch" style="color: #20794D;
 background-color: null;
 font-style: inherit;">')</span></span>
-<span id="cb18-5"><span class="cf" style="color: #003B4F;
+<span id="cb12-5"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">end</span></span></code></pre></div></div>
@@ -403,14 +390,14 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 <pre><code>em_step (generic function with 1 method)</code></pre>
 </div>
 </div>
-<div id="22" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb20-1"><span class="kw" style="color: #003B4F;
+<div id="16" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb14-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">em_alg</span>(X, μ, Σ)</span>
-<span id="cb20-2">    <span class="cf" style="color: #003B4F;
+<span id="cb14-2">    <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> _ <span class="kw" style="color: #003B4F;
@@ -423,7 +410,7 @@ background-color: null;
 font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">100</span></span>
-<span id="cb20-3">        μ<span class="fl" style="color: #AD0000;
+<span id="cb14-3">        μ<span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>, Σ<span class="fl" style="color: #AD0000;
 background-color: null;
@@ -432,7 +419,7 @@ background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">em_step</span>(X, μ, Σ)</span>
-<span id="cb20-4">        δ <span class="op" style="color: #5E5E5E;
+<span id="cb14-4">        δ <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -453,7 +440,7 @@ background-color: null;
 font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span> Σ)))</span>
-<span id="cb20-5">        <span class="cf" style="color: #003B4F;
+<span id="cb14-5">        <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">if</span> δ <span class="op" style="color: #5E5E5E;
@@ -461,26 +448,26 @@ background-color: null;
 font-style: inherit;">&lt;</span> <span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1e-5</span></span>
-<span id="cb20-6">            <span class="cf" style="color: #003B4F;
+<span id="cb14-6">            <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">return</span> (μ, Σ)</span>
-<span id="cb20-7">        <span class="cf" style="color: #003B4F;
+<span id="cb14-7">        <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">end</span></span>
-<span id="cb20-8">        μ, Σ <span class="op" style="color: #5E5E5E;
+<span id="cb14-8">        μ, Σ <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> (μ<span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>, Σ<span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>)</span>
-<span id="cb20-9">    <span class="cf" style="color: #003B4F;
+<span id="cb14-9">    <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">end</span></span>
-<span id="cb20-10"><span class="kw" style="color: #003B4F;
+<span id="cb14-10"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">end</span></span></code></pre></div></div>
@@ -488,8 +475,8 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 <pre><code>em_alg (generic function with 1 method)</code></pre>
 </div>
 </div>
-<div id="24" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb22-1">μ_guess, Σ_guess <span class="op" style="color: #5E5E5E;
+<div id="18" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb16-1">μ_guess, Σ_guess <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -508,8 +495,8 @@ font-style: inherit;">3</span>))</span></code></pre></div></div>
 <pre><code>([0.3165736154417296, 0.001442844333011344, 0.5068980884346564], [0.9352904749796694 -0.14254207406265143 -0.1302467250906596; -0.14254207406265143 0.7845792845571478 -0.6864141697229134; -0.1302467250906596 -0.6864141697229134 0.897912273140797])</code></pre>
 </div>
 </div>
-<div id="26" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb24-1">(μ, Σ)</span></code></pre></div></div>
+<div id="20" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb18-1">(μ, Σ)</span></code></pre></div></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>([0.2895098423219379, 0.028549977665983994, 0.538639413965653], [1.0 -0.19296912090384166 -0.19452690226681507; -0.19296912090384166 1.0 -0.8469773751344721; -0.19452690226681507 -0.8469773751344721 1.0])</code></pre>
 </div>

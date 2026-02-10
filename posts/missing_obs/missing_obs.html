@@ -207,33 +207,14 @@ window.Quarto = {
 <div id="2" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">LinearAlgebra</span>, <span class="bu">StatsBase</span>, <span class="bu">StatsModels</span>, <span class="bu">LogExpFunctions</span>, <span class="bu">Random</span>, <span class="bu">Distributions</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>Say you want to fit a multivariate Normal distribution to some data.</p>
+<p>Say you want to fit a multivariate Normal distribution to some data. We’ll show how to generalize the complete data case to the missing data case. Let’s start by generating some data.</p>
 <div id="4" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">Random</span>.<span class="fu">seed!</span>(<span class="fl">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>TaskLocalRNG()</code></pre>
-</div>
-</div>
-<div id="6" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>Σ <span class="op">=</span> <span class="fu">rand</span>(<span class="fu">LKJ</span>(<span class="fl">3</span>, <span class="fl">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>3×3 Matrix{Float64}:
-  1.0       -0.192969  -0.194527
- -0.192969   1.0       -0.846977
- -0.194527  -0.846977   1.0</code></pre>
-</div>
-</div>
-<div id="8" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>μ <span class="op">=</span> <span class="fu">rand</span>(<span class="fl">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>3-element Vector{Float64}:
- 0.2895098423219379
- 0.028549977665983994
- 0.538639413965653</code></pre>
-</div>
-</div>
-<div id="10" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> (μ <span class="op">.+</span> <span class="fu">sqrt</span>(Σ) <span class="op">*</span> <span class="fu">randn</span>(<span class="fl">3</span>, <span class="fl">300</span>))<span class="ch">'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="cf">begin</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">Random</span>.<span class="fu">seed!</span>(<span class="fl">0</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>Σ <span class="op">=</span> <span class="fu">rand</span>(<span class="fu">LKJ</span>(<span class="fl">3</span>, <span class="fl">1</span>))</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>μ <span class="op">=</span> <span class="fu">rand</span>(<span class="fl">3</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> (μ <span class="op">.+</span> <span class="fu">sqrt</span>(Σ) <span class="op">*</span> <span class="fu">randn</span>(<span class="fl">3</span>, <span class="fl">300</span>))<span class="ch">'</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>300×3 adjoint(::Matrix{Float64}) with eltype Float64:
  -0.258093     0.0699272   0.515201
@@ -264,18 +245,18 @@ window.Quarto = {
 \]</span> Derive wrt the natural parameters <span class="math inline">\(\eta = (\Lambda, \Lambda \mu)\)</span> to get</p>
 <p><span class="math display">\[
 \begin{align*}
-\frac{1}{N}\sum_i x_i &amp;= E[x]
+\frac{1}{N}\sum_i x_i &amp;= E[x] \\
 \frac{1}{N}\sum_i x_i x_i^T &amp;= E[xx^T]
 \end{align*}
 \]</span></p>
 <p>Easy. But now, how might you do this if some subset of the data is missing? We’ll assume that the data isn’t missing completely at random, so that our observed marginals aren’t unbiased estimators of the true marginals.</p>
-<div id="12" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="cf">begin</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>missing_mask <span class="op">=</span> <span class="fu">rand</span>(<span class="fu">size</span>(X, <span class="fl">1</span>)) <span class="op">.&lt;</span> <span class="fu">logistic</span>.(<span class="op">-</span><span class="fl">1</span> <span class="op">.+</span> X <span class="op">*</span> <span class="fu">-rand</span>(<span class="fu">size</span>(X, <span class="fl">2</span>), <span class="fl">3</span>))</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>Xm <span class="op">=</span> <span class="fu">convert</span>(<span class="dt">Matrix</span>{<span class="dt">Union</span>{<span class="dt">Float64</span>, <span class="dt">Missing</span>}}, X)</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>Xm[missing_mask] <span class="op">.=</span> <span class="cn">missing</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>Xm</span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="6" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="cf">begin</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>missing_mask <span class="op">=</span> <span class="fu">rand</span>(<span class="fu">size</span>(X, <span class="fl">1</span>)) <span class="op">.&lt;</span> <span class="fu">logistic</span>.(<span class="op">-</span><span class="fl">1</span> <span class="op">.+</span> X <span class="op">*</span> <span class="fu">-rand</span>(<span class="fu">size</span>(X, <span class="fl">2</span>), <span class="fl">3</span>))</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>Xm <span class="op">=</span> <span class="fu">convert</span>(<span class="dt">Matrix</span>{<span class="dt">Union</span>{<span class="dt">Float64</span>, <span class="dt">Missing</span>}}, X)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>Xm[missing_mask] <span class="op">.=</span> <span class="cn">missing</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>Xm</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>300×3 Matrix{Union{Missing, Float64}}:
  -0.258093     0.0699272   0.515201
@@ -300,8 +281,8 @@ window.Quarto = {
   0.260026     0.651592    0.155827</code></pre>
 </div>
 </div>
-<div id="14" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(<span class="fu">ismissing</span>.(Xm); dims<span class="op">=</span><span class="fl">1</span>) <span class="op">./</span> <span class="fu">size</span>(Xm, <span class="fl">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="8" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(<span class="fu">ismissing</span>.(Xm); dims<span class="op">=</span><span class="fl">1</span>) <span class="op">./</span> <span class="fu">size</span>(Xm, <span class="fl">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>1×3 Matrix{Float64}:
  0.25  0.263333  0.24</code></pre>
@@ -311,26 +292,26 @@ window.Quarto = {
 <p>At each step of EM, we want to find parameters <span class="math inline">\(\mu, \Sigma\)</span> that maximize the expected log likelihood, where the expectation is taken with respect to <span class="math inline">\(p(x_\text{unobserved} | x_\text{observed})\)</span>. That’s</p>
 <p><span class="math display">\[
 \begin{align*}
-E\left[\sum_i x_i^T \Lambda \mu - \frac{1}{2} \text{Tr}(\Lambda x_i x_i^T) - N A(\eta)\right] =
+E\left[\sum_i x_i^T \Lambda \mu - \frac{1}{2} \text{Tr}(\Lambda x_i x_i^T) - N A(\eta)\right] = \\
 \sum_i E[x_i]^T \Lambda \mu - \frac{1}{2} \text{Tr}(\Lambda E[x_i x_i^T]) - N A(\eta)
 \end{align*}
 \]</span></p>
 <p>Take the gradient as before to get</p>
 <p><span class="math display">\[
 \begin{align*}
-\mu &amp;= \frac{1}{N}\sum_i E[y_i]
+\mu &amp;= \frac{1}{N}\sum_i E[y_i] \\
 \Sigma &amp;= \frac{1}{N}\sum_i E[y_i y_i^T]
 \end{align*}
 \]</span></p>
 <p>It remains to find out what <span class="math inline">\(E[x_i]\)</span> and <span class="math inline">\(E[x_i x_i^T]\)</span> are. For the components of <span class="math inline">\(x_i\)</span> that are observed (call this subvector <span class="math inline">\(x_o\)</span>), <span class="math inline">\(E[x_o] = x_o\)</span>. For the components <span class="math inline">\(x_u\)</span> that are not observed, the Gaussian conditioning formula gives <span class="math inline">\(x_u = μ_u + Σ_{uo} Σ_{oo}^{-1}(y_o - μ_o)\)</span></p>
-<div id="16" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">E_m1</span>(x, μ, Σ)</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    x2 <span class="op">=</span> <span class="fu">copy</span>(x)</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    u <span class="op">=</span> <span class="fu">ismissing</span>.(x)</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    o <span class="op">=</span> .!u</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    x2[u] <span class="op">.=</span> μ[u] <span class="op">+</span> Σ[u, o] <span class="op">*</span> (Σ[o, o] <span class="op">\</span> (x[o] <span class="op">-</span> μ[o]))</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    x2</span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="10" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">E_m1</span>(x, μ, Σ)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    x2 <span class="op">=</span> <span class="fu">copy</span>(x)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    u <span class="op">=</span> <span class="fu">ismissing</span>.(x)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    o <span class="op">=</span> .!u</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    x2[u] <span class="op">.=</span> μ[u] <span class="op">+</span> Σ[u, o] <span class="op">*</span> (Σ[o, o] <span class="op">\</span> (x[o] <span class="op">-</span> μ[o]))</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    x2</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>E_m1 (generic function with 1 method)</code></pre>
 </div>
@@ -338,60 +319,60 @@ E\left[\sum_i x_i^T \Lambda \mu - \frac{1}{2} \text{Tr}(\Lambda x_i x_i^T) - N A
 <p>The second moment breaks down similarly. <span class="math inline">\(E[x_i x_i^T]\)</span> can be thought of (up to permutation) as a block matrix:</p>
 <p><span class="math display">\[
 \begin{bmatrix}
-x_o x_o^T &amp; x_o x_u^T
+x_o x_o^T &amp; x_o x_u^T \\
 x_u x_o^T &amp; x_u x_u^T
 \end{bmatrix}
 \]</span></p>
 <p>As <span class="math inline">\(x_0\)</span> and <span class="math inline">\(x_o x_o^T\)</span> are known, that just leaves <span class="math inline">\(E[x_o x_u^T] = x_o \mu_u^T\)</span> and <span class="math inline">\(E[x_u x_u^T] = \text{Var}(x_u | x_o) + \mu_u \mu_u^T\)</span>. The formula for conditional Gaussians tell us <span class="math inline">\(\text{Var}(x_u) = \Sigma_{uu} - \Sigma_{uo} \Sigma_{oo}^{-1} \Sigma_{ou}\)</span>.</p>
-<div id="18" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">E_m2</span>(x, μ, Σ)</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    x2 <span class="op">=</span> <span class="fu">Matrix</span><span class="dt">{Float64}</span>(<span class="cn">undef</span>, <span class="fu">size</span>(Σ))</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    u <span class="op">=</span> <span class="fu">ismissing</span>.(x)</span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    o <span class="op">=</span> .!u</span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    x2[o,o] <span class="op">.=</span> x[o] <span class="op">*</span> x[o]<span class="ch">'</span></span>
-<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    x2[o, u] <span class="op">.=</span> x[o] <span class="op">*</span> μ[u]<span class="ch">'</span></span>
-<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    x2[u, o] <span class="op">.=</span> x2[o, u]<span class="ch">'</span></span>
-<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    x2[u,u] <span class="op">=</span> Σ[u,u] <span class="op">-</span> Σ[u, o] <span class="op">*</span> (Σ[o,o] <span class="op">\</span> Σ[o, u]) <span class="op">+</span> μ[u]<span class="op">*</span>μ[u]<span class="ch">'</span></span>
-<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>    x2</span>
-<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="12" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">E_m2</span>(x, μ, Σ)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    x2 <span class="op">=</span> <span class="fu">Matrix</span><span class="dt">{Float64}</span>(<span class="cn">undef</span>, <span class="fu">size</span>(Σ))</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    u <span class="op">=</span> <span class="fu">ismissing</span>.(x)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    o <span class="op">=</span> .!u</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    x2[o,o] <span class="op">.=</span> x[o] <span class="op">*</span> x[o]<span class="ch">'</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    x2[o, u] <span class="op">.=</span> x[o] <span class="op">*</span> μ[u]<span class="ch">'</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    x2[u, o] <span class="op">.=</span> x2[o, u]<span class="ch">'</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    x2[u,u] <span class="op">=</span> Σ[u,u] <span class="op">-</span> Σ[u, o] <span class="op">*</span> (Σ[o,o] <span class="op">\</span> Σ[o, u]) <span class="op">+</span> μ[u]<span class="op">*</span>μ[u]<span class="ch">'</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    x2</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>E_m2 (generic function with 1 method)</code></pre>
 </div>
 </div>
 <p>Let’s put it all together!</p>
-<div id="20" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">em_step</span>(X, μ, Σ)</span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    μ <span class="op">=</span> <span class="fu">mean</span>(<span class="fu">E_m1</span>(x, μ, Σ) <span class="cf">for</span> x <span class="kw">in</span> <span class="fu">eachrow</span>(X))</span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    m2 <span class="op">=</span> <span class="fu">mean</span>(<span class="fu">E_m2</span>(x, μ, Σ) <span class="cf">for</span> x <span class="kw">in</span> <span class="fu">eachrow</span>(X))</span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    (μ, m2 <span class="op">-</span> μ <span class="op">*</span> μ<span class="ch">')</span></span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="14" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">em_step</span>(X, μ, Σ)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    μ <span class="op">=</span> <span class="fu">mean</span>(<span class="fu">E_m1</span>(x, μ, Σ) <span class="cf">for</span> x <span class="kw">in</span> <span class="fu">eachrow</span>(X))</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    m2 <span class="op">=</span> <span class="fu">mean</span>(<span class="fu">E_m2</span>(x, μ, Σ) <span class="cf">for</span> x <span class="kw">in</span> <span class="fu">eachrow</span>(X))</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    (μ, m2 <span class="op">-</span> μ <span class="op">*</span> μ<span class="ch">')</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>em_step (generic function with 1 method)</code></pre>
 </div>
 </div>
-<div id="22" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">em_alg</span>(X, μ, Σ)</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _ <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fl">100</span></span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>        μ<span class="fl">2</span>, Σ<span class="fl">2</span> <span class="op">=</span> <span class="fu">em_step</span>(X, μ, Σ)</span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>        δ <span class="op">=</span> <span class="fu">max</span>(<span class="fu">maximum</span>(<span class="fu">abs</span>.(μ <span class="op">-</span> μ<span class="fl">2</span>)), <span class="fu">maximum</span>(<span class="fu">abs</span>.(Σ<span class="fl">2</span> <span class="op">-</span> Σ)))</span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> δ <span class="op">&lt;</span> <span class="fl">1e-5</span></span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> (μ, Σ)</span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
-<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>        μ, Σ <span class="op">=</span> (μ<span class="fl">2</span>, Σ<span class="fl">2</span>)</span>
-<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
-<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="16" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">em_alg</span>(X, μ, Σ)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _ <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fl">100</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>        μ<span class="fl">2</span>, Σ<span class="fl">2</span> <span class="op">=</span> <span class="fu">em_step</span>(X, μ, Σ)</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>        δ <span class="op">=</span> <span class="fu">max</span>(<span class="fu">maximum</span>(<span class="fu">abs</span>.(μ <span class="op">-</span> μ<span class="fl">2</span>)), <span class="fu">maximum</span>(<span class="fu">abs</span>.(Σ<span class="fl">2</span> <span class="op">-</span> Σ)))</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> δ <span class="op">&lt;</span> <span class="fl">1e-5</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> (μ, Σ)</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>        μ, Σ <span class="op">=</span> (μ<span class="fl">2</span>, Σ<span class="fl">2</span>)</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>em_alg (generic function with 1 method)</code></pre>
 </div>
 </div>
-<div id="24" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>μ_guess, Σ_guess <span class="op">=</span> <span class="fu">em_alg</span>(Xm, <span class="fu">randn</span>(<span class="fl">3</span>), <span class="fl">1.0</span><span class="fu">I</span>(<span class="fl">3</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="18" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>μ_guess, Σ_guess <span class="op">=</span> <span class="fu">em_alg</span>(Xm, <span class="fu">randn</span>(<span class="fl">3</span>), <span class="fl">1.0</span><span class="fu">I</span>(<span class="fl">3</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>([0.3165736154417296, 0.001442844333011344, 0.5068980884346564], [0.9352904749796694 -0.14254207406265143 -0.1302467250906596; -0.14254207406265143 0.7845792845571478 -0.6864141697229134; -0.1302467250906596 -0.6864141697229134 0.897912273140797])</code></pre>
 </div>
 </div>
-<div id="26" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>(μ, Σ)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="20" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>(μ, Σ)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>([0.2895098423219379, 0.028549977665983994, 0.538639413965653], [1.0 -0.19296912090384166 -0.19452690226681507; -0.19296912090384166 1.0 -0.8469773751344721; -0.19452690226681507 -0.8469773751344721 1.0])</code></pre>
 </div>
