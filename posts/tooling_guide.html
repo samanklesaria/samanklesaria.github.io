@@ -142,9 +142,9 @@ ul.task-list li input[type="checkbox"] {
 
 <p><strong>Statistics and Data Analysis:</strong> Overall: use R. Its has the largest ecosystem of statistical packages.</p>
 <ul>
-<li>For Bayesian modeling, Stan has bindings for everything, but it’s easiest to use from R, and the rest of the toolkit <em>(brms, loo, bayesplot, etc)</em> doesn’t have an equivalent outside of R. Turing.jl and PyMC3 are substantially slower, and Numpyro is less mature (although it can be faster on a GPU).</li>
+<li>For Bayesian modeling, Stan has bindings for everything, but it’s easiest to use from R, and the rest of the toolkit <em>(brms, loo, bayesplot, etc)</em> doesn’t have an equivalents outside of R. Turing.jl and PyMC3 are substantially slower, and Numpyro is less mature (although it can be faster on a GPU).</li>
 <li>For visualization, R has ggplot2 and ggpairs, Julia has AlgebraOfGraphics and Python has Seaborn. They’re all about as good as each other.</li>
-<li>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find Dataframes.jl to be the nicest of the bunch (with DataframesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and the rest of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</li>
+<li>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find DataFrames.jl to be the nicest of the bunch (with DataFramesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and the rest of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</li>
 <li>For geographic queries, R’s <em>sf</em>&nbsp;and Julia’s <em>GeoStats</em>&nbsp;are lovely. Python’s <em>GeoPandas</em>,&nbsp;being based on Pandas, is much more annoying to use.</li>
 <li>For frequentist statistics, Python’s <em>statsmodels</em> and Julia’s <em>GLMs, MixedModels</em>, <em>Survey</em> and <em>Survival</em> packages give you much of base R and its <em>lmer</em>, <em>survey</em> and <em>survival</em> packages.</li>
 <li>For Gaussian Process modeling, Python’s <em>GPytorch</em> is far faster and more feature-complete than anything else. Julia’s <em>AbstractGPs</em> has a nicer interface and is easier to extend, but it’s slower and lacks the approximate inference algorithms necessary for large datasets.</li>
@@ -158,12 +158,12 @@ ul.task-list li input[type="checkbox"] {
 <p><strong>Other Programming</strong></p>
 <ul>
 <li>Use Julia for anything numerical</li>
-<li>Use Python for scripting</li>
+<li>Use Python for scripting with the <code>uv</code> package manager.</li>
 <li>Use awk for text processing and jq for JSON processing</li>
-<li>Use Rust if you want to be super-efficient.</li>
+<li>Use Rust if efficiency matters.</li>
 <li>Otherwise, use Haskell.</li>
 </ul>
-<p><strong>Notebooks:</strong> I use Pluto for Julia, Marimo for Python, and Jupyter for everything else.</p>
+<p><strong>Notebooks:</strong> I use Pluto for Julia, Marimo for Python and RStudio for R.</p>
 <p><strong>Static Site Generation:</strong> Use Quarto. Compared to Jekyll, niceties like latex math, computational notebooks and bibliography management are built in.</p>
 <p><strong>Databases</strong></p>
 <ul>
@@ -171,13 +171,15 @@ ul.task-list li input[type="checkbox"] {
 <li>For analytical workloads, use DuckDB</li>
 <li>For local RAGs, use ChromaDB.</li>
 </ul>
+<p><strong>LLMs:</strong> - It’s hard to beat Claude Code for AI assisted editing. Editor integration doesn’t add anything; just use the CLI. - Ollama makes it easy to manage local LLMs. I tend to use qwen.</p>
+<p><strong>Editors::</strong> - Kakoune is lightweight and but has full lsp support. On linux, it’s my perferred editor. But it assumes that window management functionality will be handled by your window manager, which isn’t really a thing on other platforms. - On a Mac, I use Zed.</p>
 <p><strong>Other</strong></p>
 <ul>
+<li>Use Xmonad on linux.</li>
 <li>Zulip is much nicer than Slack.</li>
 <li>I write down everything I might want to remember later in Anki. It’s effectively a notes app for me.<br>
 </li>
 <li>Zotero has remained fast for me despite adding gigabytes of papers to its library.</li>
-<li>Ollama is great for local LLMs.</li>
 <li>Pixi is essential for package management across languages.</li>
 </ul>
 

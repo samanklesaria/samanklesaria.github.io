@@ -176,56 +176,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
-✔ dplyr     1.1.4     ✔ readr     2.1.5
-✔ forcats   1.0.0     ✔ stringr   1.5.1
-✔ ggplot2   4.0.1     ✔ tibble    3.2.1
-✔ lubridate 1.9.3     ✔ tidyr     1.3.1
-✔ purrr     1.0.2     
-── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-✖ dplyr::filter() masks stats::filter()
-✖ dplyr::lag()    masks stats::lag()
-ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lme4)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Loading required package: Matrix
-
-Attaching package: 'Matrix'
-
-The following objects are masked from 'package:tidyr':
-
-    expand, pack, unpack</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rstanarm)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Loading required package: Rcpp
-This is rstanarm version 2.32.2
-- See https://mc-stan.org/rstanarm/articles/priors for changes to default priors!
-- Default priors may change, so it's safest to specify priors, even if equivalent to the defaults.
-- For execution on a local, multicore CPU with excess RAM we recommend calling
-  options(mc.cores = parallel::detectCores())</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">mc.cores =</span> <span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lme4)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rstanarm)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">mc.cores =</span> <span class="dv">4</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>This post demonstrates working with generalized linear mixed models in the context of coffee bean yield data. Each row in the following dataset is an observation of coffee bean yield from a single farm over the past year. Note that this dataset comes from cluster sampling. First, a random sample of supply units were chosen. Then, within each supply unit, a random sample of farms in the same cluster is taken. The number of farms sampled from each sampling unit is proportional to the size of the sampling unit, making sample means unbiased estimates of population means.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"coffee.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>New names:
-Rows: 1168 Columns: 19
-── Column specification
-──────────────────────────────────────────────────────── Delimiter: "," chr
-(7): supply_unit, region, obs_shade, ipm_methods, last_replanted, last_... dbl
-(10): ...1, farm_altitude_meters, coffee_farm_size_ha, main_stems_count,... lgl
-(2): had_recent_soil_or_leaf_test, used_test_results
-ℹ Use `spec()` to retrieve the full column specification for this data. ℹ
-Specify the column types or set `show_col_types = FALSE` to quiet this message.
-• `` -&gt; `...1`</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>data <span class="sc">|&gt;</span> <span class="fu">select</span>(ipm_methods, region, supply_unit, obs_shade)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"coffee.csv"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>data <span class="sc">|&gt;</span> <span class="fu">select</span>(ipm_methods, region, supply_unit, obs_shade)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 1,168 × 4
    ipm_methods                                      region supply_unit obs_shade
@@ -245,29 +204,29 @@ Specify the column types or set `show_col_types = FALSE` to quiet this message.
 </div>
 <p>We’ll need to do a little pre-processing first. The column listing pest management techniques (ipm_methods) can contain multiple treatment names, separated by a space. We’ll expand these into binary categories.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>extract_categories <span class="ot">&lt;-</span> <span class="cf">function</span>(data, s) {</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  data <span class="sc">|&gt;</span> <span class="fu">separate_longer_delim</span>(<span class="at">cols =</span> {{ s }}, <span class="at">delim=</span><span class="st">" "</span>) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">value =</span> <span class="dv">1</span>) <span class="sc">|&gt;</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_from =</span> {{ s }},</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_from =</span> value,</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_fill =</span> <span class="dv">0</span></span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>extract_categories <span class="ot">&lt;-</span> <span class="cf">function</span>(data, s) {</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  data <span class="sc">|&gt;</span> <span class="fu">separate_longer_delim</span>(<span class="at">cols =</span> {{ s }}, <span class="at">delim=</span><span class="st">" "</span>) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">value =</span> <span class="dv">1</span>) <span class="sc">|&gt;</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">names_from =</span> {{ s }},</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_from =</span> value,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">values_fill =</span> <span class="dv">0</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>We’ll also convert the <em>obs_shade</em> and <em>last_replanted</em> columns to factors.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">|&gt;</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">obs_shade=</span><span class="fu">strtoi</span>(<span class="fu">str_match</span>(obs_shade, <span class="st">"_(</span><span class="sc">\\</span><span class="st">d+)_percent"</span>)[,<span class="dv">2</span>]),</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">last_replanted=</span><span class="fu">factor</span>(last_replanted,</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>                          <span class="at">levels=</span><span class="fu">c</span>(<span class="st">"more_than_5_years_ago"</span>, <span class="st">"2_5_years_ago"</span>, <span class="st">"within_the_last_two_years"</span>),</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>                          <span class="at">ordered=</span><span class="cn">TRUE</span>),</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">obs_shade=</span><span class="fu">factor</span>(obs_shade, <span class="at">ordered =</span> <span class="cn">TRUE</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">extract_categories</span>(ipm_methods)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">|&gt;</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">obs_shade=</span><span class="fu">strtoi</span>(<span class="fu">str_match</span>(obs_shade, <span class="st">"_(</span><span class="sc">\\</span><span class="st">d+)_percent"</span>)[,<span class="dv">2</span>]),</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">last_replanted=</span><span class="fu">factor</span>(last_replanted,</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>                          <span class="at">levels=</span><span class="fu">c</span>(<span class="st">"more_than_5_years_ago"</span>, <span class="st">"2_5_years_ago"</span>, <span class="st">"within_the_last_two_years"</span>),</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>                          <span class="at">ordered=</span><span class="cn">TRUE</span>),</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">obs_shade=</span><span class="fu">factor</span>(obs_shade, <span class="at">ordered =</span> <span class="cn">TRUE</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">extract_categories</span>(ipm_methods)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Now, on to the main question: does shade decrease yield? The following plot certainly suggests it does.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>data <span class="sc">|&gt;</span> <span class="fu">ggplot</span>(<span class="fu">aes</span>(obs_shade, yield_kg_ha_green)) <span class="sc">+</span> <span class="fu">geom_boxplot</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>data <span class="sc">|&gt;</span> <span class="fu">ggplot</span>(<span class="fu">aes</span>(obs_shade, yield_kg_ha_green)) <span class="sc">+</span> <span class="fu">geom_boxplot</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -278,10 +237,7 @@ Specify the column types or set `show_col_types = FALSE` to quiet this message.
 </div>
 <p>But there’s likely confounders here. Higher altitude farms might both get less shade and have soils less amenable to high yields.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>data <span class="sc">|&gt;</span> <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="fu">scale</span>(farm_altitude_meters), <span class="fu">log</span>(yield_kg_ha_green))) <span class="sc">+</span> <span class="fu">geom_point</span>() <span class="sc">+</span> <span class="fu">facet_wrap</span>(<span class="sc">~</span>obs_shade) <span class="sc">+</span> <span class="fu">geom_smooth</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>`geom_smooth()` using method = 'loess' and formula = 'y ~ x'</code></pre>
-</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>data <span class="sc">|&gt;</span> <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="fu">scale</span>(farm_altitude_meters), <span class="fu">log</span>(yield_kg_ha_green))) <span class="sc">+</span> <span class="fu">geom_point</span>() <span class="sc">+</span> <span class="fu">facet_wrap</span>(<span class="sc">~</span>obs_shade) <span class="sc">+</span> <span class="fu">geom_smooth</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -292,12 +248,9 @@ Specify the column types or set `show_col_types = FALSE` to quiet this message.
 </div>
 <p>Let’s try modeling this more carefully.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lmer</span>(<span class="fu">log</span>(yield_kg_ha_green) <span class="sc">~</span> obs_shade <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>region<span class="sc">/</span>supply_unit) <span class="sc">+</span> <span class="fu">scale</span>(farm_altitude_meters), <span class="at">data=</span>data)</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>tdat <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">resid=</span><span class="fu">residuals</span>(fit))</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>tdat <span class="sc">|&gt;</span> <span class="fu">ggplot</span>(<span class="fu">aes</span>(resid)) <span class="sc">+</span> <span class="fu">geom_histogram</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>`stat_bin()` using `bins = 30`. Pick better value `binwidth`.</code></pre>
-</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lmer</span>(<span class="fu">log</span>(yield_kg_ha_green) <span class="sc">~</span> obs_shade <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>region<span class="sc">/</span>supply_unit) <span class="sc">+</span> <span class="fu">scale</span>(farm_altitude_meters), <span class="at">data=</span>data)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>tdat <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">resid=</span><span class="fu">residuals</span>(fit))</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>tdat <span class="sc">|&gt;</span> <span class="fu">ggplot</span>(<span class="fu">aes</span>(resid)) <span class="sc">+</span> <span class="fu">geom_histogram</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -308,7 +261,7 @@ Specify the column types or set `show_col_types = FALSE` to quiet this message.
 </div>
 <p>A log linear model seems a little skewed.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(tdat,<span class="fu">aes</span>(<span class="at">sample=</span>resid)) <span class="sc">+</span> <span class="fu">stat_qq</span>() <span class="sc">+</span> <span class="fu">stat_qq_line</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(tdat,<span class="fu">aes</span>(<span class="at">sample=</span>resid)) <span class="sc">+</span> <span class="fu">stat_qq</span>() <span class="sc">+</span> <span class="fu">stat_qq_line</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -319,8 +272,8 @@ Specify the column types or set `show_col_types = FALSE` to quiet this message.
 </div>
 <p>A GLM with a Gamma family works better here.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>fit2 <span class="ot">&lt;-</span> <span class="fu">glmer</span>(yield_kg_ha_green <span class="sc">~</span> obs_shade <span class="sc">+</span> <span class="fu">scale</span>(farm_altitude_meters) <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>region<span class="sc">/</span>supply_unit), <span class="at">data=</span>data, <span class="at">family=</span><span class="fu">Gamma</span>(<span class="at">link=</span><span class="st">"log"</span>))</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>fit2 <span class="ot">&lt;-</span> <span class="fu">glmer</span>(yield_kg_ha_green <span class="sc">~</span> obs_shade <span class="sc">+</span> <span class="fu">scale</span>(farm_altitude_meters) <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>region<span class="sc">/</span>supply_unit), <span class="at">data=</span>data, <span class="at">family=</span><span class="fu">Gamma</span>(<span class="at">link=</span><span class="st">"log"</span>))</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -330,7 +283,7 @@ Specify the column types or set `show_col_types = FALSE` to quiet this message.
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(<span class="at">resid=</span><span class="fu">residuals</span>(fit2)) <span class="sc">|&gt;</span> <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">sample=</span>resid)) <span class="sc">+</span> <span class="fu">stat_qq</span>() <span class="sc">+</span> <span class="fu">stat_qq_line</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(<span class="at">resid=</span><span class="fu">residuals</span>(fit2)) <span class="sc">|&gt;</span> <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">sample=</span>resid)) <span class="sc">+</span> <span class="fu">stat_qq</span>() <span class="sc">+</span> <span class="fu">stat_qq_line</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -340,7 +293,7 @@ Specify the column types or set `show_col_types = FALSE` to quiet this message.
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit2)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Generalized linear mixed model fit by maximum likelihood (Laplace
   Approximation) [glmerMod]
@@ -349,8 +302,8 @@ Formula: yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) +
     (1 | region/supply_unit)
    Data: data
 
-     AIC      BIC   logLik deviance df.resid 
- 17386.2  17431.8  -8684.1  17368.2     1159 
+      AIC       BIC    logLik -2*log(L)  df.resid 
+  17386.2   17431.8   -8684.1   17368.2      1159 
 
 Scaled residuals: 
     Min      1Q  Median      3Q     Max 
@@ -358,17 +311,16 @@ Scaled residuals:
 
 Random effects:
  Groups             Name        Variance Std.Dev.
- supply_unit:region (Intercept) 0.02685  0.1639  
- region             (Intercept) 0.01471  0.1213  
- Residual                       0.45488  0.6744  
+ supply_unit:region (Intercept) 0.05902  0.2429  
+ region             (Intercept) 0.03234  0.1798  
 Number of obs: 1168, groups:  supply_unit:region, 20; region, 8
 
 Fixed effects:
                              Estimate Std. Error t value Pr(&gt;|z|)    
-(Intercept)                  6.485595   0.092593  70.044   &lt;2e-16 ***
-obs_shade.L                 -0.233903   0.106632  -2.194   0.0283 *  
-obs_shade.Q                  0.020627   0.088579   0.233   0.8159    
-obs_shade.C                  0.045673   0.059993   0.761   0.4465    
+(Intercept)                  6.485595   0.092594  70.043   &lt;2e-16 ***
+obs_shade.L                 -0.233903   0.106634  -2.194   0.0283 *  
+obs_shade.Q                  0.020627   0.088580   0.233   0.8159    
+obs_shade.C                  0.045673   0.059994   0.761   0.4465    
 obs_shade^4                  0.009596   0.039745   0.241   0.8092    
 scale(farm_altitude_meters) -0.037419   0.022113  -1.692   0.0906 .  
 ---
@@ -385,10 +337,7 @@ scl(frm_l_)  0.002  0.146 -0.033  0.028  0.019</code></pre>
 </div>
 <p>We see a pretty clear negative linear relationship between shade coverage and yield. To decrease the variance of our estimate, we can try controlling for other factors. Let’s factor in fertilizer use.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>data <span class="sc">|&gt;</span> <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="fu">scale</span>(average_fertilizer_per_hectare), <span class="fu">log</span>(yield_kg_ha_green))) <span class="sc">+</span> <span class="fu">geom_point</span>() <span class="sc">+</span> <span class="fu">geom_smooth</span>(<span class="at">span=</span><span class="fl">0.2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>`geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'</code></pre>
-</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>data <span class="sc">|&gt;</span> <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="fu">scale</span>(average_fertilizer_per_hectare), <span class="fu">log</span>(yield_kg_ha_green))) <span class="sc">+</span> <span class="fu">geom_point</span>() <span class="sc">+</span> <span class="fu">geom_smooth</span>(<span class="at">span=</span><span class="fl">0.2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -399,10 +348,10 @@ scl(frm_l_)  0.002  0.146 -0.033  0.028  0.019</code></pre>
 </div>
 <p>It seems like fertilizer has a highly nonlinear relationship with yield. Let’s just look at quantiles.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">fertilizer_quantile =</span> <span class="fu">ntile</span>(average_fertilizer_per_hectare, <span class="dv">4</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">fertilizer_quantile =</span> <span class="fu">ntile</span>(average_fertilizer_per_hectare, <span class="dv">4</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>data <span class="sc">|&gt;</span> <span class="fu">ggplot</span>(<span class="fu">aes</span>(fertilizer_quantile, <span class="fu">log</span>(yield_kg_ha_green))) <span class="sc">+</span> <span class="fu">geom_bar</span>(<span class="at">stat=</span><span class="st">"identity"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>data <span class="sc">|&gt;</span> <span class="fu">ggplot</span>(<span class="fu">aes</span>(fertilizer_quantile, <span class="fu">log</span>(yield_kg_ha_green))) <span class="sc">+</span> <span class="fu">geom_bar</span>(<span class="at">stat=</span><span class="st">"identity"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -412,8 +361,8 @@ scl(frm_l_)  0.002  0.146 -0.033  0.028  0.019</code></pre>
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>fit3 <span class="ot">&lt;-</span> <span class="fu">glmer</span>(yield_kg_ha_green <span class="sc">~</span> obs_shade <span class="sc">+</span> <span class="fu">scale</span>(farm_altitude_meters) <span class="sc">+</span> fertilizer_quantile <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>region<span class="sc">/</span>supply_unit), <span class="at">data=</span>data, <span class="at">family=</span><span class="fu">Gamma</span>(<span class="at">link=</span><span class="st">"log"</span>))</span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit3)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fit3 <span class="ot">&lt;-</span> <span class="fu">glmer</span>(yield_kg_ha_green <span class="sc">~</span> obs_shade <span class="sc">+</span> <span class="fu">scale</span>(farm_altitude_meters) <span class="sc">+</span> fertilizer_quantile <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>region<span class="sc">/</span>supply_unit), <span class="at">data=</span>data, <span class="at">family=</span><span class="fu">Gamma</span>(<span class="at">link=</span><span class="st">"log"</span>))</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit3)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Generalized linear mixed model fit by maximum likelihood (Laplace
   Approximation) [glmerMod]
@@ -422,8 +371,8 @@ Formula: yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) +
     fertilizer_quantile + (1 | region/supply_unit)
    Data: data
 
-     AIC      BIC   logLik deviance df.resid 
- 17220.0  17270.6  -8600.0  17200.0     1158 
+      AIC       BIC    logLik -2*log(L)  df.resid 
+  17220.0   17270.6   -8600.0   17200.0      1158 
 
 Scaled residuals: 
     Min      1Q  Median      3Q     Max 
@@ -431,20 +380,19 @@ Scaled residuals:
 
 Random effects:
  Groups             Name        Variance Std.Dev.
- supply_unit:region (Intercept) 0.023739 0.15408 
- region             (Intercept) 0.006918 0.08318 
- Residual                       0.417381 0.64605 
+ supply_unit:region (Intercept) 0.05688  0.2385  
+ region             (Intercept) 0.01657  0.1287  
 Number of obs: 1168, groups:  supply_unit:region, 20; region, 8
 
 Fixed effects:
-                            Estimate Std. Error t value Pr(&gt;|z|)    
-(Intercept)                  5.88611    0.08835  66.625   &lt;2e-16 ***
-obs_shade.L                 -0.24805    0.09991  -2.483   0.0130 *  
-obs_shade.Q                  0.00149    0.08341   0.018   0.9857    
-obs_shade.C                  0.01520    0.05654   0.269   0.7881    
-obs_shade^4                  0.02244    0.03741   0.600   0.5485    
-scale(farm_altitude_meters) -0.03483    0.02060  -1.691   0.0909 .  
-fertilizer_quantile          0.23374    0.01742  13.418   &lt;2e-16 ***
+                             Estimate Std. Error t value Pr(&gt;|z|)    
+(Intercept)                  5.886119   0.088345  66.627   &lt;2e-16 ***
+obs_shade.L                 -0.248051   0.099910  -2.483   0.0130 *  
+obs_shade.Q                  0.001488   0.083406   0.018   0.9858    
+obs_shade.C                  0.015202   0.056538   0.269   0.7880    
+obs_shade^4                  0.022442   0.037406   0.600   0.5485    
+scale(farm_altitude_meters) -0.034823   0.020595  -1.691   0.0909 .  
+fertilizer_quantile          0.233742   0.017419  13.418   &lt;2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -460,7 +408,7 @@ frtlzr_qntl -0.483 -0.008 -0.020 -0.039  0.027  0.010</code></pre>
 </div>
 <p>The AIC and residual variance decreased, and the standard error for shade’s negative linear effect shrunk even smaller.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit3)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(fit3)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -471,8 +419,8 @@ frtlzr_qntl -0.483 -0.008 -0.020 -0.039  0.027  0.010</code></pre>
 </div>
 <p>Finally, we can add in factors for the pest control efforts we extracted initially.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>fit4 <span class="ot">&lt;-</span> <span class="fu">glmer</span>(yield_kg_ha_green <span class="sc">~</span> obs_shade <span class="sc">+</span> <span class="fu">scale</span>(farm_altitude_meters) <span class="sc">+</span> fertilizer_quantile <span class="sc">+</span> use_insect_traps <span class="sc">+</span> biological_control <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>region<span class="sc">/</span>supply_unit), <span class="at">data=</span>data, <span class="at">family=</span><span class="fu">Gamma</span>(<span class="at">link=</span><span class="st">"log"</span>))</span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit4)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>fit4 <span class="ot">&lt;-</span> <span class="fu">glmer</span>(yield_kg_ha_green <span class="sc">~</span> obs_shade <span class="sc">+</span> <span class="fu">scale</span>(farm_altitude_meters) <span class="sc">+</span> fertilizer_quantile <span class="sc">+</span> use_insect_traps <span class="sc">+</span> biological_control <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>region<span class="sc">/</span>supply_unit), <span class="at">data=</span>data, <span class="at">family=</span><span class="fu">Gamma</span>(<span class="at">link=</span><span class="st">"log"</span>))</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit4)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Generalized linear mixed model fit by maximum likelihood (Laplace
   Approximation) [glmerMod]
@@ -482,31 +430,30 @@ Formula: yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) +
     (1 | region/supply_unit)
    Data: data
 
-     AIC      BIC   logLik deviance df.resid 
- 17217.0  17277.8  -8596.5  17193.0     1156 
+      AIC       BIC    logLik -2*log(L)  df.resid 
+  17217.0   17277.8   -8596.5   17193.0      1156 
 
 Scaled residuals: 
     Min      1Q  Median      3Q     Max 
--1.4889 -0.6999 -0.1899  0.4687  6.6757 
+-1.4889 -0.6999 -0.1899  0.4686  6.6756 
 
 Random effects:
  Groups             Name        Variance Std.Dev.
- supply_unit:region (Intercept) 0.022751 0.15084 
- region             (Intercept) 0.007078 0.08413 
- Residual                       0.411851 0.64176 
+ supply_unit:region (Intercept) 0.05524  0.2350  
+ region             (Intercept) 0.01718  0.1311  
 Number of obs: 1168, groups:  supply_unit:region, 20; region, 8
 
 Fixed effects:
-                             Estimate Std. Error t value Pr(&gt;|z|)    
-(Intercept)                  5.877484   0.088270  66.585   &lt;2e-16 ***
-obs_shade.L                 -0.250834   0.099695  -2.516   0.0119 *  
-obs_shade.Q                  0.005447   0.083375   0.065   0.9479    
-obs_shade.C                  0.020206   0.056476   0.358   0.7205    
-obs_shade^4                  0.021293   0.037376   0.570   0.5689    
-scale(farm_altitude_meters) -0.031682   0.020572  -1.540   0.1236    
-fertilizer_quantile          0.231400   0.017450  13.260   &lt;2e-16 ***
-use_insect_traps             0.186580   0.093333   1.999   0.0456 *  
-biological_control           0.121985   0.086255   1.414   0.1573    
+                            Estimate Std. Error t value Pr(&gt;|z|)    
+(Intercept)                  5.87748    0.08827  66.586   &lt;2e-16 ***
+obs_shade.L                 -0.25083    0.09969  -2.516   0.0119 *  
+obs_shade.Q                  0.00545    0.08338   0.065   0.9479    
+obs_shade.C                  0.02022    0.05647   0.358   0.7203    
+obs_shade^4                  0.02129    0.03738   0.570   0.5689    
+scale(farm_altitude_meters) -0.03168    0.02057  -1.540   0.1236    
+fertilizer_quantile          0.23140    0.01745  13.261   &lt;2e-16 ***
+use_insect_traps             0.18656    0.09333   1.999   0.0456 *  
+biological_control           0.12198    0.08625   1.414   0.1573    
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -524,17 +471,17 @@ blgcl_cntrl -0.039 -0.033 -0.045 -0.009 -0.052  0.035 -0.084 -0.099</code></pre>
 </div>
 <p>Interestingly, controlling for pest mitigation methods makes the effect of altitude seem much less significant. An analysis of deviance lets us compare the nested models.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">anova</span>(fit2, fit3, fit4)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">anova</span>(fit2, fit3, fit4)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Data: data
 Models:
 fit2: yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) + (1 | region/supply_unit)
 fit3: yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) + fertilizer_quantile + (1 | region/supply_unit)
 fit4: yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) + fertilizer_quantile + use_insect_traps + biological_control + (1 | region/supply_unit)
-     npar   AIC   BIC  logLik deviance    Chisq Df Pr(&gt;Chisq)    
-fit2    9 17386 17432 -8684.1    17368                           
-fit3   10 17220 17271 -8600.0    17200 168.2306  1     &lt;2e-16 ***
-fit4   12 17217 17278 -8596.5    17193   6.9538  2     0.0309 *  
+     npar   AIC   BIC  logLik -2*log(L)    Chisq Df Pr(&gt;Chisq)    
+fit2    9 17386 17432 -8684.1     17368                           
+fit3   10 17220 17271 -8600.0     17200 168.2306  1     &lt;2e-16 ***
+fit4   12 17217 17278 -8596.5     17193   6.9538  2     0.0309 *  
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 </div>

@@ -6,9 +6,9 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="dcterms.date" content="2026-02-05">
+<meta name="dcterms.date" content="2025-08-15">
 
-<title>Fitting Gaussians with Missing Observations – Sam’s Blog</title>
+<title>Sample Size Estimation in Bayesian A/B/n Testing – Sam’s Blog</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -171,7 +171,7 @@ window.Quarto = {
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Fitting Gaussians with Missing Observations</h1>
+      <h1 class="title">Sample Size Estimation in Bayesian A/B/n Testing</h1>
                                 <div class="quarto-categories">
                 <div class="quarto-category">statistics</div>
               </div>
@@ -185,7 +185,7 @@ window.Quarto = {
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">February 5, 2026</p>
+        <p class="date">August 15, 2025</p>
       </div>
     </div>
     
@@ -205,143 +205,78 @@ window.Quarto = {
 
 
 <div id="2" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">LinearAlgebra</span>, <span class="bu">StatsBase</span>, <span class="bu">StatsModels</span>, <span class="bu">LogExpFunctions</span>, <span class="bu">Random</span>, <span class="bu">Distributions</span>, <span class="bu">CairoMakie</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">Distributions</span>, <span class="bu">LinearAlgebra</span>, <span class="bu">CairoMakie</span>, <span class="bu">AlgebraOfGraphics</span>, <span class="bu">DataFrames</span>, <span class="bu">DataFramesMeta</span>, <span class="bu">Roots</span>, <span class="bu">CategoricalArrays</span>, <span class="bu">LogExpFunctions</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>CairoMakie.<span class="fu">enable_only_mime!</span>(<span class="st">"png"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>Say you want to fit a multivariate Normal distribution to some data.</p>
+<p>This post highlights a Bayesian approach to sample size estimation in A/B/n testing. Say we’re trying to test which variant of an email message generates the highest response rate from a population. We consider <span class="math inline">\(k\)</span> different messages and send out <span class="math inline">\(n\)</span> emails for each message. After we wait for responses, we should be able to tell which message yielded the highest response rate as long as we set <span class="math inline">\(n\)</span> high enough. But we generally can’t send out too many messages: say we’re capped at <span class="math inline">\(N\)</span> total. How do we choose the highest <span class="math inline">\(k\)</span> that still allows us to confidently pick which message got the highest response rate?</p>
+<section id="overall-bayesian-approach" class="level1">
+<h1>Overall Bayesian Approach</h1>
+<p>After observing the data, we select the arm <span class="math inline">\(j\)</span> with the highest posterior mean response rate. The question of sample size then becomes: how large does <span class="math inline">\(n\)</span> need to be so that we can trust this selection? A natural criterion is to minimize the expected posterior regret <span class="math inline">\(E[\delta_k - \delta_j]\)</span> over the prior predictive, where <span class="math inline">\(\delta_k\)</span> is the true best arm’s rate and <span class="math inline">\(\delta_j\)</span> is the rate of the arm we chose. It turns out that this is equivalent to controlling the posterior variances of the treatment effects. To see why, add and subtract the posterior means <span class="math inline">\(E[\delta_k]\)</span> and <span class="math inline">\(E[\delta_j]\)</span> to decompose the regret:</p>
+<p><span class="math display">\[
+E[\delta_k - \delta_j] = E[(\delta_k - E[\delta_k]) + (E[\delta_k] - E[\delta_j]) + (E[\delta_j] - \delta_j)]
+\]</span></p>
+<p>Since <span class="math inline">\(j\)</span> is the arm with the highest posterior mean, <span class="math inline">\(E[\delta_j] \geq E[\delta_k]\)</span>, so the middle term is non-positive and can be dropped to give an upper bound:</p>
+<p><span class="math display">\[
+E[\delta_k - \delta_j] \leq E[(\delta_k - E[\delta_k]) + (E[\delta_j] - \delta_j)]
+\]</span></p>
+<p>The two remaining terms are deviations of each arm from its own posterior mean, which in expectation are bounded by the respective posterior standard deviations (from Cauchy Schwartz):</p>
+<p><span class="math display">\[
+E[\delta_k - \delta_j] \leq \text{std}(\delta_k) + \text{std}(\delta_j)
+\]</span></p>
+</section>
+<section id="a-normal-model" class="level1">
+<h1>A Normal Model</h1>
+<p>Choosing an independent prior over the rates for each message would be overly naive: all the messages will likely give very similar response rates, so if we know the rate for one message, we’ll have a good guess about the rates for other messages too. Instead, we’ll choose one message to be a baseline, giving it a response rate prior centered at 7%. We’ll sample independent multiples of this baseline to give the response rates for the other messages. Specifically, we’ll use a Normal approximation that admits a closed form distribution for posterior variances. The control arm’s true response rate <span class="math inline">\(\theta_0\)</span> gets a Normal prior centered at the baseline <span class="math inline">\(p\)</span> with standard deviation <span class="math inline">\(\tau_0\)</span>, encoding our prior belief about plausible baseline rates. Each treatment effect <span class="math inline">\(\delta_j\)</span> is given an independent <span class="math inline">\(\mathcal{N}(0, \tau_1)\)</span> prior, reflecting the expectation that treatments will deviate only modestly from control; the treatment arm rates are then <span class="math inline">\(\theta_j = \theta_0 + \delta_j\)</span>. Observed response indicators are modeled as <span class="math inline">\(y_i \sim \mathcal{N}(\theta_i, \sigma^2)\)</span>, where <span class="math inline">\(\sigma^2 \approx p(1-p)\)</span> by a normal approximation to Bernoulli outcomes. By the Central Limit Theorem, this is a good approximation to the true Beta-Bernoulli posteriors once <span class="math inline">\(n\)</span> is reasonably large.</p>
+</section>
+<section id="bayesian-linear-regression" class="level1">
+<h1>Bayesian Linear Regression</h1>
+<p>Finding the posterior variance analytically is an instance of standard Bayesian linear regression. Stack the parameters into <span class="math inline">\(w = (\theta_0, \delta_1, \ldots, \delta_k)\)</span>, so that the arm means are <span class="math inline">\(\theta = Xw\)</span> for a <span class="math inline">\((k+1) \times (k+1)\)</span> design matrix <span class="math inline">\(X\)</span> whose first column is all ones (for the shared baseline <span class="math inline">\(\theta_0\)</span>) and whose remaining columns pick out the per-arm treatment effects.</p>
+<p>The prior on <span class="math inline">\(w\)</span> is Normal with mean <span class="math inline">\((p, 0, \ldots, 0)^T\)</span> and precision matrix <span class="math inline">\(\Lambda = \text{diag}(1/\tau_0^2, 1/\tau_1^2, \ldots, 1/\tau_1^2)\)</span>:</p>
+<p><span class="math display">\[
+w \sim \mathcal{N}\!\left(\begin{bmatrix} p \\ 0 \end{bmatrix}, \Lambda^{-1}\right)
+\]</span></p>
+<p>With <span class="math inline">\(n\)</span> i.i.d. observations per arm, each contributing likelihood precision <span class="math inline">\(1/\sigma^2\)</span>, the standard Normal-Normal update gives a posterior precision that is simply the sum of the prior precision and the data precision:</p>
+<p><span class="math display">\[
+L = \Lambda + \frac{n}{\sigma^2}X^TX, \qquad w \mid y \sim \mathcal{N}(m, L^{-1})
+\]</span></p>
+<p>Since the treatment effects <span class="math inline">\(\delta_j\)</span> are the non-baseline entries of <span class="math inline">\(w\)</span>, their posterior variances sit on the corresponding diagonal entries of <span class="math inline">\(L^{-1}\)</span>. The posterior standard deviation for any treatment effect is therefore:</p>
+<p><span class="math display">\[
+\text{std}(\delta_j) = \sqrt{L^{-1}_{jj}}
+\]</span></p>
+<p>This is the quantity we target when choosing <span class="math inline">\(n\)</span>: we want it small enough that the regret bound <span class="math inline">\(\text{std}(\delta_k) + \text{std}(\delta_j)\)</span> is acceptable.</p>
 <div id="4" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">Random</span>.<span class="fu">seed!</span>(<span class="fl">0</span>)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>Σ <span class="op">=</span> <span class="fu">rand</span>(<span class="fu">LKJ</span>(<span class="fl">3</span>, <span class="fl">1</span>))</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>μ <span class="op">=</span> <span class="fu">rand</span>(<span class="fl">3</span>)</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> (μ <span class="op">.+</span> <span class="fu">sqrt</span>(Σ) <span class="op">*</span> <span class="fu">randn</span>(<span class="fl">3</span>, <span class="fl">300</span>))<span class="ch">';</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">posterior_std</span>(k, n; σ<span class="fl">2</span><span class="op">=</span><span class="fl">0.15</span>(<span class="fl">1</span><span class="op">-</span><span class="fl">0.15</span>), τ<span class="fl">0</span><span class="op">=</span><span class="fl">0.005</span>, τ<span class="fl">1</span><span class="op">=</span><span class="fl">0.02</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> [<span class="fu">ones</span>(k<span class="op">+</span><span class="fl">1</span>) <span class="fu">diagm</span>(k<span class="op">+</span><span class="fl">1</span>, k, <span class="op">-</span><span class="fl">1</span><span class="op">=&gt;</span><span class="fu">ones</span>(k))] <span class="co"># design matrix</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    Λ <span class="op">=</span> <span class="fu">Diagonal</span>(<span class="fl">1</span> <span class="op">./</span> [τ<span class="fl">0</span>; <span class="fu">fill</span>(τ<span class="fl">1</span>, k)] <span class="op">.^</span><span class="fl">2</span>) <span class="co"># w prior precision</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    L <span class="op">=</span> Λ <span class="op">+</span> (n <span class="op">/</span> σ<span class="fl">2</span>) <span class="op">*</span> <span class="fu">Symmetric</span>(X<span class="op">'</span> <span class="op">*</span> X) <span class="co"># θ &amp; β posterior precision</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sqrt</span>(<span class="fu">inv</span>(L)[<span class="fl">2</span>,<span class="fl">2</span>])</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<p>The obvious way to do this is with maximum likelihood estimation. In natural parameter form, the log likelihood is given by</p>
-<p><span class="math display">\[
-\sum_i x_i^T \Lambda \mu - \frac{1}{2} \text{Tr}(\Lambda x_i x_i^T) - N A(\eta)
-\]</span> Derive wrt the natural parameters <span class="math inline">\(\eta = (\Lambda, \Lambda \mu)\)</span> to get</p>
-<p><span class="math display">\[
-\begin{align*}
-\frac{1}{N}\sum_i x_i &amp;= E[x]
-\frac{1}{N}\sum_i x_i x_i^T &amp;= E[xx^T]
-\end{align*}
-\]</span></p>
-<p>Easy. But now, how might you do this if some subset of the data is missing? We’ll assume that the data isn’t missing completely at random, so that our observed marginals aren’t unbiased estimators of the true marginals.</p>
+</section>
+<section id="normal-model-results" class="level1">
+<h1>Normal Model Results</h1>
 <div id="6" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="cf">begin</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>missing_mask <span class="op">=</span> <span class="fu">rand</span>(<span class="fu">size</span>(X, <span class="fl">1</span>)) <span class="op">.&lt;</span> <span class="fu">logistic</span>.(<span class="op">-</span><span class="fl">1</span> <span class="op">.+</span> X <span class="op">*</span> <span class="fu">-rand</span>(<span class="fu">size</span>(X, <span class="fl">2</span>), <span class="fl">3</span>))</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>Xm <span class="op">=</span> <span class="fu">convert</span>(<span class="dt">Matrix</span>{<span class="dt">Union</span>{<span class="dt">Float64</span>, <span class="dt">Missing</span>}}, X)</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>Xm[missing_mask] <span class="op">.=</span> <span class="cn">missing</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(<span class="fu">ismissing</span>.(Xm); dims<span class="op">=</span><span class="fl">1</span>) <span class="op">./</span> <span class="fu">size</span>(Xm, <span class="fl">1</span>)</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>1×3 Matrix{Float64}:
- 0.25  0.263333  0.24</code></pre>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">std_samples</span>(k, c) <span class="op">=</span> <span class="fu">find_zero</span>(n<span class="op">-&gt;</span> <span class="fu">posterior_std</span>(k, n) <span class="op">-</span> c, (<span class="fl">100.0</span>, <span class="fl">10_000.0</span>));</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-</div>
-<p>We’re trying to find a maximum likelihood estimate in the presence of latent variables (in this case, all the unobserved values). It’s a classic situation for the EM algorithm!</p>
-<p>At each step of EM, we want to find parameters <span class="math inline">\(\mu, \Sigma\)</span> that maximize the expected log likelihood, where the expectation is taken with respect to <span class="math inline">\(p(x_\text{unobserved} | x_\text{observed})\)</span>. That’s</p>
-<p><span class="math display">\[
-\begin{align*}
-E\left[\sum_i x_i^T \Lambda \mu - \frac{1}{2} \text{Tr}(\Lambda x_i x_i^T) - N A(\eta)\right] =
-\sum_i E[x_i]^T \Lambda \mu - \frac{1}{2} \text{Tr}(\Lambda E[x_i x_i^T]) - N A(\eta)
-\end{align*}
-\]</span></p>
-<p>Take the gradient as before to get</p>
-<p><span class="math display">\[
-\begin{align*}
-\mu &amp;= \frac{1}{N}\sum_i E[y_i]
-\Sigma &amp;= \frac{1}{N}\sum_i E[y_i y_i^T]
-\end{align*}
-\]</span></p>
-<p>It remains to find out what <span class="math inline">\(E[x_i]\)</span> and <span class="math inline">\(E[x_i x_i^T]\)</span> are. For the components of <span class="math inline">\(x_i\)</span> that are observed (call this subvector <span class="math inline">\(x_o\)</span>), <span class="math inline">\(E[x_o] = x_o\)</span>. For the components <span class="math inline">\(x_u\)</span> that are not observed, the Gaussian conditioning formula gives <span class="math inline">\(x_u = μ_u + Σ_{uo} Σ_{oo}^{-1}(y_o - μ_o)\)</span></p>
 <div id="8" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">E_m1</span>(x, μ, Σ)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    x2 <span class="op">=</span> <span class="fu">copy</span>(x)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    u <span class="op">=</span> <span class="fu">ismissing</span>.(x)</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    o <span class="op">=</span> .!u</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    x2[u] <span class="op">.=</span> μ[u] <span class="op">+</span> Σ[u, o] <span class="op">*</span> (Σ[o, o] <span class="op">\</span> (x[o] <span class="op">-</span> μ[o]))</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    x2</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p>The second moment breaks down similarly. <span class="math inline">\(E[x_i x_i^T]\)</span> can be thought of (up to permutation) as a block matrix:</p>
-<p><span class="math display">\[
-\begin{bmatrix}
-x_o x_o^T &amp; x_o x_u^T
-x_u x_o^T &amp; x_u x_u^T
-\end{bmatrix}
-\]</span></p>
-<p>As <span class="math inline">\(x_0\)</span> and <span class="math inline">\(x_o x_o^T\)</span> are known, that just leaves <span class="math inline">\(E[x_o x_u^T] = x_o \mu_u^T\)</span> and <span class="math inline">\(E[x_u x_u^T] = \text{Var}(x_u | x_o) + \mu_u \mu_u^T\)</span>. The formula for conditional Gaussians tell us <span class="math inline">\(\text{Var}(x_u) = \Sigma_{uu} - \Sigma_{uo} \Sigma_{oo}^{-1} \Sigma_{ou}\)</span>.</p>
-<div id="10" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">E_m2</span>(x, μ, Σ)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    x2 <span class="op">=</span> <span class="fu">Matrix</span><span class="dt">{Float64}</span>(<span class="cn">undef</span>, <span class="fu">size</span>(Σ))</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    u <span class="op">=</span> <span class="fu">ismissing</span>.(x)</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    o <span class="op">=</span> .!u</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    x2[o,o] <span class="op">.=</span> x[o] <span class="op">*</span> x[o]<span class="ch">'</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    x2[o, u] <span class="op">.=</span> x[o] <span class="op">*</span> μ[u]<span class="ch">'</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    x2[u, o] <span class="op">.=</span> x2[o, u]<span class="ch">'</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    x2[u,u] <span class="op">=</span> Σ[u,u] <span class="op">-</span> Σ[u, o] <span class="op">*</span> (Σ[o,o] <span class="op">\</span> Σ[o, u]) <span class="op">+</span> μ[u]<span class="op">*</span>μ[u]<span class="ch">'</span></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    x2</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p>Let’s put it all together!</p>
-<div id="12" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">em_step</span>(X, μ, Σ)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    μ <span class="op">=</span> <span class="fu">mean</span>(<span class="fu">E_m1</span>(x, μ, Σ) <span class="cf">for</span> x <span class="kw">in</span> <span class="fu">eachrow</span>(X))</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    m2 <span class="op">=</span> <span class="fu">mean</span>(<span class="fu">E_m2</span>(x, μ, Σ) <span class="cf">for</span> x <span class="kw">in</span> <span class="fu">eachrow</span>(X))</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    (μ, m2 <span class="op">-</span> μ <span class="op">*</span> μ<span class="ch">')</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">em_alg</span>(X, μ, Σ)</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> _ <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fl">100</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>        μ<span class="fl">2</span>, Σ<span class="fl">2</span> <span class="op">=</span> <span class="fu">em_step</span>(X, μ, Σ)</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        δ <span class="op">=</span> <span class="fu">max</span>(<span class="fu">maximum</span>(<span class="fu">abs</span>.(μ <span class="op">-</span> μ<span class="fl">2</span>)), <span class="fu">maximum</span>(<span class="fu">abs</span>.(Σ<span class="fl">2</span> <span class="op">-</span> Σ)))</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> δ <span class="op">&lt;</span> <span class="fl">1e-5</span></span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> (μ, Σ)</span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>        <span class="cf">end</span></span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>        μ, Σ <span class="op">=</span> (μ<span class="fl">2</span>, Σ<span class="fl">2</span>)</span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div id="14" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>μ_guess, Σ_guess <span class="op">=</span> <span class="fu">em_alg</span>(Xm, <span class="fu">randn</span>(<span class="fl">3</span>), <span class="fl">1.0</span><span class="fu">I</span>(<span class="fl">3</span>));</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p>Our guess is pretty close to the true value!</p>
-<div id="16" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    diff_μ <span class="op">=</span> μ_guess <span class="op">-</span> μ</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    diff_Σ <span class="op">=</span> Σ_guess <span class="op">-</span> Σ</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    fig <span class="op">=</span> <span class="fu">Figure</span>(size<span class="op">=</span>(<span class="fl">800</span>, <span class="fl">400</span>))</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Vector difference: bar chart</span></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    ax1 <span class="op">=</span> <span class="fu">Axis</span>(fig[<span class="fl">1</span>, <span class="fl">1</span>], title<span class="op">=</span><span class="st">"μ_guess − μ"</span>, xlabel<span class="op">=</span><span class="st">"Component"</span>, ylabel<span class="op">=</span><span class="st">"Difference"</span>,</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>               xticks<span class="op">=</span>(<span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, [<span class="st">"1"</span>, <span class="st">"2"</span>, <span class="st">"3"</span>]))</span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    clim_μ <span class="op">=</span> <span class="fu">maximum</span>(<span class="fu">abs</span>.(diff_μ))</span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">barplot!</span>(ax1, <span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, diff_μ,</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>             color<span class="op">=</span>diff_μ, colormap<span class="op">=:</span>RdBu, colorrange<span class="op">=</span>(<span class="op">-</span>clim_μ, clim_μ))</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">hlines!</span>(ax1, [<span class="fl">0</span>], color<span class="op">=:</span>black, linewidth<span class="op">=</span><span class="fl">0.8</span>)</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Matrix difference: heatmap</span></span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    clim_Σ <span class="op">=</span> <span class="fu">maximum</span>(<span class="fu">abs</span>.(diff_Σ))</span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    ax2 <span class="op">=</span> <span class="fu">Axis</span>(fig[<span class="fl">1</span>, <span class="fl">2</span>], title<span class="op">=</span><span class="st">"Σ_guess − Σ"</span>, aspect<span class="op">=</span><span class="fu">DataAspect</span>(),</span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>               yreversed<span class="op">=</span><span class="cn">true</span>,</span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>               xticks<span class="op">=</span>(<span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, [<span class="st">"1"</span>, <span class="st">"2"</span>, <span class="st">"3"</span>]),</span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>               yticks<span class="op">=</span>(<span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, [<span class="st">"1"</span>, <span class="st">"2"</span>, <span class="st">"3"</span>]))</span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>    hm <span class="op">=</span> <span class="fu">heatmap!</span>(ax2, diff_Σ, colormap<span class="op">=:</span>RdBu, colorrange<span class="op">=</span>(<span class="op">-</span>clim_Σ, clim_Σ))</span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">Colorbar</span>(fig[<span class="fl">1</span>, <span class="fl">3</span>], hm)</span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>    fig</span>
-<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> dfz <span class="op">=</span> <span class="fu">crossjoin</span>(<span class="fu">DataFrame</span>(k<span class="op">=</span>[<span class="fl">2</span>,<span class="fl">4</span>,<span class="fl">6</span>]), <span class="fu">DataFrame</span>(c<span class="op">=</span><span class="fu">LinRange</span>(<span class="fl">0.015</span>, <span class="fl">0.005</span>, <span class="fl">5</span>)))</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">draw</span>(<span class="fu">data</span>(<span class="pp">@transform</span>(dfz,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>            <span class="op">:</span>n<span class="op">=</span><span class="fu">std_samples</span>.(<span class="op">:</span>k, <span class="op">:</span>c), <span class="op">:</span>k<span class="op">=</span><span class="fu">CategoricalVector</span>(<span class="op">:</span>k))) <span class="op">*</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>        <span class="fu">mapping</span>(<span class="op">:</span>c, <span class="op">:</span>n, color<span class="op">=:</span>k) <span class="op">*</span> <span class="fu">visual</span>(Lines),</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>        figure <span class="op">=</span> (;title<span class="op">=</span><span class="st">"Per Arm Sample Sizes for Posterior Precision"</span>))</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <div>
 <figure class="figure">
-<p><img src="missing_obs_files/figure-html/cell-9-output-1.png" width="800" height="400" class="figure-img"></p>
+<p><img src="notebook_files/figure-html/cell-5-output-1.png" width="672" height="480" class="figure-img"></p>
 </figure>
 </div>
 </div>
 </div>
+<p>A striking feature of the plot is how little the required per-arm sample size changes as we add more arms. This stands in contrast to frequentist procedures for multi-arm testing — such as Dunnett’s test or Tukey’s HSD — where the critical value must be inflated to hold the familywise type I error rate fixed across all pairwise comparisons, and so the required per-arm <span class="math inline">\(n\)</span> grows with <span class="math inline">\(k\)</span>. Here there is no such correction, because we are not controlling a type I error rate at all. We are minimizing expected posterior regret, which is a property of a single decision and does not compound across arms. Adding more arms introduces more uncertainty about each treatment effect, but the hierarchical prior partially pools information through the shared baseline <span class="math inline">\(\theta_0\)</span>, so the additional cost per arm is modest.</p>
 
 
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">

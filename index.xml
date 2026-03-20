@@ -35,22 +35,25 @@ font-style: inherit;">LogExpFunctions</span>, <span class="bu" style="color: nul
 background-color: null;
 font-style: inherit;">Random</span>, <span class="bu" style="color: null;
 background-color: null;
-font-style: inherit;">Distributions</span></span></code></pre></div></div>
-</div>
-<p>Say you want to fit a multivariate Normal distribution to some data. We’ll show how to generalize the complete data case to the missing data case. Let’s start by generating some data.</p>
-<div id="4" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><span class="cf" style="color: #003B4F;
+font-style: inherit;">Distributions</span>, <span class="bu" style="color: null;
 background-color: null;
-font-weight: bold;
-font-style: inherit;">begin</span></span>
-<span id="cb2-2"><span class="bu" style="color: null;
+font-style: inherit;">CairoMakie</span></span>
+<span id="cb1-2">CairoMakie.<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">enable_only_mime!</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"png"</span>)</span></code></pre></div></div>
+</div>
+<p>Say you want to fit a multivariate Normal distribution to some data.</p>
+<div id="4" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">Random</span>.<span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">seed!</span>(<span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span>)</span>
-<span id="cb2-3">Σ <span class="op" style="color: #5E5E5E;
+<span id="cb2-2">Σ <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -61,14 +64,14 @@ background-color: null;
 font-style: inherit;">3</span>, <span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1</span>))</span>
-<span id="cb2-4">μ <span class="op" style="color: #5E5E5E;
+<span id="cb2-3">μ <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">rand</span>(<span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">3</span>)</span>
-<span id="cb2-5">X <span class="op" style="color: #5E5E5E;
+<span id="cb2-4">X <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> (μ <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -84,45 +87,18 @@ font-style: inherit;">3</span>, <span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">300</span>))<span class="ch" style="color: #20794D;
 background-color: null;
-font-style: inherit;">'</span></span>
-<span id="cb2-6"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>300×3 adjoint(::Matrix{Float64}) with eltype Float64:
- -0.258093     0.0699272   0.515201
- -0.0370811   -1.57983     2.67111
-  0.135337     0.38011     0.352973
-  2.28129     -1.86795     1.51179
-  0.642071     1.22412    -0.567141
-  0.91815      0.696269   -0.538011
- -1.1201      -0.756545    1.64353
-  0.74597      0.452027    0.746104
- -0.928414     2.59154    -1.33622
-  1.49796      0.800874   -1.23821
-  ⋮                       
- -1.21284     -0.394641    1.30832
-  0.865095    -1.35088     1.81753
-  0.00223982  -0.316666    1.06955
- -1.11874     -0.0782368   0.910057
- -0.00174339  -1.01046     1.77748
- -1.64443      0.735486    1.0054
- -0.0329084    0.585624   -0.505953
-  1.71293     -0.641521    0.970406
-  0.260026     0.651592    0.155827</code></pre>
-</div>
+font-style: inherit;">';</span></span></code></pre></div></div>
 </div>
 <p>The obvious way to do this is with maximum likelihood estimation. In natural parameter form, the log likelihood is given by</p>
 <p><img src="https://latex.codecogs.com/png.latex?%0A%5Csum_i%20x_i%5ET%20%5CLambda%20%5Cmu%20-%20%5Cfrac%7B1%7D%7B2%7D%20%5Ctext%7BTr%7D(%5CLambda%20x_i%20x_i%5ET)%20-%20N%20A(%5Ceta)%0A"> Derive wrt the natural parameters <img src="https://latex.codecogs.com/png.latex?%5Ceta%20=%20(%5CLambda,%20%5CLambda%20%5Cmu)"> to get</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20x_i%20&amp;=%20E%5Bx%5D%20%5C%5C%0A%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20x_i%20x_i%5ET%20&amp;=%20E%5Bxx%5ET%5D%0A%5Cend%7Balign*%7D%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20x_i%20&amp;=%20E%5Bx%5D%0A%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20x_i%20x_i%5ET%20&amp;=%20E%5Bxx%5ET%5D%0A%5Cend%7Balign*%7D%0A"></p>
 <p>Easy. But now, how might you do this if some subset of the data is missing? We’ll assume that the data isn’t missing completely at random, so that our observed marginals aren’t unbiased estimators of the true marginals.</p>
 <div id="6" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><span class="cf" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">begin</span></span>
-<span id="cb4-2">missing_mask <span class="op" style="color: #5E5E5E;
+<span id="cb3-2">missing_mask <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -151,7 +127,7 @@ background-color: null;
 font-style: inherit;">2</span>), <span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">3</span>))</span>
-<span id="cb4-3">Xm <span class="op" style="color: #5E5E5E;
+<span id="cb3-3">Xm <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -164,42 +140,12 @@ background-color: null;
 font-style: inherit;">Float64</span>, <span class="dt" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">Missing</span>}}, X)</span>
-<span id="cb4-4">Xm[missing_mask] <span class="op" style="color: #5E5E5E;
+<span id="cb3-4">Xm[missing_mask] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">.=</span> <span class="cn" style="color: #8f5902;
 background-color: null;
 font-style: inherit;">missing</span></span>
-<span id="cb4-5">Xm</span>
-<span id="cb4-6"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>300×3 Matrix{Union{Missing, Float64}}:
- -0.258093     0.0699272   0.515201
- -0.0370811   -1.57983     2.67111
-   missing      missing     missing
-  2.28129     -1.86795     1.51179
-  0.642071     1.22412    -0.567141
-  0.91815      0.696269     missing
- -1.1201      -0.756545    1.64353
-  0.74597      0.452027    0.746104
- -0.928414      missing   -1.33622
-  1.49796      0.800874   -1.23821
-  ⋮                       
- -1.21284     -0.394641    1.30832
-  0.865095    -1.35088     1.81753
-  0.00223982  -0.316666    1.06955
- -1.11874     -0.0782368   0.910057
-   missing      missing     missing
- -1.64443       missing    1.0054
-   missing      missing     missing
-  1.71293     -0.641521    0.970406
-  0.260026     0.651592    0.155827</code></pre>
-</div>
-</div>
-<div id="8" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><span class="fu" style="color: #4758AB;
+<span id="cb3-5"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">sum</span>(<span class="fu" style="color: #4758AB;
 background-color: null;
@@ -213,7 +159,11 @@ font-style: inherit;">./</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">size</span>(Xm, <span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">1</span>)</span></code></pre></div></div>
+font-style: inherit;">1</span>)</span>
+<span id="cb3-6"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span></code></pre></div></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>1×3 Matrix{Float64}:
  0.25  0.263333  0.24</code></pre>
@@ -221,31 +171,31 @@ font-style: inherit;">1</span>)</span></code></pre></div></div>
 </div>
 <p>We’re trying to find a maximum likelihood estimate in the presence of latent variables (in this case, all the unobserved values). It’s a classic situation for the EM algorithm!</p>
 <p>At each step of EM, we want to find parameters <img src="https://latex.codecogs.com/png.latex?%5Cmu,%20%5CSigma"> that maximize the expected log likelihood, where the expectation is taken with respect to <img src="https://latex.codecogs.com/png.latex?p(x_%5Ctext%7Bunobserved%7D%20%7C%20x_%5Ctext%7Bobserved%7D)">. That’s</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0AE%5Cleft%5B%5Csum_i%20x_i%5ET%20%5CLambda%20%5Cmu%20-%20%5Cfrac%7B1%7D%7B2%7D%20%5Ctext%7BTr%7D(%5CLambda%20x_i%20x_i%5ET)%20-%20N%20A(%5Ceta)%5Cright%5D%20=%20%5C%5C%0A%5Csum_i%20E%5Bx_i%5D%5ET%20%5CLambda%20%5Cmu%20-%20%5Cfrac%7B1%7D%7B2%7D%20%5Ctext%7BTr%7D(%5CLambda%20E%5Bx_i%20x_i%5ET%5D)%20-%20N%20A(%5Ceta)%0A%5Cend%7Balign*%7D%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0AE%5Cleft%5B%5Csum_i%20x_i%5ET%20%5CLambda%20%5Cmu%20-%20%5Cfrac%7B1%7D%7B2%7D%20%5Ctext%7BTr%7D(%5CLambda%20x_i%20x_i%5ET)%20-%20N%20A(%5Ceta)%5Cright%5D%20=%0A%5Csum_i%20E%5Bx_i%5D%5ET%20%5CLambda%20%5Cmu%20-%20%5Cfrac%7B1%7D%7B2%7D%20%5Ctext%7BTr%7D(%5CLambda%20E%5Bx_i%20x_i%5ET%5D)%20-%20N%20A(%5Ceta)%0A%5Cend%7Balign*%7D%0A"></p>
 <p>Take the gradient as before to get</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Cmu%20&amp;=%20%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20E%5By_i%5D%20%5C%5C%0A%5CSigma%20&amp;=%20%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20E%5By_i%20y_i%5ET%5D%0A%5Cend%7Balign*%7D%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Cmu%20&amp;=%20%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20E%5By_i%5D%0A%5CSigma%20&amp;=%20%5Cfrac%7B1%7D%7BN%7D%5Csum_i%20E%5By_i%20y_i%5ET%5D%0A%5Cend%7Balign*%7D%0A"></p>
 <p>It remains to find out what <img src="https://latex.codecogs.com/png.latex?E%5Bx_i%5D"> and <img src="https://latex.codecogs.com/png.latex?E%5Bx_i%20x_i%5ET%5D"> are. For the components of <img src="https://latex.codecogs.com/png.latex?x_i"> that are observed (call this subvector <img src="https://latex.codecogs.com/png.latex?x_o">), <img src="https://latex.codecogs.com/png.latex?E%5Bx_o%5D%20=%20x_o">. For the components <img src="https://latex.codecogs.com/png.latex?x_u"> that are not observed, the Gaussian conditioning formula gives <img src="https://latex.codecogs.com/png.latex?x_u%20=%20%CE%BC_u%20+%20%CE%A3_%7Buo%7D%20%CE%A3_%7Boo%7D%5E%7B-1%7D(y_o%20-%20%CE%BC_o)"></p>
-<div id="10" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1"><span class="kw" style="color: #003B4F;
+<div id="8" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb5-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">E_m1</span>(x, μ, Σ)</span>
-<span id="cb8-2">    x2 <span class="op" style="color: #5E5E5E;
+<span id="cb5-2">    x2 <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">copy</span>(x)</span>
-<span id="cb8-3">    u <span class="op" style="color: #5E5E5E;
+<span id="cb5-3">    u <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">ismissing</span>.(x)</span>
-<span id="cb8-4">    o <span class="op" style="color: #5E5E5E;
+<span id="cb5-4">    o <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> .!u</span>
-<span id="cb8-5">    x2[u] <span class="op" style="color: #5E5E5E;
+<span id="cb5-5">    x2[u] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">.=</span> μ[u] <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -256,26 +206,23 @@ background-color: null;
 font-style: inherit;">\</span> (x[o] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span> μ[o]))</span>
-<span id="cb8-6">    x2</span>
-<span id="cb8-7"><span class="kw" style="color: #003B4F;
+<span id="cb5-6">    x2</span>
+<span id="cb5-7"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>E_m1 (generic function with 1 method)</code></pre>
-</div>
+font-style: inherit;">end</span>;</span></code></pre></div></div>
 </div>
 <p>The second moment breaks down similarly. <img src="https://latex.codecogs.com/png.latex?E%5Bx_i%20x_i%5ET%5D"> can be thought of (up to permutation) as a block matrix:</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Bbmatrix%7D%0Ax_o%20x_o%5ET%20&amp;%20x_o%20x_u%5ET%20%5C%5C%0Ax_u%20x_o%5ET%20&amp;%20x_u%20x_u%5ET%0A%5Cend%7Bbmatrix%7D%0A"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Bbmatrix%7D%0Ax_o%20x_o%5ET%20&amp;%20x_o%20x_u%5ET%0Ax_u%20x_o%5ET%20&amp;%20x_u%20x_u%5ET%0A%5Cend%7Bbmatrix%7D%0A"></p>
 <p>As <img src="https://latex.codecogs.com/png.latex?x_0"> and <img src="https://latex.codecogs.com/png.latex?x_o%20x_o%5ET"> are known, that just leaves <img src="https://latex.codecogs.com/png.latex?E%5Bx_o%20x_u%5ET%5D%20=%20x_o%20%5Cmu_u%5ET"> and <img src="https://latex.codecogs.com/png.latex?E%5Bx_u%20x_u%5ET%5D%20=%20%5Ctext%7BVar%7D(x_u%20%7C%20x_o)%20+%20%5Cmu_u%20%5Cmu_u%5ET">. The formula for conditional Gaussians tell us <img src="https://latex.codecogs.com/png.latex?%5Ctext%7BVar%7D(x_u)%20=%20%5CSigma_%7Buu%7D%20-%20%5CSigma_%7Buo%7D%20%5CSigma_%7Boo%7D%5E%7B-1%7D%20%5CSigma_%7Bou%7D">.</p>
-<div id="12" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb10-1"><span class="kw" style="color: #003B4F;
+<div id="10" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">E_m2</span>(x, μ, Σ)</span>
-<span id="cb10-2">    x2 <span class="op" style="color: #5E5E5E;
+<span id="cb6-2">    x2 <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -286,34 +233,34 @@ background-color: null;
 font-style: inherit;">undef</span>, <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">size</span>(Σ))</span>
-<span id="cb10-3">    u <span class="op" style="color: #5E5E5E;
+<span id="cb6-3">    u <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">ismissing</span>.(x)</span>
-<span id="cb10-4">    o <span class="op" style="color: #5E5E5E;
+<span id="cb6-4">    o <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> .!u</span>
-<span id="cb10-5">    x2[o,o] <span class="op" style="color: #5E5E5E;
+<span id="cb6-5">    x2[o,o] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">.=</span> x[o] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span> x[o]<span class="ch" style="color: #20794D;
 background-color: null;
 font-style: inherit;">'</span></span>
-<span id="cb10-6">    x2[o, u] <span class="op" style="color: #5E5E5E;
+<span id="cb6-6">    x2[o, u] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">.=</span> x[o] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span> μ[u]<span class="ch" style="color: #20794D;
 background-color: null;
 font-style: inherit;">'</span></span>
-<span id="cb10-7">    x2[u, o] <span class="op" style="color: #5E5E5E;
+<span id="cb6-7">    x2[u, o] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">.=</span> x2[o, u]<span class="ch" style="color: #20794D;
 background-color: null;
 font-style: inherit;">'</span></span>
-<span id="cb10-8">    x2[u,u] <span class="op" style="color: #5E5E5E;
+<span id="cb6-8">    x2[u,u] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> Σ[u,u] <span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -328,24 +275,21 @@ background-color: null;
 font-style: inherit;">*</span>μ[u]<span class="ch" style="color: #20794D;
 background-color: null;
 font-style: inherit;">'</span></span>
-<span id="cb10-9">    x2</span>
-<span id="cb10-10"><span class="kw" style="color: #003B4F;
+<span id="cb6-9">    x2</span>
+<span id="cb6-10"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>E_m2 (generic function with 1 method)</code></pre>
-</div>
+font-style: inherit;">end</span>;</span></code></pre></div></div>
 </div>
 <p>Let’s put it all together!</p>
-<div id="14" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb12-1"><span class="kw" style="color: #003B4F;
+<div id="12" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb7-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">em_step</span>(X, μ, Σ)</span>
-<span id="cb12-2">    μ <span class="op" style="color: #5E5E5E;
+<span id="cb7-2">    μ <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -360,7 +304,7 @@ font-weight: bold;
 font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">eachrow</span>(X))</span>
-<span id="cb12-3">    m2 <span class="op" style="color: #5E5E5E;
+<span id="cb7-3">    m2 <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -375,29 +319,25 @@ font-weight: bold;
 font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">eachrow</span>(X))</span>
-<span id="cb12-4">    (μ, m2 <span class="op" style="color: #5E5E5E;
+<span id="cb7-4">    (μ, m2 <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span> μ <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span> μ<span class="ch" style="color: #20794D;
 background-color: null;
 font-style: inherit;">')</span></span>
-<span id="cb12-5"><span class="cf" style="color: #003B4F;
+<span id="cb7-5"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>em_step (generic function with 1 method)</code></pre>
-</div>
-</div>
-<div id="16" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb14-1"><span class="kw" style="color: #003B4F;
+font-style: inherit;">end</span></span>
+<span id="cb7-6"></span>
+<span id="cb7-7"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">em_alg</span>(X, μ, Σ)</span>
-<span id="cb14-2">    <span class="cf" style="color: #003B4F;
+<span id="cb7-8">    <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">for</span> _ <span class="kw" style="color: #003B4F;
@@ -410,7 +350,7 @@ background-color: null;
 font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">100</span></span>
-<span id="cb14-3">        μ<span class="fl" style="color: #AD0000;
+<span id="cb7-9">        μ<span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>, Σ<span class="fl" style="color: #AD0000;
 background-color: null;
@@ -419,7 +359,7 @@ background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">em_step</span>(X, μ, Σ)</span>
-<span id="cb14-4">        δ <span class="op" style="color: #5E5E5E;
+<span id="cb7-10">        δ <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -440,7 +380,7 @@ background-color: null;
 font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span> Σ)))</span>
-<span id="cb14-5">        <span class="cf" style="color: #003B4F;
+<span id="cb7-11">        <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">if</span> δ <span class="op" style="color: #5E5E5E;
@@ -448,35 +388,32 @@ background-color: null;
 font-style: inherit;">&lt;</span> <span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1e-5</span></span>
-<span id="cb14-6">            <span class="cf" style="color: #003B4F;
+<span id="cb7-12">            <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">return</span> (μ, Σ)</span>
-<span id="cb14-7">        <span class="cf" style="color: #003B4F;
+<span id="cb7-13">        <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">end</span></span>
-<span id="cb14-8">        μ, Σ <span class="op" style="color: #5E5E5E;
+<span id="cb7-14">        μ, Σ <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> (μ<span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>, Σ<span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>)</span>
-<span id="cb14-9">    <span class="cf" style="color: #003B4F;
+<span id="cb7-15">    <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">end</span></span>
-<span id="cb14-10"><span class="kw" style="color: #003B4F;
+<span id="cb7-16"><span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>em_alg (generic function with 1 method)</code></pre>
+font-style: inherit;">end</span>;</span></code></pre></div></div>
 </div>
-</div>
-<div id="18" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb16-1">μ_guess, Σ_guess <span class="op" style="color: #5E5E5E;
+<div id="14" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1">μ_guess, Σ_guess <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -490,18 +427,207 @@ font-style: inherit;">1.0</span><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">I</span>(<span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">3</span>))</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>([0.3165736154417296, 0.001442844333011344, 0.5068980884346564], [0.9352904749796694 -0.14254207406265143 -0.1302467250906596; -0.14254207406265143 0.7845792845571478 -0.6864141697229134; -0.1302467250906596 -0.6864141697229134 0.897912273140797])</code></pre>
-</div>
-</div>
-<div id="20" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb18-1">(μ, Σ)</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>([0.2895098423219379, 0.028549977665983994, 0.538639413965653], [1.0 -0.19296912090384166 -0.19452690226681507; -0.19296912090384166 1.0 -0.8469773751344721; -0.19452690226681507 -0.8469773751344721 1.0])</code></pre>
-</div>
+font-style: inherit;">3</span>));</span></code></pre></div></div>
 </div>
 <p>Our guess is pretty close to the true value!</p>
+<div id="16" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb9-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">let</span></span>
+<span id="cb9-2">    diff_μ <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> μ_guess <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> μ</span>
+<span id="cb9-3">    diff_Σ <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Σ_guess <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> Σ</span>
+<span id="cb9-4"></span>
+<span id="cb9-5">    fig <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Figure</span>(size<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">800</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">400</span>))</span>
+<span id="cb9-6"></span>
+<span id="cb9-7">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Vector difference: bar chart</span></span>
+<span id="cb9-8">    ax1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Axis</span>(fig[<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], title<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"μ_guess − μ"</span>, xlabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Component"</span>, ylabel<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Difference"</span>,</span>
+<span id="cb9-9">               xticks<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, [<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"1"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"2"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"3"</span>]))</span>
+<span id="cb9-10">    clim_μ <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">maximum</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">abs</span>.(diff_μ))</span>
+<span id="cb9-11">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">barplot!</span>(ax1, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, diff_μ,</span>
+<span id="cb9-12">             color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>diff_μ, colormap<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=:</span>RdBu, colorrange<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>clim_μ, clim_μ))</span>
+<span id="cb9-13">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">hlines!</span>(ax1, [<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>], color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=:</span>black, linewidth<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.8</span>)</span>
+<span id="cb9-14"></span>
+<span id="cb9-15">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Matrix difference: heatmap</span></span>
+<span id="cb9-16">    clim_Σ <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">maximum</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">abs</span>.(diff_Σ))</span>
+<span id="cb9-17">    ax2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Axis</span>(fig[<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>], title<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Σ_guess − Σ"</span>, aspect<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">DataAspect</span>(),</span>
+<span id="cb9-18">               yreversed<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">true</span>,</span>
+<span id="cb9-19">               xticks<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, [<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"1"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"2"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"3"</span>]),</span>
+<span id="cb9-20">               yticks<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, [<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"1"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"2"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"3"</span>]))</span>
+<span id="cb9-21">    hm <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">heatmap!</span>(ax2, diff_Σ, colormap<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=:</span>RdBu, colorrange<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>clim_Σ, clim_Σ))</span>
+<span id="cb9-22">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Colorbar</span>(fig[<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>], hm)</span>
+<span id="cb9-23"></span>
+<span id="cb9-24">    fig</span>
+<span id="cb9-25"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/missing_obs/missing_obs_files/figure-html/cell-9-output-1.png" width="800" height="400" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
 
 
 
@@ -2788,43 +2914,14 @@ font-style: inherit;">plot_example</span>(o, kern, c_U, true_f)</span></code></p
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="fu" style="color: #4758AB;
 background-color: null;
-font-style: inherit;">library</span>(tidyverse)</span></code></pre></div></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
-✔ dplyr     1.1.4     ✔ readr     2.1.5
-✔ forcats   1.0.0     ✔ stringr   1.5.1
-✔ ggplot2   4.0.1     ✔ tibble    3.2.1
-✔ lubridate 1.9.3     ✔ tidyr     1.3.1
-✔ purrr     1.0.2     
-── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-✖ dplyr::filter() masks stats::filter()
-✖ dplyr::lag()    masks stats::lag()
-ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><span class="fu" style="color: #4758AB;
+font-style: inherit;">library</span>(tidyverse)</span>
+<span id="cb1-2"><span class="fu" style="color: #4758AB;
 background-color: null;
-font-style: inherit;">library</span>(lme4)</span></code></pre></div></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Loading required package: Matrix
-
-Attaching package: 'Matrix'
-
-The following objects are masked from 'package:tidyr':
-
-    expand, pack, unpack</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><span class="fu" style="color: #4758AB;
+font-style: inherit;">library</span>(lme4)</span>
+<span id="cb1-3"><span class="fu" style="color: #4758AB;
 background-color: null;
-font-style: inherit;">library</span>(rstanarm)</span></code></pre></div></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Loading required package: Rcpp
-This is rstanarm version 2.32.2
-- See https://mc-stan.org/rstanarm/articles/priors for changes to default priors!
-- Default priors may change, so it's safest to specify priors, even if equivalent to the defaults.
-- For execution on a local, multicore CPU with excess RAM we recommend calling
-  options(mc.cores = parallel::detectCores())</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><span class="fu" style="color: #4758AB;
+font-style: inherit;">library</span>(rstanarm)</span>
+<span id="cb1-4"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">options</span>(<span class="at" style="color: #657422;
 background-color: null;
@@ -2834,26 +2931,14 @@ font-style: inherit;">4</span>)</span></code></pre></div></div>
 </div>
 <p>This post demonstrates working with generalized linear mixed models in the context of coffee bean yield data. Each row in the following dataset is an observation of coffee bean yield from a single farm over the past year. Note that this dataset comes from cluster sampling. First, a random sample of supply units were chosen. Then, within each supply unit, a random sample of farms in the same cluster is taken. The number of farms sampled from each sampling unit is proportional to the size of the sampling unit, making sample means unbiased estimates of population means.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1">data <span class="ot" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1">data <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">read_csv</span>(<span class="st" style="color: #20794D;
 background-color: null;
-font-style: inherit;">"coffee.csv"</span>)</span></code></pre></div></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>New names:
-Rows: 1168 Columns: 19
-── Column specification
-──────────────────────────────────────────────────────── Delimiter: "," chr
-(7): supply_unit, region, obs_shade, ipm_methods, last_replanted, last_... dbl
-(10): ...1, farm_altitude_meters, coffee_farm_size_ha, main_stems_count,... lgl
-(2): had_recent_soil_or_leaf_test, used_test_results
-ℹ Use `spec()` to retrieve the full column specification for this data. ℹ
-Specify the column types or set `show_col_types = FALSE` to quiet this message.
-• `` -&gt; `...1`</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1">data <span class="sc" style="color: #5E5E5E;
+font-style: inherit;">"coffee.csv"</span>)</span>
+<span id="cb2-2">data <span class="sc" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -2877,13 +2962,13 @@ font-style: inherit;">select</span>(ipm_methods, region, supply_unit, obs_shade)
 </div>
 <p>We’ll need to do a little pre-processing first. The column listing pest management techniques (ipm_methods) can contain multiple treatment names, separated by a space. We’ll expand these into binary categories.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1">extract_categories <span class="ot" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1">extract_categories <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">function</span>(data, s) {</span>
-<span id="cb12-2">  data <span class="sc" style="color: #5E5E5E;
+<span id="cb4-2">  data <span class="sc" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -2904,34 +2989,34 @@ background-color: null;
 font-style: inherit;">1</span>) <span class="sc" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">|&gt;</span></span>
-<span id="cb12-3">  <span class="fu" style="color: #4758AB;
+<span id="cb4-3">  <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">pivot_wider</span>(</span>
-<span id="cb12-4">    <span class="at" style="color: #657422;
+<span id="cb4-4">    <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">names_from =</span> {{ s }},</span>
-<span id="cb12-5">    <span class="at" style="color: #657422;
+<span id="cb4-5">    <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">values_from =</span> value,</span>
-<span id="cb12-6">    <span class="at" style="color: #657422;
+<span id="cb4-6">    <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">values_fill =</span> <span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0</span></span>
-<span id="cb12-7">  )</span>
-<span id="cb12-8">}</span></code></pre></div></div>
+<span id="cb4-7">  )</span>
+<span id="cb4-8">}</span></code></pre></div></div>
 </div>
 <p>We’ll also convert the <em>obs_shade</em> and <em>last_replanted</em> columns to factors.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1">data <span class="ot" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1">data <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> data <span class="sc" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">|&gt;</span></span>
-<span id="cb13-2">  <span class="fu" style="color: #4758AB;
+<span id="cb5-2">  <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">mutate</span>(</span>
-<span id="cb13-3">    <span class="at" style="color: #657422;
+<span id="cb5-3">    <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">obs_shade=</span><span class="fu" style="color: #4758AB;
 background-color: null;
@@ -2946,12 +3031,12 @@ background-color: null;
 font-style: inherit;">d+)_percent"</span>)[,<span class="dv" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">2</span>]),</span>
-<span id="cb13-4">    <span class="at" style="color: #657422;
+<span id="cb5-4">    <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">last_replanted=</span><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">factor</span>(last_replanted,</span>
-<span id="cb13-5">                          <span class="at" style="color: #657422;
+<span id="cb5-5">                          <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">levels=</span><span class="fu" style="color: #4758AB;
 background-color: null;
@@ -2962,12 +3047,12 @@ background-color: null;
 font-style: inherit;">"2_5_years_ago"</span>, <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"within_the_last_two_years"</span>),</span>
-<span id="cb13-6">                          <span class="at" style="color: #657422;
+<span id="cb5-6">                          <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">ordered=</span><span class="cn" style="color: #8f5902;
 background-color: null;
 font-style: inherit;">TRUE</span>),</span>
-<span id="cb13-7">    <span class="at" style="color: #657422;
+<span id="cb5-7">    <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">obs_shade=</span><span class="fu" style="color: #4758AB;
 background-color: null;
@@ -2978,13 +3063,13 @@ background-color: null;
 font-style: inherit;">TRUE</span>)) <span class="sc" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">|&gt;</span></span>
-<span id="cb13-8">  <span class="fu" style="color: #4758AB;
+<span id="cb5-8">  <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">extract_categories</span>(ipm_methods)</span></code></pre></div></div>
 </div>
 <p>Now, on to the main question: does shade decrease yield? The following plot certainly suggests it does.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1">data <span class="sc" style="color: #5E5E5E;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1">data <span class="sc" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -3005,7 +3090,7 @@ font-style: inherit;">geom_boxplot</span>()</span></code></pre></div></div>
 </div>
 <p>But there’s likely confounders here. Higher altitude farms might both get less shade and have soils less amenable to high yields.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1">data <span class="sc" style="color: #5E5E5E;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1">data <span class="sc" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -3030,9 +3115,6 @@ background-color: null;
 font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">geom_smooth</span>()</span></code></pre></div></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>`geom_smooth()` using method = 'loess' and formula = 'y ~ x'</code></pre>
-</div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -3043,7 +3125,7 @@ font-style: inherit;">geom_smooth</span>()</span></code></pre></div></div>
 </div>
 <p>Let’s try modeling this more carefully.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1">fit <span class="ot" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1">fit <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -3066,7 +3148,7 @@ background-color: null;
 font-style: inherit;">scale</span>(farm_altitude_meters), <span class="at" style="color: #657422;
 background-color: null;
 font-style: inherit;">data=</span>data)</span>
-<span id="cb17-2">tdat <span class="ot" style="color: #003B4F;
+<span id="cb8-2">tdat <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -3075,7 +3157,7 @@ background-color: null;
 font-style: inherit;">resid=</span><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">residuals</span>(fit))</span>
-<span id="cb17-3">tdat <span class="sc" style="color: #5E5E5E;
+<span id="cb8-3">tdat <span class="sc" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -3086,9 +3168,6 @@ background-color: null;
 font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">geom_histogram</span>()</span></code></pre></div></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>`stat_bin()` using `bins = 30`. Pick better value `binwidth`.</code></pre>
-</div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -3099,7 +3178,7 @@ font-style: inherit;">geom_histogram</span>()</span></code></pre></div></div>
 </div>
 <p>A log linear model seems a little skewed.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">ggplot</span>(tdat,<span class="fu" style="color: #4758AB;
 background-color: null;
@@ -3124,7 +3203,7 @@ font-style: inherit;">stat_qq_line</span>()</span></code></pre></div></div>
 </div>
 <p>A GLM with a Gamma family works better here.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1">fit2 <span class="ot" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1">fit2 <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -3153,7 +3232,7 @@ background-color: null;
 font-style: inherit;">link=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"log"</span>))</span>
-<span id="cb20-2"><span class="fu" style="color: #4758AB;
+<span id="cb10-2"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">plot</span>(fit2)</span></code></pre></div></div>
 <div class="cell-output-display">
@@ -3165,7 +3244,7 @@ font-style: inherit;">plot</span>(fit2)</span></code></pre></div></div>
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">tibble</span>(<span class="at" style="color: #657422;
 background-color: null;
@@ -3197,7 +3276,7 @@ font-style: inherit;">stat_qq_line</span>()</span></code></pre></div></div>
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">summary</span>(fit2)</span></code></pre></div></div>
 <div class="cell-output cell-output-stdout">
@@ -3208,8 +3287,8 @@ Formula: yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) +
     (1 | region/supply_unit)
    Data: data
 
-     AIC      BIC   logLik deviance df.resid 
- 17386.2  17431.8  -8684.1  17368.2     1159 
+      AIC       BIC    logLik -2*log(L)  df.resid 
+  17386.2   17431.8   -8684.1   17368.2      1159 
 
 Scaled residuals: 
     Min      1Q  Median      3Q     Max 
@@ -3217,17 +3296,16 @@ Scaled residuals:
 
 Random effects:
  Groups             Name        Variance Std.Dev.
- supply_unit:region (Intercept) 0.02685  0.1639  
- region             (Intercept) 0.01471  0.1213  
- Residual                       0.45488  0.6744  
+ supply_unit:region (Intercept) 0.05902  0.2429  
+ region             (Intercept) 0.03234  0.1798  
 Number of obs: 1168, groups:  supply_unit:region, 20; region, 8
 
 Fixed effects:
                              Estimate Std. Error t value Pr(&gt;|z|)    
-(Intercept)                  6.485595   0.092593  70.044   &lt;2e-16 ***
-obs_shade.L                 -0.233903   0.106632  -2.194   0.0283 *  
-obs_shade.Q                  0.020627   0.088579   0.233   0.8159    
-obs_shade.C                  0.045673   0.059993   0.761   0.4465    
+(Intercept)                  6.485595   0.092594  70.043   &lt;2e-16 ***
+obs_shade.L                 -0.233903   0.106634  -2.194   0.0283 *  
+obs_shade.Q                  0.020627   0.088580   0.233   0.8159    
+obs_shade.C                  0.045673   0.059994   0.761   0.4465    
 obs_shade^4                  0.009596   0.039745   0.241   0.8092    
 scale(farm_altitude_meters) -0.037419   0.022113  -1.692   0.0906 .  
 ---
@@ -3244,7 +3322,7 @@ scl(frm_l_)  0.002  0.146 -0.033  0.028  0.019</code></pre>
 </div>
 <p>We see a pretty clear negative linear relationship between shade coverage and yield. To decrease the variance of our estimate, we can try controlling for other factors. Let’s factor in fertilizer use.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1">data <span class="sc" style="color: #5E5E5E;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1">data <span class="sc" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -3267,9 +3345,6 @@ background-color: null;
 font-style: inherit;">span=</span><span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0.2</span>)</span></code></pre></div></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>`geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'</code></pre>
-</div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -3280,7 +3355,7 @@ font-style: inherit;">0.2</span>)</span></code></pre></div></div>
 </div>
 <p>It seems like fertilizer has a highly nonlinear relationship with yield. Let’s just look at quantiles.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1">data <span class="ot" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1">data <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> data <span class="sc" style="color: #5E5E5E;
 background-color: null;
@@ -3295,7 +3370,7 @@ background-color: null;
 font-style: inherit;">4</span>))</span></code></pre></div></div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1">data <span class="sc" style="color: #5E5E5E;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1">data <span class="sc" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">|&gt;</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -3321,7 +3396,7 @@ font-style: inherit;">"identity"</span>)</span></code></pre></div></div>
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1">fit3 <span class="ot" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1">fit3 <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -3352,7 +3427,7 @@ background-color: null;
 font-style: inherit;">link=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"log"</span>))</span>
-<span id="cb28-2"><span class="fu" style="color: #4758AB;
+<span id="cb17-2"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">summary</span>(fit3)</span></code></pre></div></div>
 <div class="cell-output cell-output-stdout">
@@ -3363,8 +3438,8 @@ Formula: yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) +
     fertilizer_quantile + (1 | region/supply_unit)
    Data: data
 
-     AIC      BIC   logLik deviance df.resid 
- 17220.0  17270.6  -8600.0  17200.0     1158 
+      AIC       BIC    logLik -2*log(L)  df.resid 
+  17220.0   17270.6   -8600.0   17200.0      1158 
 
 Scaled residuals: 
     Min      1Q  Median      3Q     Max 
@@ -3372,20 +3447,19 @@ Scaled residuals:
 
 Random effects:
  Groups             Name        Variance Std.Dev.
- supply_unit:region (Intercept) 0.023739 0.15408 
- region             (Intercept) 0.006918 0.08318 
- Residual                       0.417381 0.64605 
+ supply_unit:region (Intercept) 0.05688  0.2385  
+ region             (Intercept) 0.01657  0.1287  
 Number of obs: 1168, groups:  supply_unit:region, 20; region, 8
 
 Fixed effects:
-                            Estimate Std. Error t value Pr(&gt;|z|)    
-(Intercept)                  5.88611    0.08835  66.625   &lt;2e-16 ***
-obs_shade.L                 -0.24805    0.09991  -2.483   0.0130 *  
-obs_shade.Q                  0.00149    0.08341   0.018   0.9857    
-obs_shade.C                  0.01520    0.05654   0.269   0.7881    
-obs_shade^4                  0.02244    0.03741   0.600   0.5485    
-scale(farm_altitude_meters) -0.03483    0.02060  -1.691   0.0909 .  
-fertilizer_quantile          0.23374    0.01742  13.418   &lt;2e-16 ***
+                             Estimate Std. Error t value Pr(&gt;|z|)    
+(Intercept)                  5.886119   0.088345  66.627   &lt;2e-16 ***
+obs_shade.L                 -0.248051   0.099910  -2.483   0.0130 *  
+obs_shade.Q                  0.001488   0.083406   0.018   0.9858    
+obs_shade.C                  0.015202   0.056538   0.269   0.7880    
+obs_shade^4                  0.022442   0.037406   0.600   0.5485    
+scale(farm_altitude_meters) -0.034823   0.020595  -1.691   0.0909 .  
+fertilizer_quantile          0.233742   0.017419  13.418   &lt;2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -3401,7 +3475,7 @@ frtlzr_qntl -0.483 -0.008 -0.020 -0.039  0.027  0.010</code></pre>
 </div>
 <p>The AIC and residual variance decreased, and the standard error for shade’s negative linear effect shrunk even smaller.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">plot</span>(fit3)</span></code></pre></div></div>
 <div class="cell-output-display">
@@ -3414,7 +3488,7 @@ font-style: inherit;">plot</span>(fit3)</span></code></pre></div></div>
 </div>
 <p>Finally, we can add in factors for the pest control efforts we extracted initially.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1">fit4 <span class="ot" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1">fit4 <span class="ot" style="color: #003B4F;
 background-color: null;
 font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
 background-color: null;
@@ -3449,7 +3523,7 @@ background-color: null;
 font-style: inherit;">link=</span><span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"log"</span>))</span>
-<span id="cb31-2"><span class="fu" style="color: #4758AB;
+<span id="cb20-2"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">summary</span>(fit4)</span></code></pre></div></div>
 <div class="cell-output cell-output-stdout">
@@ -3461,31 +3535,30 @@ Formula: yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) +
     (1 | region/supply_unit)
    Data: data
 
-     AIC      BIC   logLik deviance df.resid 
- 17217.0  17277.8  -8596.5  17193.0     1156 
+      AIC       BIC    logLik -2*log(L)  df.resid 
+  17217.0   17277.8   -8596.5   17193.0      1156 
 
 Scaled residuals: 
     Min      1Q  Median      3Q     Max 
--1.4889 -0.6999 -0.1899  0.4687  6.6757 
+-1.4889 -0.6999 -0.1899  0.4686  6.6756 
 
 Random effects:
  Groups             Name        Variance Std.Dev.
- supply_unit:region (Intercept) 0.022751 0.15084 
- region             (Intercept) 0.007078 0.08413 
- Residual                       0.411851 0.64176 
+ supply_unit:region (Intercept) 0.05524  0.2350  
+ region             (Intercept) 0.01718  0.1311  
 Number of obs: 1168, groups:  supply_unit:region, 20; region, 8
 
 Fixed effects:
-                             Estimate Std. Error t value Pr(&gt;|z|)    
-(Intercept)                  5.877484   0.088270  66.585   &lt;2e-16 ***
-obs_shade.L                 -0.250834   0.099695  -2.516   0.0119 *  
-obs_shade.Q                  0.005447   0.083375   0.065   0.9479    
-obs_shade.C                  0.020206   0.056476   0.358   0.7205    
-obs_shade^4                  0.021293   0.037376   0.570   0.5689    
-scale(farm_altitude_meters) -0.031682   0.020572  -1.540   0.1236    
-fertilizer_quantile          0.231400   0.017450  13.260   &lt;2e-16 ***
-use_insect_traps             0.186580   0.093333   1.999   0.0456 *  
-biological_control           0.121985   0.086255   1.414   0.1573    
+                            Estimate Std. Error t value Pr(&gt;|z|)    
+(Intercept)                  5.87748    0.08827  66.586   &lt;2e-16 ***
+obs_shade.L                 -0.25083    0.09969  -2.516   0.0119 *  
+obs_shade.Q                  0.00545    0.08338   0.065   0.9479    
+obs_shade.C                  0.02022    0.05647   0.358   0.7203    
+obs_shade^4                  0.02129    0.03738   0.570   0.5689    
+scale(farm_altitude_meters) -0.03168    0.02057  -1.540   0.1236    
+fertilizer_quantile          0.23140    0.01745  13.261   &lt;2e-16 ***
+use_insect_traps             0.18656    0.09333   1.999   0.0456 *  
+biological_control           0.12198    0.08625   1.414   0.1573    
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -3503,7 +3576,7 @@ blgcl_cntrl -0.039 -0.033 -0.045 -0.009 -0.052  0.035 -0.084 -0.099</code></pre>
 </div>
 <p>Interestingly, controlling for pest mitigation methods makes the effect of altitude seem much less significant. An analysis of deviance lets us compare the nested models.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><span class="fu" style="color: #4758AB;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">anova</span>(fit2, fit3, fit4)</span></code></pre></div></div>
 <div class="cell-output cell-output-stdout">
@@ -3512,10 +3585,10 @@ Models:
 fit2: yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) + (1 | region/supply_unit)
 fit3: yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) + fertilizer_quantile + (1 | region/supply_unit)
 fit4: yield_kg_ha_green ~ obs_shade + scale(farm_altitude_meters) + fertilizer_quantile + use_insect_traps + biological_control + (1 | region/supply_unit)
-     npar   AIC   BIC  logLik deviance    Chisq Df Pr(&gt;Chisq)    
-fit2    9 17386 17432 -8684.1    17368                           
-fit3   10 17220 17271 -8600.0    17200 168.2306  1     &lt;2e-16 ***
-fit4   12 17217 17278 -8596.5    17193   6.9538  2     0.0309 *  
+     npar   AIC   BIC  logLik -2*log(L)    Chisq Df Pr(&gt;Chisq)    
+fit2    9 17386 17432 -8684.1     17368                           
+fit3   10 17220 17271 -8600.0     17200 168.2306  1     &lt;2e-16 ***
+fit4   12 17217 17278 -8596.5     17193   6.9538  2     0.0309 *  
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 </div>
@@ -4234,8 +4307,8 @@ font-style: inherit;">list</span>(ks))</span></code></pre></div></div>
   <pubDate>Fri, 15 Aug 2025 05:00:00 GMT</pubDate>
 </item>
 <item>
-  <title>Bayesian Power Analysis for A/B/n Tests</title>
-  <link>https://samanklesaria.github.io/posts/bayesian_logistic_regression/bayesian_logistic_regression.html</link>
+  <title>Sample Size Estimation in Bayesian A/B/n Testing</title>
+  <link>https://samanklesaria.github.io/posts/bayesian_sample_size/notebook.html</link>
   <description><![CDATA[ 
 
 
@@ -4247,19 +4320,23 @@ font-style: inherit;">list</span>(ks))</span></code></pre></div></div>
 background-color: null;
 font-style: inherit;">using</span> <span class="bu" style="color: null;
 background-color: null;
-font-style: inherit;">LogExpFunctions</span>, <span class="bu" style="color: null;
+font-style: inherit;">Distributions</span>, <span class="bu" style="color: null;
 background-color: null;
 font-style: inherit;">LinearAlgebra</span>, <span class="bu" style="color: null;
 background-color: null;
-font-style: inherit;">Distributions</span>, <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">QuasiMonteCarlo</span>, <span class="bu" style="color: null;
-background-color: null;
 font-style: inherit;">CairoMakie</span>, <span class="bu" style="color: null;
 background-color: null;
-font-style: inherit;">StatsModels</span>, <span class="bu" style="color: null;
+font-style: inherit;">AlgebraOfGraphics</span>, <span class="bu" style="color: null;
 background-color: null;
-font-style: inherit;">PythonCall</span></span>
+font-style: inherit;">DataFrames</span>, <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">DataFramesMeta</span>, <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">Roots</span>, <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">CategoricalArrays</span>, <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">LogExpFunctions</span></span>
 <span id="cb1-2">CairoMakie.<span class="fu" style="color: #4758AB;
 background-color: null;
 font-style: inherit;">enable_only_mime!</span>(<span class="st" style="color: #20794D;
@@ -4267,1025 +4344,261 @@ background-color: null;
 font-style: inherit;">"png"</span>)</span></code></pre></div></div>
 </div>
 <p>This post highlights a Bayesian approach to sample size estimation in A/B/n testing. Say we’re trying to test which variant of an email message generates the highest response rate from a population. We consider <img src="https://latex.codecogs.com/png.latex?k"> different messages and send out <img src="https://latex.codecogs.com/png.latex?n"> emails for each message. After we wait for responses, we should be able to tell which message yielded the highest response rate as long as we set <img src="https://latex.codecogs.com/png.latex?n"> high enough. But we generally can’t send out too many messages: say we’re capped at <img src="https://latex.codecogs.com/png.latex?N"> total. How do we choose the highest <img src="https://latex.codecogs.com/png.latex?k"> that still allows us to confidently pick which message got the highest response rate?</p>
-<p>We’ll start with a prior over the response rates of each message. Choosing an independent prior over the rates for each message would be overly naive: all the messages will likely give very similar response rates, so if we know the rate for one message, we’ll have a good guess about the rates for other messages too. Instead, we’ll choose one message to be a baseline, giving it a response rate prior centered at 7%. We’ll sample independent multiples of this baseline to give the response rates for the other messages.</p>
+<section id="overall-bayesian-approach" class="level1">
+<h1>Overall Bayesian Approach</h1>
+<p>After observing the data, we select the arm <img src="https://latex.codecogs.com/png.latex?j"> with the highest posterior mean response rate. The question of sample size then becomes: how large does <img src="https://latex.codecogs.com/png.latex?n"> need to be so that we can trust this selection? A natural criterion is to minimize the expected posterior regret <img src="https://latex.codecogs.com/png.latex?E%5B%5Cdelta_k%20-%20%5Cdelta_j%5D"> over the prior predictive, where <img src="https://latex.codecogs.com/png.latex?%5Cdelta_k"> is the true best arm’s rate and <img src="https://latex.codecogs.com/png.latex?%5Cdelta_j"> is the rate of the arm we chose. It turns out that this is equivalent to controlling the posterior variances of the treatment effects. To see why, add and subtract the posterior means <img src="https://latex.codecogs.com/png.latex?E%5B%5Cdelta_k%5D"> and <img src="https://latex.codecogs.com/png.latex?E%5B%5Cdelta_j%5D"> to decompose the regret:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AE%5B%5Cdelta_k%20-%20%5Cdelta_j%5D%20=%20E%5B(%5Cdelta_k%20-%20E%5B%5Cdelta_k%5D)%20+%20(E%5B%5Cdelta_k%5D%20-%20E%5B%5Cdelta_j%5D)%20+%20(E%5B%5Cdelta_j%5D%20-%20%5Cdelta_j)%5D%0A"></p>
+<p>Since <img src="https://latex.codecogs.com/png.latex?j"> is the arm with the highest posterior mean, <img src="https://latex.codecogs.com/png.latex?E%5B%5Cdelta_j%5D%20%5Cgeq%20E%5B%5Cdelta_k%5D">, so the middle term is non-positive and can be dropped to give an upper bound:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AE%5B%5Cdelta_k%20-%20%5Cdelta_j%5D%20%5Cleq%20E%5B(%5Cdelta_k%20-%20E%5B%5Cdelta_k%5D)%20+%20(E%5B%5Cdelta_j%5D%20-%20%5Cdelta_j)%5D%0A"></p>
+<p>The two remaining terms are deviations of each arm from its own posterior mean, which in expectation are bounded by the respective posterior standard deviations (from Cauchy Schwartz):</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AE%5B%5Cdelta_k%20-%20%5Cdelta_j%5D%20%5Cleq%20%5Ctext%7Bstd%7D(%5Cdelta_k)%20+%20%5Ctext%7Bstd%7D(%5Cdelta_j)%0A"></p>
+</section>
+<section id="a-normal-model" class="level1">
+<h1>A Normal Model</h1>
+<p>Choosing an independent prior over the rates for each message would be overly naive: all the messages will likely give very similar response rates, so if we know the rate for one message, we’ll have a good guess about the rates for other messages too. Instead, we’ll choose one message to be a baseline, giving it a response rate prior centered at 7%. We’ll sample independent multiples of this baseline to give the response rates for the other messages. Specifically, we’ll use a Normal approximation that admits a closed form distribution for posterior variances. The control arm’s true response rate <img src="https://latex.codecogs.com/png.latex?%5Ctheta_0"> gets a Normal prior centered at the baseline <img src="https://latex.codecogs.com/png.latex?p"> with standard deviation <img src="https://latex.codecogs.com/png.latex?%5Ctau_0">, encoding our prior belief about plausible baseline rates. Each treatment effect <img src="https://latex.codecogs.com/png.latex?%5Cdelta_j"> is given an independent <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BN%7D(0,%20%5Ctau_1)"> prior, reflecting the expectation that treatments will deviate only modestly from control; the treatment arm rates are then <img src="https://latex.codecogs.com/png.latex?%5Ctheta_j%20=%20%5Ctheta_0%20+%20%5Cdelta_j">. Observed response indicators are modeled as <img src="https://latex.codecogs.com/png.latex?y_i%20%5Csim%20%5Cmathcal%7BN%7D(%5Ctheta_i,%20%5Csigma%5E2)">, where <img src="https://latex.codecogs.com/png.latex?%5Csigma%5E2%20%5Capprox%20p(1-p)"> by a normal approximation to Bernoulli outcomes. By the Central Limit Theorem, this is a good approximation to the true Beta-Bernoulli posteriors once <img src="https://latex.codecogs.com/png.latex?n"> is reasonably large.</p>
+</section>
+<section id="bayesian-linear-regression" class="level1">
+<h1>Bayesian Linear Regression</h1>
+<p>Finding the posterior variance analytically is an instance of standard Bayesian linear regression. Stack the parameters into <img src="https://latex.codecogs.com/png.latex?w%20=%20(%5Ctheta_0,%20%5Cdelta_1,%20%5Cldots,%20%5Cdelta_k)">, so that the arm means are <img src="https://latex.codecogs.com/png.latex?%5Ctheta%20=%20Xw"> for a <img src="https://latex.codecogs.com/png.latex?(k+1)%20%5Ctimes%20(k+1)"> design matrix <img src="https://latex.codecogs.com/png.latex?X"> whose first column is all ones (for the shared baseline <img src="https://latex.codecogs.com/png.latex?%5Ctheta_0">) and whose remaining columns pick out the per-arm treatment effects.</p>
+<p>The prior on <img src="https://latex.codecogs.com/png.latex?w"> is Normal with mean <img src="https://latex.codecogs.com/png.latex?(p,%200,%20%5Cldots,%200)%5ET"> and precision matrix <img src="https://latex.codecogs.com/png.latex?%5CLambda%20=%20%5Ctext%7Bdiag%7D(1/%5Ctau_0%5E2,%201/%5Ctau_1%5E2,%20%5Cldots,%201/%5Ctau_1%5E2)">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0Aw%20%5Csim%20%5Cmathcal%7BN%7D%5C!%5Cleft(%5Cbegin%7Bbmatrix%7D%20p%20%5C%5C%200%20%5Cend%7Bbmatrix%7D,%20%5CLambda%5E%7B-1%7D%5Cright)%0A"></p>
+<p>With <img src="https://latex.codecogs.com/png.latex?n"> i.i.d. observations per arm, each contributing likelihood precision <img src="https://latex.codecogs.com/png.latex?1/%5Csigma%5E2">, the standard Normal-Normal update gives a posterior precision that is simply the sum of the prior precision and the data precision:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AL%20=%20%5CLambda%20+%20%5Cfrac%7Bn%7D%7B%5Csigma%5E2%7DX%5ETX,%20%5Cqquad%20w%20%5Cmid%20y%20%5Csim%20%5Cmathcal%7BN%7D(m,%20L%5E%7B-1%7D)%0A"></p>
+<p>Since the treatment effects <img src="https://latex.codecogs.com/png.latex?%5Cdelta_j"> are the non-baseline entries of <img src="https://latex.codecogs.com/png.latex?w">, their posterior variances sit on the corresponding diagonal entries of <img src="https://latex.codecogs.com/png.latex?L%5E%7B-1%7D">. The posterior standard deviation for any treatment effect is therefore:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7Bstd%7D(%5Cdelta_j)%20=%20%5Csqrt%7BL%5E%7B-1%7D_%7Bjj%7D%7D%0A"></p>
+<p>This is the quantity we target when choosing <img src="https://latex.codecogs.com/png.latex?n">: we want it small enough that the regret bound <img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bstd%7D(%5Cdelta_k)%20+%20%5Ctext%7Bstd%7D(%5Cdelta_j)"> is acceptable.</p>
 <div id="4" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1">priors <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> [<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Normal</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">logit</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.07</span>), <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.5</span>), <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Normal</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">log</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.3</span>))]</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>2-element Vector{Normal{Float64}}:
- Distributions.Normal{Float64}(μ=-2.5866893440979424, σ=0.5)
- Distributions.Normal{Float64}(μ=0.0, σ=0.26236426446749106)</code></pre>
-</div>
-</div>
-<div id="6" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><span class="kw" style="color: #003B4F;
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
 background-color: null;
-font-style: inherit;">plot_prior</span>(p, transform, title)</span>
-<span id="cb4-2">    f <span class="op" style="color: #5E5E5E;
+font-style: inherit;">posterior_std</span>(k, n; σ<span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Figure</span>()</span>
-<span id="cb4-3">    ax <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Axis</span>(f[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>], title<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>title)</span>
-<span id="cb4-4">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">hist!</span>(ax, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">transform</span>.(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rand</span>(p, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1000</span>)))</span>
-<span id="cb4-5">    qs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">transform</span>.(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">quantile</span>.(p, [<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.5</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.95</span>]))</span>
-<span id="cb4-6">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">vlines!</span>(ax, qs, color<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=:</span>orange, linestyle <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>dash)</span>
-<span id="cb4-7">    f</span>
-<span id="cb4-8"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>plot_prior (generic function with 1 method)</code></pre>
-</div>
-</div>
-<div id="8" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">plot_prior</span>(priors[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>], logistic, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Control success probability"</span>)</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<div>
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/bayesian_logistic_regression/bayesian_logistic_regression_files/figure-html/cell-5-output-1.png" width="672" height="480" class="figure-img"></p>
-</figure>
-</div>
-</div>
-</div>
-<div id="10" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb7-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">plot_prior</span>(priors[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>], exp, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Odds ratio"</span>)</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<div>
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/bayesian_logistic_regression/bayesian_logistic_regression_files/figure-html/cell-6-output-1.png" width="672" height="480" class="figure-img"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>If the posterior odds ratios of the non-baseline messages all have 95% of their mass below 1.1, we’ll stick with the baseline message. If, instead, any of the messages has 95% of its posterior odds ratio mass above 1.1, we’ll choose one of those. If neither of these conditions occur, our experiment will have been a failure: we’ll remain too uncertain to make a decision of whether or not to switch from the baseline message. Our task is to choose the number of messages to ensure that we have high probability of running a successful experiment.</p>
-<p>To find the posterior odds ratio for each message, we’ll use the Laplace approximation for Bayesian logistic regression. We’ll use Newton’s method to find the MAP.</p>
-<div id="12" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">newton</span>(f, x; maxiter<span class="op" style="color: #5E5E5E;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">1000</span>)</span>
-<span id="cb8-2">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> _ <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="fl" style="color: #AD0000;
+font-style: inherit;">0.15</span>(<span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>maxiter</span>
-<span id="cb8-3">        g, H <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">f</span>(x)</span>
-<span id="cb8-4">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">norm</span>(g) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1e-4</span></span>
-<span id="cb8-5">            <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> (x, H)</span>
-<span id="cb8-6">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">else</span></span>
-<span id="cb8-7">            x <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.-=</span> H <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">\</span> g</span>
-<span id="cb8-8">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb8-9">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb8-10">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">error</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Maximum iterations reached"</span>)</span>
-<span id="cb8-11"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>newton (generic function with 1 method)</code></pre>
-</div>
-</div>
-<p>The following code averages the decision probability over quasi Monte Carlo samples of possible datasets we might observe if the true parameters are given by θ.</p>
-<div id="14" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb10-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">decision_prob</span>(θ, n, k, prior_means, prior_precs; m<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">80</span>)</span>
-<span id="cb10-2">    X <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> [<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ones</span>(k,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>) StatsModels.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ContrastsMatrix</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">DummyCoding</span>(), <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>k).matrix]</span>
-<span id="cb10-3">    dists <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Binomial</span>.(n, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">logistic</span>.(X <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> θ))</span>
-<span id="cb10-4">    samples <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> QuasiMonteCarlo.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sample</span>(m, k, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">SobolSample</span>())</span>
-<span id="cb10-5">    succs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">stack</span>([<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">quantile</span>.(d, s) for (d,s) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">zip</span>(dists, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">eachrow</span>(samples))])</span>
-<span id="cb10-6">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">eachrow</span>(succs)) <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span> succs</span>
-<span id="cb10-7">        <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">gh</span>(t)</span>
-<span id="cb10-8">            y <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">logistic</span>.(X <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> t)</span>
-<span id="cb10-9">            vals <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> succs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.*</span> (y <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.-</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.+</span> (n <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.-</span> succs) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.*</span> y</span>
-<span id="cb10-10">            g <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> [<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sum</span>(vals); vals[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span>]] <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.+</span> (t <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.-</span> prior_means) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.*</span> prior_precs</span>
-<span id="cb10-11">            H <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Diagonal</span>(prior_precs) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sum</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">zip</span>(y, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">eachrow</span>(X))) <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span> (yi, r)</span>
-<span id="cb10-12">                n <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> yi <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> (<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> yi) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Symmetric</span>(r <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> r<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">'</span>)</span>
-<span id="cb10-13">            <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb10-14">            g, H</span>
-<span id="cb10-15">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb10-16">        mode, H <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">newton</span>(gh, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Vector</span>(θ))</span>
-<span id="cb10-17">        covar <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">inv</span>(H)</span>
-<span id="cb10-18">        c <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cdf</span>.(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Normal</span>.(mode[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span>], <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">diag</span>(covar)[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span>]), <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">log</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.1</span>))</span>
-<span id="cb10-19">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Float32</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">all</span>(c <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.&gt;</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.95</span>) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">any</span>(c <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.&lt;</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.05</span>))</span>
-<span id="cb10-20">    <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb10-21"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>decision_prob (generic function with 1 method)</code></pre>
-</div>
-</div>
-<p>We also need to average the decision probability over our prior for θ.</p>
-<div id="16" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb12-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">avg_decision_prob</span>(total_n, k, m<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">80</span>)</span>
-<span id="cb12-2">    n <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">div</span>(total_n, k)</span>
-<span id="cb12-3">    samples <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> QuasiMonteCarlo.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sample</span>(m, k, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">SobolSample</span>())</span>
-<span id="cb12-4">    full_priors <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> [priors; <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">fill</span>(priors[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>], k<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">2</span>)]</span>
-<span id="cb12-5">    prior_means <span class="op" style="color: #5E5E5E;
+font-style: inherit;">0.15</span>), τ<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.005</span>, τ<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.02</span>)</span>
+<span id="cb2-2">    X <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ones</span>(k<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">diagm</span>(k<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, k, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=&gt;</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ones</span>(k))] <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># design matrix</span></span>
+<span id="cb2-3">    Λ <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
-font-style: inherit;">mean</span>.(full_priors)</span>
-<span id="cb12-6">    prior_precs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+font-style: inherit;">Diagonal</span>(<span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
 background-color: null;
-font-style: inherit;">./</span> <span class="fu" style="color: #4758AB;
+font-style: inherit;">./</span> [τ<span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">var</span>.(full_priors)</span>
-<span id="cb12-7">    prior_samples <span class="op" style="color: #5E5E5E;
+font-style: inherit;">0</span>; <span class="fu" style="color: #4758AB;
 background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+font-style: inherit;">fill</span>(τ<span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">stack</span>([<span class="fu" style="color: #4758AB;
+font-style: inherit;">1</span>, k)] <span class="op" style="color: #5E5E5E;
 background-color: null;
-font-style: inherit;">quantile</span>.(p, c) for (p,c) <span class="kw" style="color: #003B4F;
+font-style: inherit;">.^</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>) <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># w prior precision</span></span>
+<span id="cb2-4">    L <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Λ <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> (n <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> σ<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Symmetric</span>(X<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">'</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> X) <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># θ &amp; β posterior precision</span></span>
+<span id="cb2-5">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sqrt</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">inv</span>(L)[<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>,<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>])</span>
+<span id="cb2-6"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
-font-style: inherit;">in</span></span>
-<span id="cb12-8">                                  <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">zip</span>(full_priors, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">eachrow</span>(samples))])</span>
-<span id="cb12-9">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">eachrow</span>(prior_samples)) <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span> θ</span>
-<span id="cb12-10">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">decision_prob</span>(θ, n, k, prior_means, prior_precs)</span>
-<span id="cb12-11">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb12-12"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>avg_decision_prob (generic function with 2 methods)</code></pre>
+font-style: inherit;">end</span>;</span></code></pre></div></div>
 </div>
+</section>
+<section id="normal-model-results" class="level1">
+<h1>Normal Model Results</h1>
+<div id="6" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">std_samples</span>(k, c) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">find_zero</span>(n<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">posterior_std</span>(k, n) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> c, (<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">100.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10_000.0</span>));</span></code></pre></div></div>
 </div>
-<p>Now, we can use these quasi Monte Carlo estimates to approximate how many messages we’ll be able to test for a given sample size.</p>
-<div id="18" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb14-1"><span class="kw" style="color: #003B4F;
+<div id="8" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
-font-style: inherit;">let</span></span>
-<span id="cb14-2">f <span class="op" style="color: #5E5E5E;
+font-style: inherit;">let</span> dfz <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
-font-style: inherit;">Figure</span>()</span>
-<span id="cb14-3">ax <span class="op" style="color: #5E5E5E;
+font-style: inherit;">crossjoin</span>(<span class="fu" style="color: #4758AB;
 background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+font-style: inherit;">DataFrame</span>(k<span class="op" style="color: #5E5E5E;
 background-color: null;
-font-style: inherit;">Axis</span>(f[<span class="fl" style="color: #AD0000;
+font-style: inherit;">=</span>[<span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
+font-style: inherit;">2</span>,<span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">1</span>],</span>
-<span id="cb14-4">          yminorgridvisible<span class="op" style="color: #5E5E5E;
+font-style: inherit;">4</span>,<span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">=</span><span class="cn" style="color: #8f5902;
+font-style: inherit;">6</span>]), <span class="fu" style="color: #4758AB;
 background-color: null;
-font-style: inherit;">true</span>,</span>
-<span id="cb14-5">          yminorticks <span class="op" style="color: #5E5E5E;
+font-style: inherit;">DataFrame</span>(c<span class="op" style="color: #5E5E5E;
 background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+font-style: inherit;">=</span><span class="fu" style="color: #4758AB;
 background-color: null;
-font-style: inherit;">IntervalsBetween</span>(<span class="fl" style="color: #AD0000;
+font-style: inherit;">LinRange</span>(<span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">5</span>),</span>
-<span id="cb14-6">          title<span class="op" style="color: #5E5E5E;
+font-style: inherit;">0.015</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.005</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>)))</span>
+<span id="cb4-2">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">draw</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">data</span>(<span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@transform</span>(dfz,</span>
+<span id="cb4-3">            <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>n<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">std_samples</span>.(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>k, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>c), <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>k<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">CategoricalVector</span>(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>k))) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span></span>
+<span id="cb4-4">        <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mapping</span>(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>c, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>n, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=:</span>k) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">visual</span>(Lines),</span>
+<span id="cb4-5">        figure <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (;title<span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span><span class="st" style="color: #20794D;
 background-color: null;
-font-style: inherit;">"Sample Size Requirements for Correlated Priors"</span>,</span>
-<span id="cb14-7">          xlabel<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"samples"</span>, ylabel<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"decision probability"</span>)</span>
-<span id="cb14-8">ns <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5000</span></span>
-<span id="cb14-9"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> k <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span></span>
-<span id="cb14-10">    probs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">avg_decision_prob</span>.(ns, k)</span>
-<span id="cb14-11">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">lines!</span>(ax, ns, probs, label<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>k<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> arms"</span>)</span>
-<span id="cb14-12"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb14-13"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Legend</span>(f[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>], ax)</span>
-<span id="cb14-14">f</span>
-<span id="cb14-15"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<div>
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/bayesian_logistic_regression/bayesian_logistic_regression_files/figure-html/cell-10-output-1.png" width="672" height="480" class="figure-img"></p>
-</figure>
-</div>
-</div>
-</div>
-<section id="estimates-from-independent-priors" class="level2">
-<h2 class="anchored" data-anchor-id="estimates-from-independent-priors">Estimates From Independent Priors</h2>
-<p>If we had used a simple Beta-Bernoulli model assuming the each of the message rate priors were independent, our estimates of required sample size would be slightly inflated.</p>
-<p>Previously, we used a Normal prior over the log odds of getting a response. But with a Beta distribution, we’ll want to model the probability of getting a response directly. Applying the logistic transformation to samples from a Normal distribution produces samples from a logit-normal distribution, which gives us the response probabilities we had in the first section.</p>
-<div id="20" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb15-1">qs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">quantile</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">LogitNormal</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">params</span>(priors[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>])<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">...</span>), [<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.05</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.95</span>])</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>2-element Vector{Float64}:
- 0.032011773807213074
- 0.1462572912990306</code></pre>
-</div>
-</div>
-<p>We’ll use the <code>preliz</code> python package to find a similar Beta distribution to use for our independent Beta prior.</p>
-<div id="22" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb17-1">pz <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pyimport</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"preliz"</span>)</span></code></pre></div></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>/Users/sam/myblog/posts/bayesian_logistic_regression/.venv/lib/python3.13/site-packages/preliz/ppls/pymc_io.py:16: UserWarning: PyMC not installed. PyMC related functions will not work.
-  warnings.warn("PyMC not installed. PyMC related functions will not work.")
-/Users/sam/myblog/posts/bayesian_logistic_regression/.venv/lib/python3.13/site-packages/preliz/ppls/agnostic.py:33: UserWarning: PyMC not installed. PyMC related functions will not work.
-  warnings.warn("PyMC not installed. PyMC related functions will not work.")</code></pre>
-</div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>Python: &lt;module 'preliz' from '/Users/sam/myblog/posts/bayesian_logistic_regression/.venv/lib/python3.13/site-packages/preliz/__init__.py'&gt;</code></pre>
-</div>
-</div>
-<div id="24" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb20-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">let</span></span>
-<span id="cb20-2">    dist <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pz.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Beta</span>()</span>
-<span id="cb20-3">    pz.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">maxent</span>(dist, lower<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>qs[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>], upper<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>qs[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>], mass<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.9</span>)</span>
-<span id="cb20-4">    dist</span>
-<span id="cb20-5"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<div class="ansi-escaped-output">
-<pre>Python: <span class="ansi-bold">Beta</span>(alpha=5.49, beta=55.4)</pre>
-</div>
-</div>
-</div>
-<p>It seems like the Beta distribution parameters must comparable to our original setting are <code>5.49</code> and <code>55.4</code>.</p>
-<div id="26" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb21-1">beta_prior <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Beta</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5.49</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">55.4</span>)</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>Distributions.Beta{Float64}(α=5.49, β=55.4)</code></pre>
-</div>
-</div>
-<p>Once again, we can simulate the decision probability for different numbers of samples. The curve looks similar to what we observed above, but while 4k samples got us to 95% previously, it now gets us below 80%.</p>
-<div id="28" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb23-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">indep_decision_prob</span>(p, n, k, prior_a, prior_b; m<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">80</span>)</span>
-<span id="cb23-2">    dists <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Binomial</span>.(n, p)</span>
-<span id="cb23-3">    samples <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> QuasiMonteCarlo.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sample</span>(m, k, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">SobolSample</span>())</span>
-<span id="cb23-4">    succs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">stack</span>([<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">quantile</span>.(d, s) for (d,s) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">zip</span>(dists, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">eachrow</span>(samples))])</span>
-<span id="cb23-5">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">eachrow</span>(succs)) <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span> succs</span>
-<span id="cb23-6">        posts <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Beta</span>.(prior_a <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.+</span> succs, prior_b <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.+</span> (n <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.-</span> succs))</span>
-<span id="cb23-7">        ps <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">stack</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rand</span>.(posts, m))</span>
-<span id="cb23-8">        c <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Float64</span>.((ps[<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span>] <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">./</span> ps[<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>]) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.&lt;</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1.1</span>); dims<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb23-9">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Float64</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">all</span>(c <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.&gt;</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.95</span>) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">|</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">any</span>(c <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.&lt;</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.05</span>))</span>
-<span id="cb23-10">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb23-11"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>indep_decision_prob (generic function with 1 method)</code></pre>
-</div>
-</div>
-<div id="30" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb25-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">avg_indep_decision_prob</span>(total_n, k, m<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">80</span>)</span>
-<span id="cb25-2">    n <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">div</span>(total_n, k)</span>
-<span id="cb25-3">    samples <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> QuasiMonteCarlo.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sample</span>(m, k, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">SobolSample</span>())</span>
-<span id="cb25-4">    prior_params <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">params</span>(beta_prior)</span>
-<span id="cb25-5">    prior_samples <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">stack</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">quantile</span>.(beta_prior, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">eachrow</span>(samples)))</span>
-<span id="cb25-6">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mean</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">eachrow</span>(prior_samples)) <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span> θ</span>
-<span id="cb25-7">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">indep_decision_prob</span>(θ, n, k, prior_params[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>], prior_params[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>])</span>
-<span id="cb25-8">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb25-9"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>avg_indep_decision_prob (generic function with 2 methods)</code></pre>
-</div>
-</div>
-<div id="32" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb27-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">let</span></span>
-<span id="cb27-2">f <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Figure</span>()</span>
-<span id="cb27-3">ax <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Axis</span>(f[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>],</span>
-<span id="cb27-4">          yminorgridvisible<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">true</span>,</span>
-<span id="cb27-5">          yminorticks <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">IntervalsBetween</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span>),</span>
-<span id="cb27-6">          title<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Sample Size Requirements For Independent Beta Priors"</span>,</span>
-<span id="cb27-7">          xlabel<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"samples"</span>, ylabel<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"decision probability"</span>)</span>
-<span id="cb27-8">ns <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5000</span></span>
-<span id="cb27-9"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> k <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">5</span></span>
-<span id="cb27-10">    probs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">avg_indep_decision_prob</span>.(ns, k)</span>
-<span id="cb27-11">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">lines!</span>(ax, ns, probs, label<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">$</span>k<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;"> arms"</span>)</span>
-<span id="cb27-12"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb27-13"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Legend</span>(f[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>], ax)</span>
-<span id="cb27-14">f</span>
-<span id="cb27-15"><span class="kw" style="color: #003B4F;
+font-style: inherit;">"Per Arm Sample Sizes for Posterior Precision"</span>))</span>
+<span id="cb4-6"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">end</span></span></code></pre></div></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <div>
 <figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/bayesian_logistic_regression/bayesian_logistic_regression_files/figure-html/cell-17-output-1.png" width="672" height="480" class="figure-img"></p>
+<p><img src="https://samanklesaria.github.io/posts/bayesian_sample_size/notebook_files/figure-html/cell-5-output-1.png" width="672" height="480" class="figure-img"></p>
 </figure>
 </div>
 </div>
 </div>
+<p>A striking feature of the plot is how little the required per-arm sample size changes as we add more arms. This stands in contrast to frequentist procedures for multi-arm testing — such as Dunnett’s test or Tukey’s HSD — where the critical value must be inflated to hold the familywise type I error rate fixed across all pairwise comparisons, and so the required per-arm <img src="https://latex.codecogs.com/png.latex?n"> grows with <img src="https://latex.codecogs.com/png.latex?k">. Here there is no such correction, because we are not controlling a type I error rate at all. We are minimizing expected posterior regret, which is a property of a single decision and does not compound across arms. Adding more arms introduces more uncertainty about each treatment effect, but the hierarchical prior partially pools information through the shared baseline <img src="https://latex.codecogs.com/png.latex?%5Ctheta_0">, so the additional cost per arm is modest.</p>
 
 
 </section>
 
  ]]></description>
   <category>statistics</category>
-  <guid>https://samanklesaria.github.io/posts/bayesian_logistic_regression/bayesian_logistic_regression.html</guid>
-  <pubDate>Thu, 31 Jul 2025 05:00:00 GMT</pubDate>
+  <guid>https://samanklesaria.github.io/posts/bayesian_sample_size/notebook.html</guid>
+  <pubDate>Fri, 15 Aug 2025 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>An Opinionated Tooling Guide</title>
@@ -5298,9 +4611,9 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 
 <p><strong>Statistics and Data Analysis:</strong> Overall: use R. Its has the largest ecosystem of statistical packages.</p>
 <ul>
-<li>For Bayesian modeling, Stan has bindings for everything, but it’s easiest to use from R, and the rest of the toolkit <em>(brms, loo, bayesplot, etc)</em> doesn’t have an equivalent outside of R. Turing.jl and PyMC3 are substantially slower, and Numpyro is less mature (although it can be faster on a GPU).</li>
+<li>For Bayesian modeling, Stan has bindings for everything, but it’s easiest to use from R, and the rest of the toolkit <em>(brms, loo, bayesplot, etc)</em> doesn’t have an equivalents outside of R. Turing.jl and PyMC3 are substantially slower, and Numpyro is less mature (although it can be faster on a GPU).</li>
 <li>For visualization, R has ggplot2 and ggpairs, Julia has AlgebraOfGraphics and Python has Seaborn. They’re all about as good as each other.</li>
-<li>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find Dataframes.jl to be the nicest of the bunch (with DataframesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and the rest of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</li>
+<li>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find DataFrames.jl to be the nicest of the bunch (with DataFramesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and the rest of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</li>
 <li>For geographic queries, R’s <em>sf</em>&nbsp;and Julia’s <em>GeoStats</em>&nbsp;are lovely. Python’s <em>GeoPandas</em>,&nbsp;being based on Pandas, is much more annoying to use.</li>
 <li>For frequentist statistics, Python’s <em>statsmodels</em> and Julia’s <em>GLMs, MixedModels</em>, <em>Survey</em> and <em>Survival</em> packages give you much of base R and its <em>lmer</em>, <em>survey</em> and <em>survival</em> packages.</li>
 <li>For Gaussian Process modeling, Python’s <em>GPytorch</em> is far faster and more feature-complete than anything else. Julia’s <em>AbstractGPs</em> has a nicer interface and is easier to extend, but it’s slower and lacks the approximate inference algorithms necessary for large datasets.</li>
@@ -5314,12 +4627,12 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 <p><strong>Other Programming</strong></p>
 <ul>
 <li>Use Julia for anything numerical</li>
-<li>Use Python for scripting</li>
+<li>Use Python for scripting with the <code>uv</code> package manager.</li>
 <li>Use awk for text processing and jq for JSON processing</li>
-<li>Use Rust if you want to be super-efficient.</li>
+<li>Use Rust if efficiency matters.</li>
 <li>Otherwise, use Haskell.</li>
 </ul>
-<p><strong>Notebooks:</strong> I use Pluto for Julia, Marimo for Python, and Jupyter for everything else.</p>
+<p><strong>Notebooks:</strong> I use Pluto for Julia, Marimo for Python and RStudio for R.</p>
 <p><strong>Static Site Generation:</strong> Use Quarto. Compared to Jekyll, niceties like latex math, computational notebooks and bibliography management are built in.</p>
 <p><strong>Databases</strong></p>
 <ul>
@@ -5327,13 +4640,15 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 <li>For analytical workloads, use DuckDB</li>
 <li>For local RAGs, use ChromaDB.</li>
 </ul>
+<p><strong>LLMs:</strong> - It’s hard to beat Claude Code for AI assisted editing. Editor integration doesn’t add anything; just use the CLI. - Ollama makes it easy to manage local LLMs. I tend to use qwen.</p>
+<p><strong>Editors::</strong> - Kakoune is lightweight and but has full lsp support. On linux, it’s my perferred editor. But it assumes that window management functionality will be handled by your window manager, which isn’t really a thing on other platforms. - On a Mac, I use Zed.</p>
 <p><strong>Other</strong></p>
 <ul>
+<li>Use Xmonad on linux.</li>
 <li>Zulip is much nicer than Slack.</li>
 <li>I write down everything I might want to remember later in Anki. It’s effectively a notes app for me.<br>
 </li>
 <li>Zotero has remained fast for me despite adding gigabytes of papers to its library.</li>
-<li>Ollama is great for local LLMs.</li>
 <li>Pixi is essential for package management across languages.</li>
 </ul>
 
