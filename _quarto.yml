@@ -1,6 +1,12 @@
 project:
   type: website
-  # pre-render: pluto-to-qmd
+  render:
+    - "*.qmd"
+    - "*.md"
+    - "!*.marimo.md"
+  # pre-render:
+  #   - pluto-to-qmd
+  #   - marimo-to-qmd
 
 website:
   description: "Dabbling in Data Science"

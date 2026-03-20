@@ -7,18 +7,16 @@ engine: julia
 
 
 ```{julia}
-using LinearAlgebra, StatsBase, StatsModels, LogExpFunctions, Random, Distributions
+using LinearAlgebra, StatsBase, StatsModels, LogExpFunctions, Random, Distributions, CairoMakie
+CairoMakie.enable_only_mime!("png")
 ```
-Say you want to fit a multivariate Normal distribution to some data. We'll show how to generalize the complete data case to the missing data case.
-Let's start by generating some data.
+Say you want to fit a multivariate Normal distribution to some data.
 
 ```{julia}
-begin
 Random.seed!(0)
 Σ = rand(LKJ(3, 1))
 μ = rand(3)
-X = (μ .+ sqrt(Σ) * randn(3, 300))'
-end
+X = (μ .+ sqrt(Σ) * randn(3, 300))';
 ```
 
 The obvious way to do this is with maximum likelihood estimation.
@@ -31,7 +29,7 @@ Derive wrt the natural parameters $\eta = (\Lambda, \Lambda \mu)$ to get
 
 $$
 \begin{align*}
-\frac{1}{N}\sum_i x_i &= E[x] \\
+\frac{1}{N}\sum_i x_i &= E[x]
 \frac{1}{N}\sum_i x_i x_i^T &= E[xx^T]
 \end{align*}
 $$
@@ -45,12 +43,8 @@ begin
 missing_mask = rand(size(X, 1)) .< logistic.(-1 .+ X * -rand(size(X, 2), 3))
 Xm = convert(Matrix{Union{Float64, Missing}}, X)
 Xm[missing_mask] .= missing
-Xm
-end
-```
-
-```{julia}
 sum(ismissing.(Xm); dims=1) ./ size(Xm, 1)
+end
 ```
 
 We're trying to find a maximum likelihood estimate in the presence of latent variables (in this case, all the unobserved values). It's a classic situation for the EM algorithm!
@@ -59,7 +53,7 @@ At each step of EM, we want to find parameters $\mu, \Sigma$ that maximize the e
 
 $$
 \begin{align*}
-E\left[\sum_i x_i^T \Lambda \mu - \frac{1}{2} \text{Tr}(\Lambda x_i x_i^T) - N A(\eta)\right] = \\
+E\left[\sum_i x_i^T \Lambda \mu - \frac{1}{2} \text{Tr}(\Lambda x_i x_i^T) - N A(\eta)\right] =
 \sum_i E[x_i]^T \Lambda \mu - \frac{1}{2} \text{Tr}(\Lambda E[x_i x_i^T]) - N A(\eta)
 \end{align*}
 $$
@@ -68,7 +62,7 @@ Take the gradient as before to get
 
 $$
 \begin{align*}
-\mu &= \frac{1}{N}\sum_i E[y_i] \\
+\mu &= \frac{1}{N}\sum_i E[y_i]
 \Sigma &= \frac{1}{N}\sum_i E[y_i y_i^T]
 \end{align*}
 $$
@@ -85,14 +79,14 @@ function E_m1(x, μ, Σ)
 	o = .!u
 	x2[u] .= μ[u] + Σ[u, o] * (Σ[o, o] \ (x[o] - μ[o]))
 	x2
-end
+end;
 ```
 
 The second moment breaks down similarly. $E[x_i x_i^T]$ can be thought of (up to permutation) as a block matrix:
 
 $$
 \begin{bmatrix}
-x_o x_o^T & x_o x_u^T \\
+x_o x_o^T & x_o x_u^T
 x_u x_o^T & x_u x_u^T
 \end{bmatrix}
 $$
@@ -110,7 +104,7 @@ function E_m2(x, μ, Σ)
 	x2[u, o] .= x2[o, u]'
 	x2[u,u] = Σ[u,u] - Σ[u, o] * (Σ[o,o] \ Σ[o, u]) + μ[u]*μ[u]'
 	x2
-end
+end;
 ```
 Let's put it all together!
 
@@ -120,9 +114,7 @@ function em_step(X, μ, Σ)
 	m2 = mean(E_m2(x, μ, Σ) for x in eachrow(X))
 	(μ, m2 - μ * μ')
 end
-```
 
-```{julia}
 function em_alg(X, μ, Σ)
 	for _ in 1:100
 		μ2, Σ2 = em_step(X, μ, Σ)
@@ -132,14 +124,36 @@ function em_alg(X, μ, Σ)
 		end
 		μ, Σ = (μ2, Σ2)
 	end
+end;
+```
+
+Our guess is pretty close to the true value!
+
+```{julia}
+let
+    μ_guess, Σ_guess = em_alg(Xm, randn(3), 1.0I(3));
+    diff_μ = μ_guess - μ
+    diff_Σ = Σ_guess - Σ
+
+    fig = Figure(size=(800, 400))
+
+    # Vector difference: bar chart
+    ax1 = Axis(fig[1, 1], title="μ_guess − μ", xlabel="Component", ylabel="Difference",
+               xticks=(1:3, ["1", "2", "3"]))
+    clim_μ = maximum(abs.(diff_μ))
+    barplot!(ax1, 1:3, diff_μ,
+             color=diff_μ, colormap=:RdBu, colorrange=(-clim_μ, clim_μ))
+    hlines!(ax1, [0], color=:black, linewidth=0.8)
+
+    # Matrix difference: heatmap
+    clim_Σ = maximum(abs.(diff_Σ))
+    ax2 = Axis(fig[1, 2], title="Σ_guess − Σ", aspect=DataAspect(),
+               yreversed=true,
+               xticks=(1:3, ["1", "2", "3"]),
+               yticks=(1:3, ["1", "2", "3"]))
+    hm = heatmap!(ax2, diff_Σ, colormap=:RdBu, colorrange=(-clim_Σ, clim_Σ))
+    Colorbar(fig[1, 3], hm)
+
+    fig
 end
 ```
-
-```{julia}
-μ_guess, Σ_guess = em_alg(Xm, randn(3), 1.0I(3))
-```
-
-```{julia}
-(μ, Σ)
-```
-Our guess is pretty close to the true value!

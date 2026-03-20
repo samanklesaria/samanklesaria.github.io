@@ -2,6 +2,9 @@
 title: "Analyzing Coffee Yields"
 date: "2025-10-19"
 categories: [statistics]
+execute:
+  warning: false
+  error: false
 ---
 
 ```{r}
