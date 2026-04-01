@@ -26,7 +26,7 @@
 <h2 class="anchored" data-anchor-id="the-problem">The Problem</h2>
 <p>Suppose you are trying to assess a stream of claims made by various people. You have a small <strong>trusted set</strong> <img src="https://latex.codecogs.com/png.latex?T"> of individuals you know to be perfectly honest — journalists whose work you have verified, domain experts you have met in person, whatever the context warrants. Everyone outside <img src="https://latex.codecogs.com/png.latex?T"> may tell the truth with some unknown probability.</p>
 <p>Formally, assign each person <img src="https://latex.codecogs.com/png.latex?i"> a <strong>truth-telling probability</strong> <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i%20%5Cin%20%5B0,1%5D">. For members of <img src="https://latex.codecogs.com/png.latex?T"> we fix <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i%20=%201">. For everyone else, <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i"> is a random variable we want to infer.</p>
-<p>A natural question is: given that person <img src="https://latex.codecogs.com/png.latex?i"> made a claim, what is the probability it is true? If <img src="https://latex.codecogs.com/png.latex?i"> is truthful (<img src="https://latex.codecogs.com/png.latex?z%20=%201">), the claim reflects their belief; if not, it is noise. So <img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bclaim%20is%20true%7D)%20%5Cgeq%20%5Ctheta_i">. If several people endorse the claim, the best endorser gives the tightest bound:</p>
+<p>A natural question is: given that person <img src="https://latex.codecogs.com/png.latex?i"> made a claim, what is the probability it is true? If <img src="https://latex.codecogs.com/png.latex?i"> is truthful, the claim reflects their belief; if not, it is noise. So <img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bclaim%20is%20true%7D)%20%5Cgeq%20%5Ctheta_i">. If several people endorse the claim, the best endorser gives the tightest bound:</p>
 <p><img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bclaim%20is%20true%7D)%20%5Cgeq%20%5Ctheta_%7Bi%5E*%7D,%20%5Cqquad%20i%5E*%20=%20%5Carg%5Cmax_%7Bi%20%5Cin%20%5Ctext%7Bendorsers%7D%7D%20%5Ctheta_i."></p>
 <p>Since <img src="https://latex.codecogs.com/png.latex?%5Ctheta_%7Bi%5E*%7D"> is a random variable, we take expectations. Because <img src="https://latex.codecogs.com/png.latex?%5Cmax"> is convex, Jensen’s inequality gives <img src="https://latex.codecogs.com/png.latex?%5Cmathbb%7BE%7D%5B%5Cmax_i%20%5Ctheta_i%5D%20%5Cgeq%0A%5Cmax_i%20%5Cmathbb%7BE%7D%5B%5Ctheta_i%5D">, so</p>
 <p><img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bclaim%20is%20true%7D)%20%5Cgeq%20%5Cmathbb%7BE%7D%5B%5Ctheta_%7Bi%5E*%7D%5D%20%5Cgeq%20%5Cmax_%7Bi%20%5Cin%20%5Ctext%7Bendorsers%7D%7D%20%5Cmathbb%7BE%7D%5B%5Ctheta_i%5D."></p>
@@ -78,16 +78,9 @@
 <p>re-clamping <img src="https://latex.codecogs.com/png.latex?w_T%20=%201"> after each step. For acyclic graphs (trust flowing outward from <img src="https://latex.codecogs.com/png.latex?T">) any <img src="https://latex.codecogs.com/png.latex?%5Clambda"> converges; for graphs with mutual-validation cycles the damping ensures contraction.</p>
 <hr>
 </section>
-<section id="statement-level-beliefs" class="level2">
-<h2 class="anchored" data-anchor-id="statement-level-beliefs">Statement-Level Beliefs</h2>
-<p>Each <strong>statement</strong> <img src="https://latex.codecogs.com/png.latex?s"> has a set of endorsers <img src="https://latex.codecogs.com/png.latex?E(s)%20%5Csubseteq%20%5C%7B1,%20%5Cldots,%20n%5C%7D">. The lower bound on its probability of being true is</p>
-<p><img src="https://latex.codecogs.com/png.latex?P(s%20%5Ctext%7B%20is%20true%7D)%20%5Cgeq%20%5Cmax_%7Bi%20%5Cin%20E(s)%7D%5C;%20w_i."></p>
-<p>This quantity is updated automatically whenever the fixed point is re-solved, so we get statement-level beliefs as a by-product of maintaining the reputation graph.</p>
-<hr>
-</section>
 <section id="julia-implementation" class="level2">
 <h2 class="anchored" data-anchor-id="julia-implementation">Julia Implementation</h2>
-<p>The state of the system lives in a single <code>ReputationGraph</code> struct holding the Beta parameters <img src="https://latex.codecogs.com/png.latex?(%5Calpha,%20%5Cbeta)">, their fixed priors <img src="https://latex.codecogs.com/png.latex?(%5Calpha_0,%20%5Cbeta_0)">, the trusted set, and the accumulated observations and statements. Separating the mutable parameters from the fixed priors means <code>recompute!</code> can reset to the prior in a single broadcast assignment rather than tracking deltas.</p>
+<p>The state of the system lives in a single <code>ReputationGraph</code> struct holding the Beta parameters <img src="https://latex.codecogs.com/png.latex?(%5Calpha,%20%5Cbeta)">, their fixed priors <img src="https://latex.codecogs.com/png.latex?(%5Calpha_0,%20%5Cbeta_0)">, the trusted set, and the accumulated observations and statements.</p>
 <div id="2" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><span class="pp" style="color: #AD0000;
 background-color: null;
@@ -146,7 +139,7 @@ font-style: inherit;">end</span></span>
 <span id="cb1-13"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
-font-style: inherit;">mutable struct</span> ReputationGraph</span>
+font-style: inherit;">struct</span> ReputationGraph</span>
 <span id="cb1-14">    trusted    <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
@@ -333,13 +326,11 @@ font-style: inherit;">in</span> g.statements</span>
 background-color: null;
 font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
 background-color: null;
-font-style: inherit;">isempty</span>(stmt.endorsers) ? <span class="fl" style="color: #AD0000;
+font-style: inherit;">maximum</span>(w[stmt.endorsers], init<span class="op" style="color: #5E5E5E;
 background-color: null;
-font-style: inherit;">0.0</span> <span class="op" style="color: #5E5E5E;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">maximum</span>(w[stmt.endorsers])</span>
+font-style: inherit;">0.0</span>)</span>
 <span id="cb3-11">    <span class="cf" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
@@ -570,7 +561,7 @@ font-style: inherit;">end</span>;</span></code></pre></div></div>
 </section>
 <section id="worked-example" class="level2">
 <h2 class="anchored" data-anchor-id="worked-example">Worked Example</h2>
-<p>We set up six people with persons 1 and 2 in the trusted set and register four statements. Each validator assesses any given statement at most once. Each code block below ends with an expression whose value is displayed, as in a Jupyter notebook — here the current weight vector <img src="https://latex.codecogs.com/png.latex?w">.</p>
+<p>We set up six people with persons 1 and 2 in the trusted set and register four statements.</p>
 <p><strong>Setup.</strong> Initialise the graph and register statements.</p>
 <div id="12" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1">trusted <span class="op" style="color: #5E5E5E;
@@ -1159,7 +1150,7 @@ font-style: inherit;">end</span>;</span></code></pre></div></div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb19-1"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
-font-style: inherit;">mutable struct</span> PGPReputationGraph</span>
+font-style: inherit;">struct</span> PGPReputationGraph</span>
 <span id="cb19-2">    g                 <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">::</span><span class="dt" style="color: #AD0000;

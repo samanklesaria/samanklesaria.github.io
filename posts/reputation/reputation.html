@@ -210,7 +210,7 @@ window.Quarto = {
 <h2 class="anchored" data-anchor-id="the-problem">The Problem</h2>
 <p>Suppose you are trying to assess a stream of claims made by various people. You have a small <strong>trusted set</strong> <span class="math inline">\(T\)</span> of individuals you know to be perfectly honest — journalists whose work you have verified, domain experts you have met in person, whatever the context warrants. Everyone outside <span class="math inline">\(T\)</span> may tell the truth with some unknown probability.</p>
 <p>Formally, assign each person <span class="math inline">\(i\)</span> a <strong>truth-telling probability</strong> <span class="math inline">\(\theta_i \in [0,1]\)</span>. For members of <span class="math inline">\(T\)</span> we fix <span class="math inline">\(\theta_i = 1\)</span>. For everyone else, <span class="math inline">\(\theta_i\)</span> is a random variable we want to infer.</p>
-<p>A natural question is: given that person <span class="math inline">\(i\)</span> made a claim, what is the probability it is true? If <span class="math inline">\(i\)</span> is truthful (<span class="math inline">\(z = 1\)</span>), the claim reflects their belief; if not, it is noise. So <span class="math inline">\(P(\text{claim is true}) \geq \theta_i\)</span>. If several people endorse the claim, the best endorser gives the tightest bound:</p>
+<p>A natural question is: given that person <span class="math inline">\(i\)</span> made a claim, what is the probability it is true? If <span class="math inline">\(i\)</span> is truthful, the claim reflects their belief; if not, it is noise. So <span class="math inline">\(P(\text{claim is true}) \geq \theta_i\)</span>. If several people endorse the claim, the best endorser gives the tightest bound:</p>
 <p><span class="math display">\[P(\text{claim is true}) \geq \theta_{i^*}, \qquad i^* = \arg\max_{i \in \text{endorsers}} \theta_i.\]</span></p>
 <p>Since <span class="math inline">\(\theta_{i^*}\)</span> is a random variable, we take expectations. Because <span class="math inline">\(\max\)</span> is convex, Jensen’s inequality gives <span class="math inline">\(\mathbb{E}[\max_i \theta_i] \geq
 \max_i \mathbb{E}[\theta_i]\)</span>, so</p>
@@ -267,16 +267,9 @@ T(x, z))\)</span> with conjugate prior, setting <span class="math inline">\(\nab
 <p>re-clamping <span class="math inline">\(w_T = 1\)</span> after each step. For acyclic graphs (trust flowing outward from <span class="math inline">\(T\)</span>) any <span class="math inline">\(\lambda\)</span> converges; for graphs with mutual-validation cycles the damping ensures contraction.</p>
 <hr>
 </section>
-<section id="statement-level-beliefs" class="level2">
-<h2 class="anchored" data-anchor-id="statement-level-beliefs">Statement-Level Beliefs</h2>
-<p>Each <strong>statement</strong> <span class="math inline">\(s\)</span> has a set of endorsers <span class="math inline">\(E(s) \subseteq \{1, \ldots, n\}\)</span>. The lower bound on its probability of being true is</p>
-<p><span class="math display">\[P(s \text{ is true}) \geq \max_{i \in E(s)}\; w_i.\]</span></p>
-<p>This quantity is updated automatically whenever the fixed point is re-solved, so we get statement-level beliefs as a by-product of maintaining the reputation graph.</p>
-<hr>
-</section>
 <section id="julia-implementation" class="level2">
 <h2 class="anchored" data-anchor-id="julia-implementation">Julia Implementation</h2>
-<p>The state of the system lives in a single <code>ReputationGraph</code> struct holding the Beta parameters <span class="math inline">\((\alpha, \beta)\)</span>, their fixed priors <span class="math inline">\((\alpha_0, \beta_0)\)</span>, the trusted set, and the accumulated observations and statements. Separating the mutable parameters from the fixed priors means <code>recompute!</code> can reset to the prior in a single broadcast assignment rather than tracking deltas.</p>
+<p>The state of the system lives in a single <code>ReputationGraph</code> struct holding the Beta parameters <span class="math inline">\((\alpha, \beta)\)</span>, their fixed priors <span class="math inline">\((\alpha_0, \beta_0)\)</span>, the trusted set, and the accumulated observations and statements.</p>
 <div id="2" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="pp">@kwdef</span> <span class="kw">mutable struct</span> Statement</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    id        <span class="op">::</span><span class="dt"> Int</span></span>
@@ -290,7 +283,7 @@ T(x, z))\)</span> with conjugate prior, setting <span class="math inline">\(\nab
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    confirmed  <span class="op">::</span><span class="dt"> Bool</span></span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="kw">mutable struct</span> ReputationGraph</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> ReputationGraph</span>
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    trusted    <span class="op">::</span><span class="dt"> Set{Int}</span></span>
 <span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    alpha      <span class="op">::</span><span class="dt"> Vector{Float64}</span></span>
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    beta       <span class="op">::</span><span class="dt"> Vector{Float64}</span></span>
@@ -329,7 +322,7 @@ T(x, z))\)</span> with conjugate prior, setting <span class="math inline">\(\nab
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>        target[stmt.endorsers] <span class="op">.+=</span> w[ob.validator]</span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> stmt <span class="kw">in</span> g.statements</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>        stmt.p_true <span class="op">=</span> <span class="fu">isempty</span>(stmt.endorsers) ? <span class="fl">0.0</span> <span class="op">:</span> <span class="fu">maximum</span>(w[stmt.endorsers])</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>        stmt.p_true <span class="op">=</span> <span class="fu">maximum</span>(w[stmt.endorsers], init<span class="op">=</span><span class="fl">0.0</span>)</span>
 <span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
 <span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -374,7 +367,7 @@ T(x, z))\)</span> with conjugate prior, setting <span class="math inline">\(\nab
 </section>
 <section id="worked-example" class="level2">
 <h2 class="anchored" data-anchor-id="worked-example">Worked Example</h2>
-<p>We set up six people with persons 1 and 2 in the trusted set and register four statements. Each validator assesses any given statement at most once. Each code block below ends with an expression whose value is displayed, as in a Jupyter notebook — here the current weight vector <span class="math inline">\(w\)</span>.</p>
+<p>We set up six people with persons 1 and 2 in the trusted set and register four statements.</p>
 <p><strong>Setup.</strong> Initialise the graph and register statements.</p>
 <div id="12" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>trusted <span class="op">=</span> <span class="fu">Set</span>([<span class="fl">1</span>, <span class="fl">2</span>])</span>
@@ -572,7 +565,7 @@ T(x, z))\)</span> with conjugate prior, setting <span class="math inline">\(\nab
 <p>The three trust levels seed the Beta prior for a newly seen key. Full trust (GPG’s <code>TRUST_FULLY</code> and <code>TRUST_ULTIMATE</code>) places the node directly in <span class="math inline">\(T\)</span>; marginal trust biases the prior towards truthfulness; unknown keys start at the uniform <span class="math inline">\(\mathrm{Beta}(1,1)\)</span>.</p>
 <p><code>PGPReputationGraph</code> wraps the inner <code>ReputationGraph</code> with two dictionaries that map cryptographic identifiers — key fingerprints and content hashes — to the integer indices used by the solver. The graph is seeded with a single node for your own key, which is immediately placed in <span class="math inline">\(T\)</span>.</p>
 <div id="28" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">mutable struct</span> PGPReputationGraph</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> PGPReputationGraph</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>    g                 <span class="op">::</span><span class="dt"> ReputationGraph</span></span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    fingerprint_index <span class="op">::</span><span class="dt"> Dict{String, Int}</span></span>
 <span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    statement_index   <span class="op">::</span><span class="dt"> Dict{String, Int}</span></span>
