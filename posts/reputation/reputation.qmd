@@ -27,7 +27,7 @@ For members of $T$ we fix $\theta_i = 1$. For everyone else, $\theta_i$ is a
 random variable we want to infer.
 
 A natural question is: given that person $i$ made a claim, what is the
-probability it is true? If $i$ is truthful ($z = 1$), the claim reflects
+probability it is true? If $i$ is truthful, the claim reflects
 their belief; if not, it is noise. So $P(\text{claim is true}) \geq \theta_i$.
 If several people endorse the claim, the best endorser gives the tightest
 bound:
