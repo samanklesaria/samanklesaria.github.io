@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/reputation/reputation.html",
       "/posts/missing_obs/missing_obs.html",
       "/posts/congestion_pricing/Notebook.html",
       "/posts/ankivec/ankivec.html",

@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2026-03-31">
+
+<title>A Recursive Bayesian Model of Reputation – Sam’s Blog</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-ff63373b1067ca6f91cf1456aa1f00a2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Sam’s Blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/samanklesaria"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">A Recursive Bayesian Model of Reputation</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">machine_learning</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">March 31, 2026</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<p>How should you update your beliefs about whether a claim is true when the person telling you might be lying — and the people vouching for them might <em>also</em> be lying? This post develops a fully Bayesian answer, starting from a small trusted set and propagating credibility outward through a network of uncertain validators. We derive a clean conjugate update rule, show how it extends recursively, and implement the resulting fixed-point system in Julia.</p>
+<hr>
+<section id="the-problem" class="level2">
+<h2 class="anchored" data-anchor-id="the-problem">The Problem</h2>
+<p>Suppose you are trying to assess a stream of claims made by various people. You have a small <strong>trusted set</strong> <span class="math inline">\(T\)</span> of individuals you know to be perfectly honest — journalists whose work you have verified, domain experts you have met in person, whatever the context warrants. Everyone outside <span class="math inline">\(T\)</span> may tell the truth with some unknown probability.</p>
+<p>Formally, assign each person <span class="math inline">\(i\)</span> a <strong>truth-telling probability</strong> <span class="math inline">\(\theta_i \in [0,1]\)</span>. For members of <span class="math inline">\(T\)</span> we fix <span class="math inline">\(\theta_i = 1\)</span>. For everyone else, <span class="math inline">\(\theta_i\)</span> is a random variable we want to infer.</p>
+<p>A natural question is: given that person <span class="math inline">\(i\)</span> made a claim, what is the probability it is true? If <span class="math inline">\(i\)</span> is truthful (<span class="math inline">\(z = 1\)</span>), the claim reflects their belief; if not, it is noise. So <span class="math inline">\(P(\text{claim is true}) \geq \theta_i\)</span>. If several people endorse the claim, the best endorser gives the tightest bound:</p>
+<p><span class="math display">\[P(\text{claim is true}) \geq \theta_{i^*}, \qquad i^* = \arg\max_{i \in \text{endorsers}} \theta_i.\]</span></p>
+<p>Since <span class="math inline">\(\theta_{i^*}\)</span> is a random variable, we take expectations. Because <span class="math inline">\(\max\)</span> is convex, Jensen’s inequality gives <span class="math inline">\(\mathbb{E}[\max_i \theta_i] \geq
+\max_i \mathbb{E}[\theta_i]\)</span>, so</p>
+<p><span class="math display">\[P(\text{claim is true}) \geq \mathbb{E}[\theta_{i^*}] \geq \max_{i \in \text{endorsers}} \mathbb{E}[\theta_i].\]</span></p>
+<p>This makes the <strong>expected trustworthiness weight</strong></p>
+<p><span class="math display">\[w_i = \mathbb{E}[\theta_i]\]</span></p>
+<p>the central quantity we need to track for each person.</p>
+<hr>
+</section>
+<section id="conjugate-updates-from-the-trusted-set" class="level2">
+<h2 class="anchored" data-anchor-id="conjugate-updates-from-the-trusted-set">Conjugate Updates from the Trusted Set</h2>
+<p>Place a Beta prior on each untrusted person’s truth-telling probability:</p>
+<p><span class="math display">\[\theta_i \sim \mathrm{Beta}(\alpha_i,\, \beta_i).\]</span></p>
+<p>The Beta-Binomial model is conjugate: each time a member of <span class="math inline">\(T\)</span> observes person <span class="math inline">\(i\)</span> making a claim, they either <strong>confirm</strong> it (a “success” — <span class="math inline">\(i\)</span> told the truth) or <strong>refute</strong> it (a “failure” — <span class="math inline">\(i\)</span> lied). The posterior update is:</p>
+<p><span class="math display">\[\text{confirmed:} \quad \alpha_i \leftarrow \alpha_i + 1, \qquad \text{refuted:} \quad \beta_i \leftarrow \beta_i + 1.\]</span></p>
+<p>The posterior mean trustworthiness is then</p>
+<p><span class="math display">\[w_i = \mathbb{E}[\theta_i] = \frac{\alpha_i}{\alpha_i + \beta_i}.\]</span></p>
+<p>This is clean and exact — but it requires a member of <span class="math inline">\(T\)</span> to be present for every observation. In practice, your trusted set is small. We need to propagate trust outward.</p>
+<hr>
+</section>
+<section id="fractional-updates-via-uncertain-validators" class="level2">
+<h2 class="anchored" data-anchor-id="fractional-updates-via-uncertain-validators">Fractional Updates via Uncertain Validators</h2>
+<p>Now suppose validator <span class="math inline">\(j \notin T\)</span> has uncertain trustworthiness <span class="math inline">\(\theta_j \sim \mathrm{Beta}(\alpha_j, \beta_j)\)</span>. When <span class="math inline">\(j\)</span> assesses a claim by <span class="math inline">\(i\)</span>, we do not know whether <span class="math inline">\(j\)</span>’s report reflects the truth. We handle this with EM, treating report truthfulness as a latent variable.</p>
+<p><strong>Latent variable.</strong> Write <span class="math inline">\(\text{obs}_k \in \{0, 1\}\)</span> for the binary outcome of observation <span class="math inline">\(k\)</span>: <span class="math inline">\(\text{obs}_k = 1\)</span> if validator <span class="math inline">\(j\)</span> confirmed the claim and <span class="math inline">\(\text{obs}_k = 0\)</span> if they refuted it. For each observation <span class="math inline">\(k\)</span>, let <span class="math inline">\(z_k
+= 1\)</span> if <span class="math inline">\(j\)</span> reported truthfully and <span class="math inline">\(z_k = 0\)</span> if <span class="math inline">\(j\)</span> lied. The complete-data model is a <strong>mixture of Bernoullis</strong>: a truthful report is a genuine draw from <span class="math inline">\(\mathrm{Bernoulli}(\theta_i)\)</span>, so <span class="math inline">\(P(\text{obs}_k = 1 \mid z_k = 1) =
+\theta_i\)</span>; a lie is symmetric noise, so <span class="math inline">\(P(\text{obs}_k = 1 \mid z_k = 0) =
+\tfrac{1}{2}\)</span> regardless of <span class="math inline">\(\theta_i\)</span>, and hence carries no information about <span class="math inline">\(i\)</span>.</p>
+<p><strong>EM via the ELBO.</strong> For any model <span class="math inline">\(p(x, z \mid \theta)\)</span> with latent <span class="math inline">\(z\)</span> and observed <span class="math inline">\(x\)</span>, importance-sampling the log-marginal with a variational distribution <span class="math inline">\(q(z)\)</span> and applying Jensen gives the evidence lower bound:</p>
+<p><span class="math display">\[\log p(x \mid \theta) \geq \mathbb{E}_{q}[\log p(x, z \mid \theta)] - \mathbb{E}_{q}[\log q(z)] =: \mathcal{L}(q, \theta).\]</span></p>
+<p>The bound is tight when <span class="math inline">\(q(z) = p(z \mid x, \theta)\)</span>, which is the E-step. The M-step then maximises <span class="math inline">\(\mathcal{L}\)</span> over <span class="math inline">\(\theta\)</span> with <span class="math inline">\(q\)</span> fixed. For an exponential family likelihood <span class="math inline">\(p(x \mid z, \theta) \propto \exp(\eta(\theta)^\top
+T(x, z))\)</span> with conjugate prior, setting <span class="math inline">\(\nabla_\theta \mathcal{L} = 0\)</span> gives moment matching: the M-step posterior has the same form as the prior with hyperparameters updated by <span class="math inline">\(\mathbb{E}_q[T(x, z)]\)</span>, the expected sufficient statistics under <span class="math inline">\(q\)</span>.</p>
+<p><strong>M-step.</strong> For our model the complete-data log-likelihood for <span class="math inline">\(\theta_i\)</span>, treating <span class="math inline">\(z_k\)</span> as observed, is</p>
+<p><span class="math display">\[\ell(\theta_i) = \sum_k z_k \bigl[ \text{obs}_k \log\theta_i + (1-\text{obs}_k)\log(1-\theta_i) \bigr] + \text{const},\]</span></p>
+<p>since only the truthful component (<span class="math inline">\(z_k = 1\)</span>) carries information about <span class="math inline">\(\theta_i\)</span>; the noise component contributes a constant <span class="math inline">\(\log\tfrac{1}{2}\)</span>. Setting <span class="math inline">\(q(z_k) = p(z_k \mid \text{obs}_k, \theta)\)</span>, the expected sufficient statistics are <span class="math inline">\(\mathbb{E}[z_k \cdot \text{obs}_k] = \gamma_k \cdot \text{obs}_k\)</span> and <span class="math inline">\(\mathbb{E}[z_k \cdot (1 - \text{obs}_k)] = \gamma_k \cdot (1 - \text{obs}_k)\)</span>, where <span class="math inline">\(\gamma_k = \mathbb{E}[z_k \mid \text{obs}_k]\)</span>. Moment matching against the Beta prior gives:</p>
+<p><span class="math display">\[\alpha_i \leftarrow \alpha_i^{(0)} + \sum_{k:\,\text{confirmed}} \gamma_k, \qquad \beta_i \leftarrow \beta_i^{(0)} + \sum_{k:\,\text{refuted}} \gamma_k.\]</span></p>
+<p>The M-step needs only <span class="math inline">\(\gamma_k\)</span>. So the question for the E-step is: what is <span class="math inline">\(\mathbb{E}[z_k \mid \text{obs}_k]\)</span>?</p>
+<p><strong>E-step.</strong> By Bayes’ rule, with <span class="math inline">\(P(z_k = 1) = \theta_j\)</span> and <span class="math inline">\(P(\text{obs}_k \mid z_k = 0) = \tfrac{1}{2}\)</span>:</p>
+<p><span class="math display">\[\gamma_k(\theta_i, \theta_j) = \frac{\theta_j \cdot P(\text{obs}_k \mid z_k=1, \theta_i)}{\theta_j \cdot P(\text{obs}_k \mid z_k=1, \theta_i) + (1-\theta_j) \cdot \tfrac{1}{2}},\]</span></p>
+<p>where <span class="math inline">\(P(\text{obs}_k = 1 \mid z_k = 1, \theta_i) = \theta_i\)</span> and <span class="math inline">\(P(\text{obs}_k = 0 \mid z_k = 1, \theta_i) = 1 - \theta_i\)</span>. Since <span class="math inline">\(\theta_j \leq 1\)</span>, the denominator satisfies</p>
+<p><span class="math display">\[\theta_j \cdot P(\text{obs}_k \mid z_k=1, \theta_i) + (1-\theta_j)/2 \leq P(\text{obs}_k \mid z_k=1, \theta_i) + (1-\theta_j)/2,\]</span></p>
+<p>and because <span class="math inline">\(P(\text{obs}_k \mid z_k=1, \theta_i) \leq 1\)</span>, we have <span class="math inline">\(\gamma_k \geq \theta_j\)</span> whenever the observed outcome is consistent with truthful reporting (i.e.&nbsp;<span class="math inline">\(P(\text{obs}_k \mid z_k=1, \theta_i) &gt; \tfrac{1}{2}\)</span>). So <span class="math inline">\(\theta_j\)</span> is a <strong>conservative lower bound</strong> on the true responsibility <span class="math inline">\(\gamma_k\)</span>: using it in the M-step under-credits each observation rather than over-crediting it. Substituting <span class="math inline">\(w_j = \mathbb{E}[\theta_j]\)</span> as a point estimate for <span class="math inline">\(\theta_j\)</span>, the fractional update becomes:</p>
+<p><span class="math display">\[\alpha_i \leftarrow \alpha_i^{(0)} + \sum_{k:\,\text{confirmed}} w_{j_k}, \qquad \beta_i \leftarrow \beta_i^{(0)} + \sum_{k:\,\text{refuted}} w_{j_k}.\]</span></p>
+<p>When <span class="math inline">\(w_j = 1\)</span> this recovers the exact integer update from the previous section. When <span class="math inline">\(j\)</span> is completely unknown (<span class="math inline">\(w_j = 0.5\)</span> from a uniform prior), each observation contributes half a count.</p>
+<hr>
+</section>
+<section id="the-fixed-point" class="level2">
+<h2 class="anchored" data-anchor-id="the-fixed-point">The Fixed Point</h2>
+<p>The update rule makes <span class="math inline">\(\alpha_i\)</span> and <span class="math inline">\(\beta_i\)</span> functions of the weights <span class="math inline">\(\{w_j\}\)</span>, which are themselves functions of <span class="math inline">\(\{\alpha_j, \beta_j\}\)</span>. Writing this out explicitly, with <span class="math inline">\(\alpha_i^{(0)}, \beta_i^{(0)}\)</span> as prior hyperparameters and <span class="math inline">\(\mathcal{O}\)</span> as the set of all observations:</p>
+<p><span class="math display">\[\alpha_i = \alpha_i^{(0)} + \sum_{\substack{(j,\, s,\, \text{confirmed}) \\ \in\, \mathcal{O},\; i \in \text{endorsers}(s)}} w_j, \qquad \beta_i = \beta_i^{(0)} + \sum_{\substack{(j,\, s,\, \text{refuted}) \\ \in\, \mathcal{O},\; i \in \text{endorsers}(s)}} w_j,\]</span></p>
+<p>where <span class="math inline">\(s\)</span> ranges over statements and <span class="math inline">\(\text{endorsers}(s)\)</span> is the set of people who made or endorsed statement <span class="math inline">\(s\)</span>. The weights then feed back:</p>
+<p><span class="math display">\[w_i = \frac{\alpha_i}{\alpha_i + \beta_i}.\]</span></p>
+<p>This is a <strong>fixed-point equation</strong> <span class="math inline">\(w = F(w)\)</span> on <span class="math inline">\([0,1]^n\)</span>. The map <span class="math inline">\(F\)</span> is monotone (more trustworthy validators <span class="math inline">\(\Rightarrow\)</span> higher weights), and the trusted boundary <span class="math inline">\(w_T = \mathbf{1}\)</span> is held fixed. By Tarski’s fixed-point theorem a solution exists. In practice we find it by <strong>damped iteration</strong>:</p>
+<p><span class="math display">\[w^{(t+1)} = (1 - \lambda)\, w^{(t)} + \lambda\, F(w^{(t)}), \qquad \lambda \in (0, 1],\]</span></p>
+<p>re-clamping <span class="math inline">\(w_T = 1\)</span> after each step. For acyclic graphs (trust flowing outward from <span class="math inline">\(T\)</span>) any <span class="math inline">\(\lambda\)</span> converges; for graphs with mutual-validation cycles the damping ensures contraction.</p>
+<hr>
+</section>
+<section id="statement-level-beliefs" class="level2">
+<h2 class="anchored" data-anchor-id="statement-level-beliefs">Statement-Level Beliefs</h2>
+<p>Each <strong>statement</strong> <span class="math inline">\(s\)</span> has a set of endorsers <span class="math inline">\(E(s) \subseteq \{1, \ldots, n\}\)</span>. The lower bound on its probability of being true is</p>
+<p><span class="math display">\[P(s \text{ is true}) \geq \max_{i \in E(s)}\; w_i.\]</span></p>
+<p>This quantity is updated automatically whenever the fixed point is re-solved, so we get statement-level beliefs as a by-product of maintaining the reputation graph.</p>
+<hr>
+</section>
+<section id="julia-implementation" class="level2">
+<h2 class="anchored" data-anchor-id="julia-implementation">Julia Implementation</h2>
+<p>The state of the system lives in a single <code>ReputationGraph</code> struct holding the Beta parameters <span class="math inline">\((\alpha, \beta)\)</span>, their fixed priors <span class="math inline">\((\alpha_0, \beta_0)\)</span>, the trusted set, and the accumulated observations and statements. Separating the mutable parameters from the fixed priors means <code>recompute!</code> can reset to the prior in a single broadcast assignment rather than tracking deltas.</p>
+<div id="2" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="pp">@kwdef</span> <span class="kw">mutable struct</span> Statement</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    id        <span class="op">::</span><span class="dt"> Int</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    endorsers <span class="op">::</span><span class="dt"> Vector{Int}</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    p_true    <span class="op">::</span><span class="dt"> Float64 </span><span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> Observation</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    validator  <span class="op">::</span><span class="dt"> Int</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    statement  <span class="op">::</span><span class="dt"> Int</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    confirmed  <span class="op">::</span><span class="dt"> Bool</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="kw">mutable struct</span> ReputationGraph</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    trusted    <span class="op">::</span><span class="dt"> Set{Int}</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    alpha      <span class="op">::</span><span class="dt"> Vector{Float64}</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    beta       <span class="op">::</span><span class="dt"> Vector{Float64}</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    alpha0     <span class="op">::</span><span class="dt"> Vector{Float64}</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    beta0      <span class="op">::</span><span class="dt"> Vector{Float64}</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    obs        <span class="op">::</span><span class="dt"> Vector{Observation}</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    statements <span class="op">::</span><span class="dt"> Vector{Statement}</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">ReputationGraph</span>(n<span class="op">::</span><span class="dt">Int</span>, trusted<span class="op">::</span><span class="dt">Set{Int}</span>;</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>                         alpha0<span class="op">::</span><span class="dt">Float64 </span><span class="op">=</span> <span class="fl">1.0</span>, beta0<span class="op">::</span><span class="dt">Float64 </span><span class="op">=</span> <span class="fl">1.0</span>)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ReputationGraph</span>(</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>        trusted,</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>        <span class="fu">fill</span>(alpha0, n), <span class="fu">fill</span>(beta0, n),</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>        <span class="fu">fill</span>(alpha0, n), <span class="fu">fill</span>(beta0, n),</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>        Observation[], Statement[]</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The weight vector <span class="math inline">\(w_i = \mathbb{E}[\theta_i] = \alpha_i / (\alpha_i + \beta_i)\)</span> is computed by a single broadcast, with trusted nodes clamped to 1 afterwards.</p>
+<div id="4" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">weights</span>(g<span class="op">::</span><span class="dt">ReputationGraph</span>) <span class="op">::</span><span class="dt"> Vector{Float64}</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    w <span class="op">=</span> g.alpha <span class="op">./</span> (g.alpha <span class="op">.+</span> g.beta)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    w[<span class="fu">collect</span>(g.trusted)] <span class="op">.=</span> <span class="fl">1.0</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> w</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><code>recompute!</code> is the inner body of the fixed-point iteration. It resets <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span> to their priors, then accumulates the conservative responsibility weights from every observation: each confirmation adds <span class="math inline">\(w_j\)</span> to <span class="math inline">\(\alpha\)</span> for every endorser of the statement, each refutation adds <span class="math inline">\(w_j\)</span> to <span class="math inline">\(\beta\)</span>. It then refreshes <code>p_true</code> for every statement as <span class="math inline">\(\max_{i \in E(s)} w_i\)</span>.</p>
+<div id="6" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">recompute!</span>(g<span class="op">::</span><span class="dt">ReputationGraph</span>, w<span class="op">::</span><span class="dt">Vector{Float64}</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    g.alpha <span class="op">.=</span> g.alpha0</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    g.beta  <span class="op">.=</span> g.beta0</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> ob <span class="kw">in</span> g.obs</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>        stmt   <span class="op">=</span> g.statements[ob.statement]</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>        target <span class="op">=</span> ob.confirmed ? g.alpha <span class="op">:</span> g.beta</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>        target[stmt.endorsers] <span class="op">.+=</span> w[ob.validator]</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> stmt <span class="kw">in</span> g.statements</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>        stmt.p_true <span class="op">=</span> <span class="fu">isempty</span>(stmt.endorsers) ? <span class="fl">0.0</span> <span class="op">:</span> <span class="fu">maximum</span>(w[stmt.endorsers])</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><code>solve_fixedpoint!</code> warm-starts from the current weight vector — so a single new observation requires only a few iterations — and applies the damped update <span class="math inline">\(w \leftarrow (1-\lambda) w + \lambda F(w)\)</span> until <span class="math inline">\(\|w_\text{new} - w\|_\infty
+&lt; \varepsilon\)</span>. The trusted boundary is re-clamped after each damp step to prevent it from drifting. A final call to <code>recompute!</code> ensures that <code>g.alpha</code>, <code>g.beta</code>, and all <code>p_true</code> fields are exactly consistent with the converged <span class="math inline">\(w^*\)</span> before the function returns.</p>
+<div id="8" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">solve_fixedpoint!</span>(g<span class="op">::</span><span class="dt">ReputationGraph</span>;</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                            tol      <span class="op">::</span><span class="dt"> Float64 </span><span class="op">=</span> <span class="fl">1e-10</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                            max_iter <span class="op">::</span><span class="dt"> Int     </span><span class="op">=</span> <span class="fl">500</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>                            lambda   <span class="op">::</span><span class="dt"> Float64 </span><span class="op">=</span> <span class="fl">0.6</span>) <span class="op">::</span><span class="dt"> Vector{Float64}</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    w <span class="op">=</span> <span class="fu">weights</span>(g)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> iter <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span>max_iter</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        <span class="fu">recompute!</span>(g, w)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>        w_new <span class="op">=</span> <span class="fu">weights</span>(g)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        delta <span class="op">=</span> <span class="fu">maximum</span>(<span class="fu">abs</span>.(w_new <span class="op">.-</span> w))</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        w   <span class="op">.=</span> (<span class="fl">1.0</span> <span class="op">-</span> lambda) <span class="op">.*</span> w <span class="op">.+</span> lambda <span class="op">.*</span> w_new</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>        w[<span class="fu">collect</span>(g.trusted)] <span class="op">.=</span> <span class="fl">1.0</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        delta <span class="op">&lt;</span> tol <span class="op">&amp;&amp;</span> <span class="cf">break</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">recompute!</span>(g, w)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> w</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The public API exposes two mutating operations. <code>add_statement!</code> registers a new statement and immediately re-solves so that <code>p_true</code> is initialised from the current weights. <code>add_observation!</code> appends a single observation and re-solves, returning the updated weight vector and statement list together so callers have a consistent snapshot.</p>
+<div id="10" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">add_statement!</span>(g<span class="op">::</span><span class="dt">ReputationGraph</span>, endorsers<span class="op">::</span><span class="dt">Vector{Int}</span>) <span class="op">::</span><span class="dt"> Int</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    id <span class="op">=</span> <span class="fu">length</span>(g.statements) <span class="op">+</span> <span class="fl">1</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">push!</span>(g.statements, <span class="fu">Statement</span>(; id, endorsers))</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">solve_fixedpoint!</span>(g)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> id</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">add_observation!</span>(g<span class="op">::</span><span class="dt">ReputationGraph</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>                           validator<span class="op">::</span><span class="dt">Int</span>, statement_id<span class="op">::</span><span class="dt">Int</span>, confirmed<span class="op">::</span><span class="dt">Bool</span>;</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>                           kwargs<span class="op">...</span>) <span class="op">::</span><span class="dt"> Tuple{Vector{Float64}, Vector{Statement}}</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">push!</span>(g.obs, <span class="fu">Observation</span>(validator, statement_id, confirmed))</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    w <span class="op">=</span> <span class="fu">solve_fixedpoint!</span>(g; kwargs<span class="op">...</span>)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> w, g.statements</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<hr>
+</section>
+<section id="worked-example" class="level2">
+<h2 class="anchored" data-anchor-id="worked-example">Worked Example</h2>
+<p>We set up six people with persons 1 and 2 in the trusted set and register four statements. Each validator assesses any given statement at most once. Each code block below ends with an expression whose value is displayed, as in a Jupyter notebook — here the current weight vector <span class="math inline">\(w\)</span>.</p>
+<p><strong>Setup.</strong> Initialise the graph and register statements.</p>
+<div id="12" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>trusted <span class="op">=</span> <span class="fu">Set</span>([<span class="fl">1</span>, <span class="fl">2</span>])</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>g <span class="op">=</span> <span class="fu">ReputationGraph</span>(<span class="fl">6</span>, trusted; alpha0 <span class="op">=</span> <span class="fl">1.0</span>, beta0 <span class="op">=</span> <span class="fl">1.0</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>s1 <span class="op">=</span> <span class="fu">add_statement!</span>(g, [<span class="fl">3</span>])</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>s2 <span class="op">=</span> <span class="fu">add_statement!</span>(g, [<span class="fl">4</span>])</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>s3 <span class="op">=</span> <span class="fu">add_statement!</span>(g, [<span class="fl">5</span>])</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>s4 <span class="op">=</span> <span class="fu">add_statement!</span>(g, [<span class="fl">3</span>, <span class="fl">4</span>])</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>history <span class="op">=</span> [<span class="fu">weights</span>(g)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>1-element Vector{Vector{Float64}}:
+ [1.0, 1.0, 0.5, 0.5, 0.5, 0.5]</code></pre>
+</div>
+</div>
+<p><strong>Round 1.</strong> Both trusted nodes assess person 3’s claim: person 1 confirms, person 2 also confirms. Person 3’s weight rises from the <span class="math inline">\(\mathrm{Beta}(1,1)\)</span> prior.</p>
+<div id="14" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">add_observation!</span>(g, <span class="fl">1</span>, s1, <span class="cn">true</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">add_observation!</span>(g, <span class="fl">2</span>, s1, <span class="cn">true</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">push!</span>(history, <span class="fu">weights</span>(g))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>2-element Vector{Vector{Float64}}:
+ [1.0, 1.0, 0.5, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.5, 0.5, 0.5]</code></pre>
+</div>
+</div>
+<p><strong>Round 2.</strong> Person 3, now reputable, confirms person 4’s claim. Persons 5 and 6 also weigh in on person 4’s claim, providing independent signal.</p>
+<div id="16" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">add_observation!</span>(g, <span class="fl">3</span>, s2, <span class="cn">true</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">add_observation!</span>(g, <span class="fl">5</span>, s2, <span class="cn">true</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">add_observation!</span>(g, <span class="fl">6</span>, s2, <span class="cn">true</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="fu">push!</span>(history, <span class="fu">weights</span>(g))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>3-element Vector{Vector{Float64}}:
+ [1.0, 1.0, 0.5, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.7333333333333333, 0.5, 0.5]</code></pre>
+</div>
+</div>
+<p><strong>Round 3.</strong> Person 4 confirms person 5’s claim; person 3 confirms the joint claim <span class="math inline">\(s_4\)</span>.</p>
+<div id="18" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">add_observation!</span>(g, <span class="fl">4</span>, s3, <span class="cn">true</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">add_observation!</span>(g, <span class="fl">3</span>, s4, <span class="cn">true</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="fu">push!</span>(history, <span class="fu">weights</span>(g))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>4-element Vector{Vector{Float64}}:
+ [1.0, 1.0, 0.5, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.7333333333333333, 0.5, 0.5]
+ [1.0, 1.0, 0.7912878474777408, 0.7883121098129494, 0.6413600914731654, 0.5]</code></pre>
+</div>
+</div>
+<p><strong>Round 4.</strong> Trusted node 1 refutes person 3’s claim and trusted node 2 also refutes it. Person 3’s weight falls, dragging down person 4 and the lower bound on <span class="math inline">\(s_4\)</span> with it.</p>
+<div id="20" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">add_observation!</span>(g, <span class="fl">1</span>, s1, <span class="cn">false</span>)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="fu">add_observation!</span>(g, <span class="fl">2</span>, s1, <span class="cn">false</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="fu">push!</span>(history, <span class="fu">weights</span>(g))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>5-element Vector{Vector{Float64}}:
+ [1.0, 1.0, 0.5, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.7333333333333333, 0.5, 0.5]
+ [1.0, 1.0, 0.7912878474777408, 0.7883121098129494, 0.6413600914731654, 0.5]
+ [1.0, 1.0, 0.5413812651499745, 0.7630807650255474, 0.6380851357497672, 0.5]</code></pre>
+</div>
+</div>
+<p><strong>Plot.</strong> The chart below shows <span class="math inline">\(w_i\)</span> for each participant after each round. Trusted persons 1 and 2 are fixed at 1 throughout and are omitted for clarity.</p>
+<div id="22" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CairoMakie</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>CairoMakie.<span class="fu">enable_only_mime!</span>(<span class="st">"png"</span>)</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>rounds <span class="op">=</span> <span class="fl">0</span><span class="op">:</span><span class="fu">length</span>(history)<span class="op">-</span><span class="fl">1</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> <span class="fu">Figure</span>(size <span class="op">=</span> (<span class="fl">700</span>, <span class="fl">380</span>))</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>ax  <span class="op">=</span> <span class="fu">Axis</span>(fig[<span class="fl">1</span>, <span class="fl">1</span>];</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    xlabel <span class="op">=</span> <span class="st">"Round"</span>,</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    ylabel <span class="op">=</span> <span class="st">"Trustworthiness weight w"</span>,</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    title  <span class="op">=</span> <span class="st">"Reputation over rounds"</span>,</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>    xticks <span class="op">=</span> rounds,</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>    yticks <span class="op">=</span> <span class="fl">0.0</span><span class="op">:</span><span class="fl">0.1</span><span class="op">:</span><span class="fl">1.0</span>,</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>    limits <span class="op">=</span> (<span class="cn">nothing</span>, (<span class="fl">0.0</span>, <span class="fl">1.05</span>)))</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> person <span class="kw">in</span> <span class="fl">3</span><span class="op">:</span><span class="fl">6</span></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>    ws <span class="op">=</span> [h[person] for h <span class="kw">in</span> history]</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">lines!</span>(ax, rounds, ws; linewidth <span class="op">=</span> <span class="fl">2</span>, label <span class="op">=</span> <span class="st">"Person </span><span class="sc">$</span>person<span class="st">"</span>)</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a><span class="fu">axislegend</span>(ax; position <span class="op">=</span> <span class="op">:</span>lt)</span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>fig</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+<figure class="figure">
+<p><img src="reputation_files/figure-html/cell-12-output-1.png" width="700" height="380" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The plot makes the propagation visible: persons 3–5 rise as trust flows outward from <span class="math inline">\(T\)</span>, and then persons 3 and 4 fall in round 4 as both trusted nodes contradict person 3’s earlier claim.</p>
+<hr>
+</section>
+<section id="a-real-world-instantiation-pgp-keys-and-the-open-world" class="level2">
+<h2 class="anchored" data-anchor-id="a-real-world-instantiation-pgp-keys-and-the-open-world">A Real-World Instantiation: PGP Keys and the Open World</h2>
+<p>The model so far has assumed a closed world — a fixed population of <span class="math inline">\(n\)</span> known people, each with a pre-allocated slot in the <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span> vectors. In practice, new actors appear continuously, statements are pseudonymous, and you cannot know in advance who will speak. This section sketches how to ground the abstract model in something deployable, using PGP keys to establish <span class="math inline">\(T\)</span> and extending naturally to an open world.</p>
+<section id="identities-as-public-keys" class="level3">
+<h3 class="anchored" data-anchor-id="identities-as-public-keys">Identities as Public Keys</h3>
+<p>Replace integer node indices with PGP public key fingerprints. A <strong>person</strong> in the model is now a key, and a <strong>statement</strong> is any content-addressed artifact that has been <strong>signed</strong> with that key. This gives us something the integer model lacked: unforgeable authorship — an observation cannot be forged after the fact without breaking the underlying elliptic curve or RSA scheme.</p>
+</section>
+<section id="establishing-t-via-the-pgp-web-of-trust" class="level3">
+<h3 class="anchored" data-anchor-id="establishing-t-via-the-pgp-web-of-trust">Establishing <span class="math inline">\(T\)</span> via the PGP Web of Trust</h3>
+<p>The trusted set <span class="math inline">\(T\)</span> does not fall from the sky. PGP already has a decades-old mechanism for bootstrapping trust called the <strong>web of trust</strong>: participants sign each other’s public keys to attest that they have verified the real-world identity behind the key. The classical PGP trust levels map naturally onto our model:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>PGP trust level</th>
+<th>Interpretation in our model</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Ultimate</strong> (your own key)</td>
+<td>Member of <span class="math inline">\(T\)</span></td>
+</tr>
+<tr class="even">
+<td><strong>Full</strong> (personally verified)</td>
+<td>Also a member of <span class="math inline">\(T\)</span></td>
+</tr>
+<tr class="odd">
+<td><strong>Marginal</strong> (partially trusted)</td>
+<td>Initialise with a weak prior, e.g.&nbsp;<span class="math inline">\(\mathrm{Beta}(2, 1)\)</span></td>
+</tr>
+<tr class="even">
+<td><strong>Unknown / untrusted</strong></td>
+<td>Default prior <span class="math inline">\(\mathrm{Beta}(1, 1)\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>Keys you have personally verified at a key signing party, or through out-of-band fingerprint exchange, enter <span class="math inline">\(T\)</span> directly. Keys attested by PGP’s classic “three marginal signers” heuristic can instead seed a <span class="math inline">\(\mathrm{Beta}(10, 1)\)</span> prior rather than being fixed at 1, which is more honest about residual uncertainty.</p>
+<p>The Bayesian model then takes over from where PGP stops. PGP’s web of trust is binary and static — a key is either trusted enough or it is not, and trust does not degrade when a key holder is later found to have lied. Our model is continuous and dynamic: <span class="math inline">\(\theta_i\)</span> drifts down whenever a trusted source contradicts a signed statement by key <span class="math inline">\(i\)</span>, regardless of how that key entered the graph.</p>
+</section>
+<section id="open-world-dynamics-and-revocation" class="level3">
+<h3 class="anchored" data-anchor-id="open-world-dynamics-and-revocation">Open-World Dynamics and Revocation</h3>
+<p>In the open world, new keys appear with every new statement. The graph grows lazily: a previously unseen fingerprint gets a fresh <span class="math inline">\(\mathrm{Beta}(\alpha_0,
+\beta_0)\)</span> node, so its initial weight is <span class="math inline">\(w = 0.5\)</span> under a uniform prior and it contributes half a count to anything it endorses until validators speak.</p>
+<p>Key revocation maps to a hard deletion: filter <code>g.obs</code> to remove every observation made by the revoked fingerprint, then re-solve the fixed point. All downstream weights that depended on that validator’s fractional counts are automatically corrected by the re-solve.</p>
+</section>
+<section id="concrete-implementation" class="level3">
+<h3 class="anchored" data-anchor-id="concrete-implementation">Concrete Implementation</h3>
+<p>An <strong>assertion</strong> is a cleartext claim together with a detached PGP signature over its content. The statement identifier is the hex-encoded SHA-256 digest of the content — a globally unambiguous content address.</p>
+<div id="24" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">SHA</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> SignedAssertion</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    content   <span class="op">::</span><span class="dt"> String</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    signature <span class="op">::</span><span class="dt"> String</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="fu">statement_id</span>(a<span class="op">::</span><span class="dt">SignedAssertion</span>) <span class="op">=</span> <span class="fu">bytes2hex</span>(<span class="fu">sha256</span>(a.content));</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Signature verification shells out to <code>gpg --status-fd 1</code>. The relevant tokens are <code>VALIDSIG</code> (which carries the full key fingerprint) and one of <code>TRUST_ULTIMATE</code>, <code>TRUST_FULLY</code>, <code>TRUST_MARGINAL</code>, or <code>TRUST_UNDEFINED</code>, which reflect the local owner-trust database — the same web of trust the user already maintains with <code>gpg --edit-key</code>. On failure, or if the signature cannot be verified against any key in the keyring, <code>gpg_verify</code> returns <code>nothing</code>.</p>
+<div id="26" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="pp">@enum</span> Trust Unknown Marginal Full</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">gpg_verify</span>(content<span class="op">::</span><span class="dt">String</span>, signature<span class="op">::</span><span class="dt">String</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>                    ) <span class="op">::</span><span class="dt"> Union{Nothing, Tuple{String, Trust}}</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mktempdir</span>() <span class="cf">do</span> dir</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>        sig_path <span class="op">=</span> <span class="fu">joinpath</span>(dir, <span class="st">"sig.asc"</span>)</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>        <span class="fu">write</span>(sig_path, signature)</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>        result <span class="op">=</span> <span class="fu">readchomp</span>(<span class="fu">pipeline</span>(<span class="ss">`gpg --status-fd 1 --verify $sig_path -`</span>,</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>                                    <span class="cn">stdin</span><span class="op">=</span><span class="fu">IOBuffer</span>(content)))</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>        lines <span class="op">=</span> <span class="fu">split</span>(result, <span class="ch">'\n'</span>)</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>        vsig_line  <span class="op">=</span> <span class="fu">findfirst</span>(l <span class="op">-&gt;</span> <span class="fu">occursin</span>(<span class="st">" VALIDSIG "</span>, l), lines)</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>        trust_line <span class="op">=</span> <span class="fu">findfirst</span>(l <span class="op">-&gt;</span> <span class="fu">occursin</span>(<span class="st">" TRUST_"</span>,   l), lines)</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>        vsig_line <span class="op">===</span> <span class="cn">nothing</span> <span class="op">&amp;&amp;</span> <span class="cf">return</span> <span class="cn">nothing</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>        fingerprint <span class="op">=</span> <span class="fu">split</span>(lines[vsig_line])[<span class="fl">3</span>]</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>        trust_tag   <span class="op">=</span> trust_line <span class="op">!==</span> <span class="cn">nothing</span> ? <span class="fu">split</span>(lines[trust_line])[<span class="fl">2</span>] <span class="op">:</span> <span class="st">""</span></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>        trust <span class="op">=</span> trust_tag <span class="op">==</span> <span class="st">"TRUST_MARGINAL"</span>                   ? Marginal <span class="op">:</span></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>                trust_tag <span class="op">∈</span> (<span class="st">"TRUST_FULLY"</span>, <span class="st">"TRUST_ULTIMATE"</span>)   ? Full     <span class="op">:</span></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>                                                                  Unknown</span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>        (fingerprint, trust)</span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>The three trust levels seed the Beta prior for a newly seen key. Full trust (GPG’s <code>TRUST_FULLY</code> and <code>TRUST_ULTIMATE</code>) places the node directly in <span class="math inline">\(T\)</span>; marginal trust biases the prior towards truthfulness; unknown keys start at the uniform <span class="math inline">\(\mathrm{Beta}(1,1)\)</span>.</p>
+<p><code>PGPReputationGraph</code> wraps the inner <code>ReputationGraph</code> with two dictionaries that map cryptographic identifiers — key fingerprints and content hashes — to the integer indices used by the solver. The graph is seeded with a single node for your own key, which is immediately placed in <span class="math inline">\(T\)</span>.</p>
+<div id="28" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">mutable struct</span> PGPReputationGraph</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>    g                 <span class="op">::</span><span class="dt"> ReputationGraph</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    fingerprint_index <span class="op">::</span><span class="dt"> Dict{String, Int}</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    statement_index   <span class="op">::</span><span class="dt"> Dict{String, Int}</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">PGPReputationGraph</span>(own_fingerprint<span class="op">::</span><span class="dt">String</span>)</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>    g <span class="op">=</span> <span class="fu">ReputationGraph</span>(<span class="fl">1</span>, <span class="fu">Set</span>([<span class="fl">1</span>]); alpha0 <span class="op">=</span> <span class="fl">1.0</span>, beta0 <span class="op">=</span> <span class="fl">1.0</span>)</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>    pg <span class="op">=</span> <span class="fu">PGPReputationGraph</span>(g, <span class="fu">Dict</span><span class="dt">{String,Int}</span>(), <span class="fu">Dict</span><span class="dt">{String,Int}</span>())</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>    pg.fingerprint_index[own_fingerprint] <span class="op">=</span> <span class="fl">1</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>    pg</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>New fingerprints and content hashes are registered lazily on first encounter. For fingerprints, the PGP trust level at the moment of first contact determines the prior; subsequent observations update it from there. For statements, if the same content hash arrives from a second signer, that signer is added to the endorser list of the existing <code>Statement</code> node rather than creating a duplicate.</p>
+<div id="30" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">get_or_create_node!</span>(pg<span class="op">::</span><span class="dt">PGPReputationGraph</span>,</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>                              fingerprint<span class="op">::</span><span class="dt">String</span>,</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>                              trust<span class="op">::</span><span class="dt">Trust</span>) <span class="op">::</span><span class="dt"> Int</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">haskey</span>(pg.fingerprint_index, fingerprint) <span class="op">&amp;&amp;</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> pg.fingerprint_index[fingerprint]</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>    α<span class="fl">0</span>, β<span class="fl">0</span> <span class="op">=</span> trust <span class="op">==</span> Marginal ? (<span class="fl">2.0</span>, <span class="fl">1.0</span>) <span class="op">:</span> (<span class="fl">1.0</span>, <span class="fl">1.0</span>)</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    g <span class="op">=</span> pg.g</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">push!</span>(g.alpha,  α<span class="fl">0</span>); <span class="fu">push!</span>(g.alpha0, α<span class="fl">0</span>)</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">push!</span>(g.beta,   β<span class="fl">0</span>); <span class="fu">push!</span>(g.beta0,  β<span class="fl">0</span>)</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>    idx <span class="op">=</span> <span class="fu">length</span>(g.alpha)</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>    pg.fingerprint_index[fingerprint] <span class="op">=</span> idx</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>    trust <span class="op">==</span> Full <span class="op">&amp;&amp;</span> <span class="fu">push!</span>(g.trusted, idx)</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>    idx</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">get_or_create_statement!</span>(pg<span class="op">::</span><span class="dt">PGPReputationGraph</span>,</span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>                                   content_hash<span class="op">::</span><span class="dt">String</span>,</span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>                                   endorser_idx<span class="op">::</span><span class="dt">Int</span>) <span class="op">::</span><span class="dt"> Int</span></span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="fu">haskey</span>(pg.statement_index, content_hash)</span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>        sid  <span class="op">=</span> pg.statement_index[content_hash]</span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>        stmt <span class="op">=</span> pg.g.statements[sid]</span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>        endorser_idx <span class="op">∉</span> stmt.endorsers <span class="op">&amp;&amp;</span> <span class="fu">push!</span>(stmt.endorsers, endorser_idx)</span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> sid</span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>    sid <span class="op">=</span> <span class="fu">add_statement!</span>(pg.g, [endorser_idx])</span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>    pg.statement_index[content_hash] <span class="op">=</span> sid</span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>    sid</span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><code>process_assertions!</code> is the main entry point. It takes a batch of signed assertions and executes four steps in order: verify each signature and discard failures; look up or allocate nodes and statements; append all new observations to the graph; then re-solve the fixed point exactly once for the whole batch. The function returns a <code>(content_hash, p_true_lower_bound)</code> pair for each assertion whose signature was valid.</p>
+<div id="32" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">process_assertions!</span>(pg<span class="op">::</span><span class="dt">PGPReputationGraph</span>,</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>                              assertions<span class="op">::</span><span class="dt">Vector{SignedAssertion}</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>                              ) <span class="op">::</span><span class="dt"> Vector{Tuple{String, Float64}}</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>    verified <span class="op">=</span> <span class="dt">Tuple</span>{SignedAssertion, <span class="dt">String</span>, Trust}[]</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> assertion <span class="kw">in</span> assertions</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>        result <span class="op">=</span> <span class="fu">gpg_verify</span>(assertion.content, assertion.signature)</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>        result <span class="op">===</span> <span class="cn">nothing</span> <span class="op">&amp;&amp;</span> <span class="cf">continue</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>        <span class="fu">push!</span>(verified, (assertion, result<span class="op">...</span>))</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">isempty</span>(verified) <span class="op">&amp;&amp;</span> <span class="cf">return</span> <span class="dt">Tuple</span>{<span class="dt">String</span>,<span class="dt">Float64</span>}[]</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (assertion, fingerprint, trust) <span class="kw">in</span> verified</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>        validator_idx <span class="op">=</span> <span class="fu">get_or_create_node!</span>(pg, fingerprint, trust)</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>        content_hash  <span class="op">=</span> <span class="fu">statement_id</span>(assertion)</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>        stmt_id       <span class="op">=</span> <span class="fu">get_or_create_statement!</span>(pg, content_hash, validator_idx)</span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>        <span class="fu">push!</span>(pg.g.obs, <span class="fu">Observation</span>(validator_idx, stmt_id, <span class="cn">true</span>))</span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">solve_fixedpoint!</span>(pg.g)</span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>    [(<span class="fu">statement_id</span>(a), pg.g.statements[pg.statement_index[<span class="fu">statement_id</span>(a)]].p_true)</span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>     for (a, _, _) <span class="kw">in</span> verified]</span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span>;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Revocation remains a one-liner: filter the revoked key’s observations out of <code>pg.g.obs</code> and re-solve. All downstream weights that depended on that validator’s fractional counts are corrected automatically.</p>
+</section>
+<section id="signed-observations-as-a-gossip-protocol" class="level3">
+<h3 class="anchored" data-anchor-id="signed-observations-as-a-gossip-protocol">Signed Observations as a Gossip Protocol</h3>
+<p>Because every observation is a signed statement, the observation graph itself can be gossiped over a peer-to-peer network. A node receiving a bundle of signed attestations calls <code>process_assertions!</code> locally, verifies each signature against its own keyring, and re-solves its own fixed point. This yields a fully decentralised reputation system: trust is rooted in each participant’s own key and their personally verified <span class="math inline">\(T\)</span>, propagated through the Bayesian fixed point over a cryptographically authenticated observation graph, and updated continuously as new signed attestations arrive from peers.</p>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/samanklesaria\.github\.io");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

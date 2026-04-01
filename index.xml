@@ -10,7 +10,1535 @@
 <atom:link href="https://samanklesaria.github.io/index.xml" rel="self" type="application/rss+xml"/>
 <description>Dabbling in Data Science</description>
 <generator>quarto-1.8.27</generator>
-<lastBuildDate>Thu, 05 Feb 2026 06:00:00 GMT</lastBuildDate>
+<lastBuildDate>Tue, 31 Mar 2026 05:00:00 GMT</lastBuildDate>
+<item>
+  <title>A Recursive Bayesian Model of Reputation</title>
+  <link>https://samanklesaria.github.io/posts/reputation/reputation.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>How should you update your beliefs about whether a claim is true when the person telling you might be lying — and the people vouching for them might <em>also</em> be lying? This post develops a fully Bayesian answer, starting from a small trusted set and propagating credibility outward through a network of uncertain validators. We derive a clean conjugate update rule, show how it extends recursively, and implement the resulting fixed-point system in Julia.</p>
+<hr>
+<section id="the-problem" class="level2">
+<h2 class="anchored" data-anchor-id="the-problem">The Problem</h2>
+<p>Suppose you are trying to assess a stream of claims made by various people. You have a small <strong>trusted set</strong> <img src="https://latex.codecogs.com/png.latex?T"> of individuals you know to be perfectly honest — journalists whose work you have verified, domain experts you have met in person, whatever the context warrants. Everyone outside <img src="https://latex.codecogs.com/png.latex?T"> may tell the truth with some unknown probability.</p>
+<p>Formally, assign each person <img src="https://latex.codecogs.com/png.latex?i"> a <strong>truth-telling probability</strong> <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i%20%5Cin%20%5B0,1%5D">. For members of <img src="https://latex.codecogs.com/png.latex?T"> we fix <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i%20=%201">. For everyone else, <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i"> is a random variable we want to infer.</p>
+<p>A natural question is: given that person <img src="https://latex.codecogs.com/png.latex?i"> made a claim, what is the probability it is true? If <img src="https://latex.codecogs.com/png.latex?i"> is truthful (<img src="https://latex.codecogs.com/png.latex?z%20=%201">), the claim reflects their belief; if not, it is noise. So <img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bclaim%20is%20true%7D)%20%5Cgeq%20%5Ctheta_i">. If several people endorse the claim, the best endorser gives the tightest bound:</p>
+<p><img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bclaim%20is%20true%7D)%20%5Cgeq%20%5Ctheta_%7Bi%5E*%7D,%20%5Cqquad%20i%5E*%20=%20%5Carg%5Cmax_%7Bi%20%5Cin%20%5Ctext%7Bendorsers%7D%7D%20%5Ctheta_i."></p>
+<p>Since <img src="https://latex.codecogs.com/png.latex?%5Ctheta_%7Bi%5E*%7D"> is a random variable, we take expectations. Because <img src="https://latex.codecogs.com/png.latex?%5Cmax"> is convex, Jensen’s inequality gives <img src="https://latex.codecogs.com/png.latex?%5Cmathbb%7BE%7D%5B%5Cmax_i%20%5Ctheta_i%5D%20%5Cgeq%0A%5Cmax_i%20%5Cmathbb%7BE%7D%5B%5Ctheta_i%5D">, so</p>
+<p><img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bclaim%20is%20true%7D)%20%5Cgeq%20%5Cmathbb%7BE%7D%5B%5Ctheta_%7Bi%5E*%7D%5D%20%5Cgeq%20%5Cmax_%7Bi%20%5Cin%20%5Ctext%7Bendorsers%7D%7D%20%5Cmathbb%7BE%7D%5B%5Ctheta_i%5D."></p>
+<p>This makes the <strong>expected trustworthiness weight</strong></p>
+<p><img src="https://latex.codecogs.com/png.latex?w_i%20=%20%5Cmathbb%7BE%7D%5B%5Ctheta_i%5D"></p>
+<p>the central quantity we need to track for each person.</p>
+<hr>
+</section>
+<section id="conjugate-updates-from-the-trusted-set" class="level2">
+<h2 class="anchored" data-anchor-id="conjugate-updates-from-the-trusted-set">Conjugate Updates from the Trusted Set</h2>
+<p>Place a Beta prior on each untrusted person’s truth-telling probability:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Ctheta_i%20%5Csim%20%5Cmathrm%7BBeta%7D(%5Calpha_i,%5C,%20%5Cbeta_i)."></p>
+<p>The Beta-Binomial model is conjugate: each time a member of <img src="https://latex.codecogs.com/png.latex?T"> observes person <img src="https://latex.codecogs.com/png.latex?i"> making a claim, they either <strong>confirm</strong> it (a “success” — <img src="https://latex.codecogs.com/png.latex?i"> told the truth) or <strong>refute</strong> it (a “failure” — <img src="https://latex.codecogs.com/png.latex?i"> lied). The posterior update is:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bconfirmed:%7D%20%5Cquad%20%5Calpha_i%20%5Cleftarrow%20%5Calpha_i%20+%201,%20%5Cqquad%20%5Ctext%7Brefuted:%7D%20%5Cquad%20%5Cbeta_i%20%5Cleftarrow%20%5Cbeta_i%20+%201."></p>
+<p>The posterior mean trustworthiness is then</p>
+<p><img src="https://latex.codecogs.com/png.latex?w_i%20=%20%5Cmathbb%7BE%7D%5B%5Ctheta_i%5D%20=%20%5Cfrac%7B%5Calpha_i%7D%7B%5Calpha_i%20+%20%5Cbeta_i%7D."></p>
+<p>This is clean and exact — but it requires a member of <img src="https://latex.codecogs.com/png.latex?T"> to be present for every observation. In practice, your trusted set is small. We need to propagate trust outward.</p>
+<hr>
+</section>
+<section id="fractional-updates-via-uncertain-validators" class="level2">
+<h2 class="anchored" data-anchor-id="fractional-updates-via-uncertain-validators">Fractional Updates via Uncertain Validators</h2>
+<p>Now suppose validator <img src="https://latex.codecogs.com/png.latex?j%20%5Cnotin%20T"> has uncertain trustworthiness <img src="https://latex.codecogs.com/png.latex?%5Ctheta_j%20%5Csim%20%5Cmathrm%7BBeta%7D(%5Calpha_j,%20%5Cbeta_j)">. When <img src="https://latex.codecogs.com/png.latex?j"> assesses a claim by <img src="https://latex.codecogs.com/png.latex?i">, we do not know whether <img src="https://latex.codecogs.com/png.latex?j">’s report reflects the truth. We handle this with EM, treating report truthfulness as a latent variable.</p>
+<p><strong>Latent variable.</strong> Write <img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bobs%7D_k%20%5Cin%20%5C%7B0,%201%5C%7D"> for the binary outcome of observation <img src="https://latex.codecogs.com/png.latex?k">: <img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bobs%7D_k%20=%201"> if validator <img src="https://latex.codecogs.com/png.latex?j"> confirmed the claim and <img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bobs%7D_k%20=%200"> if they refuted it. For each observation <img src="https://latex.codecogs.com/png.latex?k">, let <img src="https://latex.codecogs.com/png.latex?z_k%0A=%201"> if <img src="https://latex.codecogs.com/png.latex?j"> reported truthfully and <img src="https://latex.codecogs.com/png.latex?z_k%20=%200"> if <img src="https://latex.codecogs.com/png.latex?j"> lied. The complete-data model is a <strong>mixture of Bernoullis</strong>: a truthful report is a genuine draw from <img src="https://latex.codecogs.com/png.latex?%5Cmathrm%7BBernoulli%7D(%5Ctheta_i)">, so <img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bobs%7D_k%20=%201%20%5Cmid%20z_k%20=%201)%20=%0A%5Ctheta_i">; a lie is symmetric noise, so <img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bobs%7D_k%20=%201%20%5Cmid%20z_k%20=%200)%20=%0A%5Ctfrac%7B1%7D%7B2%7D"> regardless of <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i">, and hence carries no information about <img src="https://latex.codecogs.com/png.latex?i">.</p>
+<p><strong>EM via the ELBO.</strong> For any model <img src="https://latex.codecogs.com/png.latex?p(x,%20z%20%5Cmid%20%5Ctheta)"> with latent <img src="https://latex.codecogs.com/png.latex?z"> and observed <img src="https://latex.codecogs.com/png.latex?x">, importance-sampling the log-marginal with a variational distribution <img src="https://latex.codecogs.com/png.latex?q(z)"> and applying Jensen gives the evidence lower bound:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Clog%20p(x%20%5Cmid%20%5Ctheta)%20%5Cgeq%20%5Cmathbb%7BE%7D_%7Bq%7D%5B%5Clog%20p(x,%20z%20%5Cmid%20%5Ctheta)%5D%20-%20%5Cmathbb%7BE%7D_%7Bq%7D%5B%5Clog%20q(z)%5D%20=:%20%5Cmathcal%7BL%7D(q,%20%5Ctheta)."></p>
+<p>The bound is tight when <img src="https://latex.codecogs.com/png.latex?q(z)%20=%20p(z%20%5Cmid%20x,%20%5Ctheta)">, which is the E-step. The M-step then maximises <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BL%7D"> over <img src="https://latex.codecogs.com/png.latex?%5Ctheta"> with <img src="https://latex.codecogs.com/png.latex?q"> fixed. For an exponential family likelihood <img src="https://latex.codecogs.com/png.latex?p(x%20%5Cmid%20z,%20%5Ctheta)%20%5Cpropto%20%5Cexp(%5Ceta(%5Ctheta)%5E%5Ctop%0AT(x,%20z))"> with conjugate prior, setting <img src="https://latex.codecogs.com/png.latex?%5Cnabla_%5Ctheta%20%5Cmathcal%7BL%7D%20=%200"> gives moment matching: the M-step posterior has the same form as the prior with hyperparameters updated by <img src="https://latex.codecogs.com/png.latex?%5Cmathbb%7BE%7D_q%5BT(x,%20z)%5D">, the expected sufficient statistics under <img src="https://latex.codecogs.com/png.latex?q">.</p>
+<p><strong>M-step.</strong> For our model the complete-data log-likelihood for <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i">, treating <img src="https://latex.codecogs.com/png.latex?z_k"> as observed, is</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Cell(%5Ctheta_i)%20=%20%5Csum_k%20z_k%20%5Cbigl%5B%20%5Ctext%7Bobs%7D_k%20%5Clog%5Ctheta_i%20+%20(1-%5Ctext%7Bobs%7D_k)%5Clog(1-%5Ctheta_i)%20%5Cbigr%5D%20+%20%5Ctext%7Bconst%7D,"></p>
+<p>since only the truthful component (<img src="https://latex.codecogs.com/png.latex?z_k%20=%201">) carries information about <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i">; the noise component contributes a constant <img src="https://latex.codecogs.com/png.latex?%5Clog%5Ctfrac%7B1%7D%7B2%7D">. Setting <img src="https://latex.codecogs.com/png.latex?q(z_k)%20=%20p(z_k%20%5Cmid%20%5Ctext%7Bobs%7D_k,%20%5Ctheta)">, the expected sufficient statistics are <img src="https://latex.codecogs.com/png.latex?%5Cmathbb%7BE%7D%5Bz_k%20%5Ccdot%20%5Ctext%7Bobs%7D_k%5D%20=%20%5Cgamma_k%20%5Ccdot%20%5Ctext%7Bobs%7D_k"> and <img src="https://latex.codecogs.com/png.latex?%5Cmathbb%7BE%7D%5Bz_k%20%5Ccdot%20(1%20-%20%5Ctext%7Bobs%7D_k)%5D%20=%20%5Cgamma_k%20%5Ccdot%20(1%20-%20%5Ctext%7Bobs%7D_k)">, where <img src="https://latex.codecogs.com/png.latex?%5Cgamma_k%20=%20%5Cmathbb%7BE%7D%5Bz_k%20%5Cmid%20%5Ctext%7Bobs%7D_k%5D">. Moment matching against the Beta prior gives:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Calpha_i%20%5Cleftarrow%20%5Calpha_i%5E%7B(0)%7D%20+%20%5Csum_%7Bk:%5C,%5Ctext%7Bconfirmed%7D%7D%20%5Cgamma_k,%20%5Cqquad%20%5Cbeta_i%20%5Cleftarrow%20%5Cbeta_i%5E%7B(0)%7D%20+%20%5Csum_%7Bk:%5C,%5Ctext%7Brefuted%7D%7D%20%5Cgamma_k."></p>
+<p>The M-step needs only <img src="https://latex.codecogs.com/png.latex?%5Cgamma_k">. So the question for the E-step is: what is <img src="https://latex.codecogs.com/png.latex?%5Cmathbb%7BE%7D%5Bz_k%20%5Cmid%20%5Ctext%7Bobs%7D_k%5D">?</p>
+<p><strong>E-step.</strong> By Bayes’ rule, with <img src="https://latex.codecogs.com/png.latex?P(z_k%20=%201)%20=%20%5Ctheta_j"> and <img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bobs%7D_k%20%5Cmid%20z_k%20=%200)%20=%20%5Ctfrac%7B1%7D%7B2%7D">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Cgamma_k(%5Ctheta_i,%20%5Ctheta_j)%20=%20%5Cfrac%7B%5Ctheta_j%20%5Ccdot%20P(%5Ctext%7Bobs%7D_k%20%5Cmid%20z_k=1,%20%5Ctheta_i)%7D%7B%5Ctheta_j%20%5Ccdot%20P(%5Ctext%7Bobs%7D_k%20%5Cmid%20z_k=1,%20%5Ctheta_i)%20+%20(1-%5Ctheta_j)%20%5Ccdot%20%5Ctfrac%7B1%7D%7B2%7D%7D,"></p>
+<p>where <img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bobs%7D_k%20=%201%20%5Cmid%20z_k%20=%201,%20%5Ctheta_i)%20=%20%5Ctheta_i"> and <img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bobs%7D_k%20=%200%20%5Cmid%20z_k%20=%201,%20%5Ctheta_i)%20=%201%20-%20%5Ctheta_i">. Since <img src="https://latex.codecogs.com/png.latex?%5Ctheta_j%20%5Cleq%201">, the denominator satisfies</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Ctheta_j%20%5Ccdot%20P(%5Ctext%7Bobs%7D_k%20%5Cmid%20z_k=1,%20%5Ctheta_i)%20+%20(1-%5Ctheta_j)/2%20%5Cleq%20P(%5Ctext%7Bobs%7D_k%20%5Cmid%20z_k=1,%20%5Ctheta_i)%20+%20(1-%5Ctheta_j)/2,"></p>
+<p>and because <img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bobs%7D_k%20%5Cmid%20z_k=1,%20%5Ctheta_i)%20%5Cleq%201">, we have <img src="https://latex.codecogs.com/png.latex?%5Cgamma_k%20%5Cgeq%20%5Ctheta_j"> whenever the observed outcome is consistent with truthful reporting (i.e.&nbsp;<img src="https://latex.codecogs.com/png.latex?P(%5Ctext%7Bobs%7D_k%20%5Cmid%20z_k=1,%20%5Ctheta_i)%20%3E%20%5Ctfrac%7B1%7D%7B2%7D">). So <img src="https://latex.codecogs.com/png.latex?%5Ctheta_j"> is a <strong>conservative lower bound</strong> on the true responsibility <img src="https://latex.codecogs.com/png.latex?%5Cgamma_k">: using it in the M-step under-credits each observation rather than over-crediting it. Substituting <img src="https://latex.codecogs.com/png.latex?w_j%20=%20%5Cmathbb%7BE%7D%5B%5Ctheta_j%5D"> as a point estimate for <img src="https://latex.codecogs.com/png.latex?%5Ctheta_j">, the fractional update becomes:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Calpha_i%20%5Cleftarrow%20%5Calpha_i%5E%7B(0)%7D%20+%20%5Csum_%7Bk:%5C,%5Ctext%7Bconfirmed%7D%7D%20w_%7Bj_k%7D,%20%5Cqquad%20%5Cbeta_i%20%5Cleftarrow%20%5Cbeta_i%5E%7B(0)%7D%20+%20%5Csum_%7Bk:%5C,%5Ctext%7Brefuted%7D%7D%20w_%7Bj_k%7D."></p>
+<p>When <img src="https://latex.codecogs.com/png.latex?w_j%20=%201"> this recovers the exact integer update from the previous section. When <img src="https://latex.codecogs.com/png.latex?j"> is completely unknown (<img src="https://latex.codecogs.com/png.latex?w_j%20=%200.5"> from a uniform prior), each observation contributes half a count.</p>
+<hr>
+</section>
+<section id="the-fixed-point" class="level2">
+<h2 class="anchored" data-anchor-id="the-fixed-point">The Fixed Point</h2>
+<p>The update rule makes <img src="https://latex.codecogs.com/png.latex?%5Calpha_i"> and <img src="https://latex.codecogs.com/png.latex?%5Cbeta_i"> functions of the weights <img src="https://latex.codecogs.com/png.latex?%5C%7Bw_j%5C%7D">, which are themselves functions of <img src="https://latex.codecogs.com/png.latex?%5C%7B%5Calpha_j,%20%5Cbeta_j%5C%7D">. Writing this out explicitly, with <img src="https://latex.codecogs.com/png.latex?%5Calpha_i%5E%7B(0)%7D,%20%5Cbeta_i%5E%7B(0)%7D"> as prior hyperparameters and <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BO%7D"> as the set of all observations:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Calpha_i%20=%20%5Calpha_i%5E%7B(0)%7D%20+%20%5Csum_%7B%5Csubstack%7B(j,%5C,%20s,%5C,%20%5Ctext%7Bconfirmed%7D)%20%5C%5C%20%5Cin%5C,%20%5Cmathcal%7BO%7D,%5C;%20i%20%5Cin%20%5Ctext%7Bendorsers%7D(s)%7D%7D%20w_j,%20%5Cqquad%20%5Cbeta_i%20=%20%5Cbeta_i%5E%7B(0)%7D%20+%20%5Csum_%7B%5Csubstack%7B(j,%5C,%20s,%5C,%20%5Ctext%7Brefuted%7D)%20%5C%5C%20%5Cin%5C,%20%5Cmathcal%7BO%7D,%5C;%20i%20%5Cin%20%5Ctext%7Bendorsers%7D(s)%7D%7D%20w_j,"></p>
+<p>where <img src="https://latex.codecogs.com/png.latex?s"> ranges over statements and <img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bendorsers%7D(s)"> is the set of people who made or endorsed statement <img src="https://latex.codecogs.com/png.latex?s">. The weights then feed back:</p>
+<p><img src="https://latex.codecogs.com/png.latex?w_i%20=%20%5Cfrac%7B%5Calpha_i%7D%7B%5Calpha_i%20+%20%5Cbeta_i%7D."></p>
+<p>This is a <strong>fixed-point equation</strong> <img src="https://latex.codecogs.com/png.latex?w%20=%20F(w)"> on <img src="https://latex.codecogs.com/png.latex?%5B0,1%5D%5En">. The map <img src="https://latex.codecogs.com/png.latex?F"> is monotone (more trustworthy validators <img src="https://latex.codecogs.com/png.latex?%5CRightarrow"> higher weights), and the trusted boundary <img src="https://latex.codecogs.com/png.latex?w_T%20=%20%5Cmathbf%7B1%7D"> is held fixed. By Tarski’s fixed-point theorem a solution exists. In practice we find it by <strong>damped iteration</strong>:</p>
+<p><img src="https://latex.codecogs.com/png.latex?w%5E%7B(t+1)%7D%20=%20(1%20-%20%5Clambda)%5C,%20w%5E%7B(t)%7D%20+%20%5Clambda%5C,%20F(w%5E%7B(t)%7D),%20%5Cqquad%20%5Clambda%20%5Cin%20(0,%201%5D,"></p>
+<p>re-clamping <img src="https://latex.codecogs.com/png.latex?w_T%20=%201"> after each step. For acyclic graphs (trust flowing outward from <img src="https://latex.codecogs.com/png.latex?T">) any <img src="https://latex.codecogs.com/png.latex?%5Clambda"> converges; for graphs with mutual-validation cycles the damping ensures contraction.</p>
+<hr>
+</section>
+<section id="statement-level-beliefs" class="level2">
+<h2 class="anchored" data-anchor-id="statement-level-beliefs">Statement-Level Beliefs</h2>
+<p>Each <strong>statement</strong> <img src="https://latex.codecogs.com/png.latex?s"> has a set of endorsers <img src="https://latex.codecogs.com/png.latex?E(s)%20%5Csubseteq%20%5C%7B1,%20%5Cldots,%20n%5C%7D">. The lower bound on its probability of being true is</p>
+<p><img src="https://latex.codecogs.com/png.latex?P(s%20%5Ctext%7B%20is%20true%7D)%20%5Cgeq%20%5Cmax_%7Bi%20%5Cin%20E(s)%7D%5C;%20w_i."></p>
+<p>This quantity is updated automatically whenever the fixed point is re-solved, so we get statement-level beliefs as a by-product of maintaining the reputation graph.</p>
+<hr>
+</section>
+<section id="julia-implementation" class="level2">
+<h2 class="anchored" data-anchor-id="julia-implementation">Julia Implementation</h2>
+<p>The state of the system lives in a single <code>ReputationGraph</code> struct holding the Beta parameters <img src="https://latex.codecogs.com/png.latex?(%5Calpha,%20%5Cbeta)">, their fixed priors <img src="https://latex.codecogs.com/png.latex?(%5Calpha_0,%20%5Cbeta_0)">, the trusted set, and the accumulated observations and statements. Separating the mutable parameters from the fixed priors means <code>recompute!</code> can reset to the prior in a single broadcast assignment rather than tracking deltas.</p>
+<div id="2" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@kwdef</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">mutable struct</span> Statement</span>
+<span id="cb1-2">    id        <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Int</span></span>
+<span id="cb1-3">    endorsers <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Vector{Int}</span></span>
+<span id="cb1-4">    p_true    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Float64 </span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span></span>
+<span id="cb1-5"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb1-6"></span>
+<span id="cb1-7"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">struct</span> Observation</span>
+<span id="cb1-8">    validator  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Int</span></span>
+<span id="cb1-9">    statement  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Int</span></span>
+<span id="cb1-10">    confirmed  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Bool</span></span>
+<span id="cb1-11"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb1-12"></span>
+<span id="cb1-13"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">mutable struct</span> ReputationGraph</span>
+<span id="cb1-14">    trusted    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Set{Int}</span></span>
+<span id="cb1-15">    alpha      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Vector{Float64}</span></span>
+<span id="cb1-16">    beta       <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Vector{Float64}</span></span>
+<span id="cb1-17">    alpha0     <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Vector{Float64}</span></span>
+<span id="cb1-18">    beta0      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Vector{Float64}</span></span>
+<span id="cb1-19">    obs        <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Vector{Observation}</span></span>
+<span id="cb1-20">    statements <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Vector{Statement}</span></span>
+<span id="cb1-21"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb1-22"></span>
+<span id="cb1-23"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ReputationGraph</span>(n<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Int</span>, trusted<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Set{Int}</span>;</span>
+<span id="cb1-24">                         alpha0<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Float64 </span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>, beta0<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Float64 </span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>)</span>
+<span id="cb1-25">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ReputationGraph</span>(</span>
+<span id="cb1-26">        trusted,</span>
+<span id="cb1-27">        <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">fill</span>(alpha0, n), <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">fill</span>(beta0, n),</span>
+<span id="cb1-28">        <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">fill</span>(alpha0, n), <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">fill</span>(beta0, n),</span>
+<span id="cb1-29">        Observation[], Statement[]</span>
+<span id="cb1-30">    )</span>
+<span id="cb1-31"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span>;</span></code></pre></div></div>
+</div>
+<p>The weight vector <img src="https://latex.codecogs.com/png.latex?w_i%20=%20%5Cmathbb%7BE%7D%5B%5Ctheta_i%5D%20=%20%5Calpha_i%20/%20(%5Calpha_i%20+%20%5Cbeta_i)"> is computed by a single broadcast, with trusted nodes clamped to 1 afterwards.</p>
+<div id="4" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">weights</span>(g<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">ReputationGraph</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Vector{Float64}</span></span>
+<span id="cb2-2">    w <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> g.alpha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">./</span> (g.alpha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.+</span> g.beta)</span>
+<span id="cb2-3">    w[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">collect</span>(g.trusted)] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span></span>
+<span id="cb2-4">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> w</span>
+<span id="cb2-5"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span>;</span></code></pre></div></div>
+</div>
+<p><code>recompute!</code> is the inner body of the fixed-point iteration. It resets <img src="https://latex.codecogs.com/png.latex?%5Calpha"> and <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> to their priors, then accumulates the conservative responsibility weights from every observation: each confirmation adds <img src="https://latex.codecogs.com/png.latex?w_j"> to <img src="https://latex.codecogs.com/png.latex?%5Calpha"> for every endorser of the statement, each refutation adds <img src="https://latex.codecogs.com/png.latex?w_j"> to <img src="https://latex.codecogs.com/png.latex?%5Cbeta">. It then refreshes <code>p_true</code> for every statement as <img src="https://latex.codecogs.com/png.latex?%5Cmax_%7Bi%20%5Cin%20E(s)%7D%20w_i">.</p>
+<div id="6" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">recompute!</span>(g<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">ReputationGraph</span>, w<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Vector{Float64}</span>)</span>
+<span id="cb3-2">    g.alpha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.=</span> g.alpha0</span>
+<span id="cb3-3">    g.beta  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.=</span> g.beta0</span>
+<span id="cb3-4">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> ob <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> g.obs</span>
+<span id="cb3-5">        stmt   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> g.statements[ob.statement]</span>
+<span id="cb3-6">        target <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> ob.confirmed ? g.alpha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span> g.beta</span>
+<span id="cb3-7">        target[stmt.endorsers] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.+=</span> w[ob.validator]</span>
+<span id="cb3-8">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb3-9">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> stmt <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> g.statements</span>
+<span id="cb3-10">        stmt.p_true <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">isempty</span>(stmt.endorsers) ? <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">maximum</span>(w[stmt.endorsers])</span>
+<span id="cb3-11">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb3-12"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span>;</span></code></pre></div></div>
+</div>
+<p><code>solve_fixedpoint!</code> warm-starts from the current weight vector — so a single new observation requires only a few iterations — and applies the damped update <img src="https://latex.codecogs.com/png.latex?w%20%5Cleftarrow%20(1-%5Clambda)%20w%20+%20%5Clambda%20F(w)"> until <img src="https://latex.codecogs.com/png.latex?%5C%7Cw_%5Ctext%7Bnew%7D%20-%20w%5C%7C_%5Cinfty%0A%3C%20%5Cvarepsilon">. The trusted boundary is re-clamped after each damp step to prevent it from drifting. A final call to <code>recompute!</code> ensures that <code>g.alpha</code>, <code>g.beta</code>, and all <code>p_true</code> fields are exactly consistent with the converged <img src="https://latex.codecogs.com/png.latex?w%5E*"> before the function returns.</p>
+<div id="8" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">solve_fixedpoint!</span>(g<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">ReputationGraph</span>;</span>
+<span id="cb4-2">                            tol      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Float64 </span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-10</span>,</span>
+<span id="cb4-3">                            max_iter <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Int     </span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">500</span>,</span>
+<span id="cb4-4">                            lambda   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Float64 </span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.6</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Vector{Float64}</span></span>
+<span id="cb4-5">    w <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">weights</span>(g)</span>
+<span id="cb4-6">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> iter <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>max_iter</span>
+<span id="cb4-7">        <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">recompute!</span>(g, w)</span>
+<span id="cb4-8">        w_new <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">weights</span>(g)</span>
+<span id="cb4-9">        delta <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">maximum</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">abs</span>.(w_new <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.-</span> w))</span>
+<span id="cb4-10">        w   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.=</span> (<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> lambda) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.*</span> w <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.+</span> lambda <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.*</span> w_new</span>
+<span id="cb4-11">        w[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">collect</span>(g.trusted)] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span></span>
+<span id="cb4-12">        delta <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> tol <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;&amp;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">break</span></span>
+<span id="cb4-13">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb4-14">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">recompute!</span>(g, w)</span>
+<span id="cb4-15">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> w</span>
+<span id="cb4-16"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span>;</span></code></pre></div></div>
+</div>
+<p>The public API exposes two mutating operations. <code>add_statement!</code> registers a new statement and immediately re-solves so that <code>p_true</code> is initialised from the current weights. <code>add_observation!</code> appends a single observation and re-solves, returning the updated weight vector and statement list together so callers have a consistent snapshot.</p>
+<div id="10" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb5-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_statement!</span>(g<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">ReputationGraph</span>, endorsers<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Vector{Int}</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Int</span></span>
+<span id="cb5-2">    id <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">length</span>(g.statements) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span></span>
+<span id="cb5-3">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(g.statements, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Statement</span>(; id, endorsers))</span>
+<span id="cb5-4">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">solve_fixedpoint!</span>(g)</span>
+<span id="cb5-5">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> id</span>
+<span id="cb5-6"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb5-7"></span>
+<span id="cb5-8"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_observation!</span>(g<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">ReputationGraph</span>,</span>
+<span id="cb5-9">                           validator<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Int</span>, statement_id<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Int</span>, confirmed<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Bool</span>;</span>
+<span id="cb5-10">                           kwargs<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">...</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Tuple{Vector{Float64}, Vector{Statement}}</span></span>
+<span id="cb5-11">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(g.obs, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Observation</span>(validator, statement_id, confirmed))</span>
+<span id="cb5-12">    w <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">solve_fixedpoint!</span>(g; kwargs<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">...</span>)</span>
+<span id="cb5-13">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> w, g.statements</span>
+<span id="cb5-14"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span>;</span></code></pre></div></div>
+</div>
+<hr>
+</section>
+<section id="worked-example" class="level2">
+<h2 class="anchored" data-anchor-id="worked-example">Worked Example</h2>
+<p>We set up six people with persons 1 and 2 in the trusted set and register four statements. Each validator assesses any given statement at most once. Each code block below ends with an expression whose value is displayed, as in a Jupyter notebook — here the current weight vector <img src="https://latex.codecogs.com/png.latex?w">.</p>
+<p><strong>Setup.</strong> Initialise the graph and register statements.</p>
+<div id="12" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1">trusted <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Set</span>([<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>])</span>
+<span id="cb6-2">g <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ReputationGraph</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6</span>, trusted; alpha0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>, beta0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>)</span>
+<span id="cb6-3"></span>
+<span id="cb6-4">s1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_statement!</span>(g, [<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>])</span>
+<span id="cb6-5">s2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_statement!</span>(g, [<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>])</span>
+<span id="cb6-6">s3 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_statement!</span>(g, [<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>])</span>
+<span id="cb6-7">s4 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_statement!</span>(g, [<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>])</span>
+<span id="cb6-8"></span>
+<span id="cb6-9">history <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">weights</span>(g)]</span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>1-element Vector{Vector{Float64}}:
+ [1.0, 1.0, 0.5, 0.5, 0.5, 0.5]</code></pre>
+</div>
+</div>
+<p><strong>Round 1.</strong> Both trusted nodes assess person 3’s claim: person 1 confirms, person 2 also confirms. Person 3’s weight rises from the <img src="https://latex.codecogs.com/png.latex?%5Cmathrm%7BBeta%7D(1,1)"> prior.</p>
+<div id="14" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_observation!</span>(g, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, s1, <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">true</span>)</span>
+<span id="cb8-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_observation!</span>(g, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, s1, <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">true</span>)</span>
+<span id="cb8-3"></span>
+<span id="cb8-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(history, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">weights</span>(g))</span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>2-element Vector{Vector{Float64}}:
+ [1.0, 1.0, 0.5, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.5, 0.5, 0.5]</code></pre>
+</div>
+</div>
+<p><strong>Round 2.</strong> Person 3, now reputable, confirms person 4’s claim. Persons 5 and 6 also weigh in on person 4’s claim, providing independent signal.</p>
+<div id="16" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb10-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_observation!</span>(g, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, s2, <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">true</span>)</span>
+<span id="cb10-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_observation!</span>(g, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, s2, <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">true</span>)</span>
+<span id="cb10-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_observation!</span>(g, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6</span>, s2, <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">true</span>)</span>
+<span id="cb10-4"></span>
+<span id="cb10-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(history, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">weights</span>(g))</span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>3-element Vector{Vector{Float64}}:
+ [1.0, 1.0, 0.5, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.7333333333333333, 0.5, 0.5]</code></pre>
+</div>
+</div>
+<p><strong>Round 3.</strong> Person 4 confirms person 5’s claim; person 3 confirms the joint claim <img src="https://latex.codecogs.com/png.latex?s_4">.</p>
+<div id="18" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb12-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_observation!</span>(g, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">4</span>, s3, <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">true</span>)</span>
+<span id="cb12-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_observation!</span>(g, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>, s4, <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">true</span>)</span>
+<span id="cb12-3"></span>
+<span id="cb12-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(history, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">weights</span>(g))</span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>4-element Vector{Vector{Float64}}:
+ [1.0, 1.0, 0.5, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.7333333333333333, 0.5, 0.5]
+ [1.0, 1.0, 0.7912878474777408, 0.7883121098129494, 0.6413600914731654, 0.5]</code></pre>
+</div>
+</div>
+<p><strong>Round 4.</strong> Trusted node 1 refutes person 3’s claim and trusted node 2 also refutes it. Person 3’s weight falls, dragging down person 4 and the lower bound on <img src="https://latex.codecogs.com/png.latex?s_4"> with it.</p>
+<div id="20" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb14-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_observation!</span>(g, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, s1, <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">false</span>)</span>
+<span id="cb14-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_observation!</span>(g, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, s1, <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">false</span>)</span>
+<span id="cb14-3"></span>
+<span id="cb14-4"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(history, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">weights</span>(g))</span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>5-element Vector{Vector{Float64}}:
+ [1.0, 1.0, 0.5, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.5, 0.5, 0.5]
+ [1.0, 1.0, 0.75, 0.7333333333333333, 0.5, 0.5]
+ [1.0, 1.0, 0.7912878474777408, 0.7883121098129494, 0.6413600914731654, 0.5]
+ [1.0, 1.0, 0.5413812651499745, 0.7630807650255474, 0.6380851357497672, 0.5]</code></pre>
+</div>
+</div>
+<p><strong>Plot.</strong> The chart below shows <img src="https://latex.codecogs.com/png.latex?w_i"> for each participant after each round. Trusted persons 1 and 2 are fixed at 1 throughout and are omitted for clarity.</p>
+<div id="22" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb16-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">using</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">CairoMakie</span></span>
+<span id="cb16-2">CairoMakie.<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">enable_only_mime!</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"png"</span>)</span>
+<span id="cb16-3">rounds <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">length</span>(history)<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span></span>
+<span id="cb16-4">fig <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Figure</span>(size <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">700</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">380</span>))</span>
+<span id="cb16-5">ax  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Axis</span>(fig[<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>];</span>
+<span id="cb16-6">    xlabel <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Round"</span>,</span>
+<span id="cb16-7">    ylabel <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Trustworthiness weight w"</span>,</span>
+<span id="cb16-8">    title  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Reputation over rounds"</span>,</span>
+<span id="cb16-9">    xticks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> rounds,</span>
+<span id="cb16-10">    yticks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>,</span>
+<span id="cb16-11">    limits <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (<span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">nothing</span>, (<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.05</span>)))</span>
+<span id="cb16-12"></span>
+<span id="cb16-13"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> person <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6</span></span>
+<span id="cb16-14">    ws <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [h[person] for h <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> history]</span>
+<span id="cb16-15">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">lines!</span>(ax, rounds, ws; linewidth <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, label <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Person </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>person<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>)</span>
+<span id="cb16-16"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb16-17"></span>
+<span id="cb16-18"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">axislegend</span>(ax; position <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>lt)</span>
+<span id="cb16-19">fig</span></code></pre></div></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+<figure class="figure">
+<p><img src="https://samanklesaria.github.io/posts/reputation/reputation_files/figure-html/cell-12-output-1.png" width="700" height="380" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The plot makes the propagation visible: persons 3–5 rise as trust flows outward from <img src="https://latex.codecogs.com/png.latex?T">, and then persons 3 and 4 fall in round 4 as both trusted nodes contradict person 3’s earlier claim.</p>
+<hr>
+</section>
+<section id="a-real-world-instantiation-pgp-keys-and-the-open-world" class="level2">
+<h2 class="anchored" data-anchor-id="a-real-world-instantiation-pgp-keys-and-the-open-world">A Real-World Instantiation: PGP Keys and the Open World</h2>
+<p>The model so far has assumed a closed world — a fixed population of <img src="https://latex.codecogs.com/png.latex?n"> known people, each with a pre-allocated slot in the <img src="https://latex.codecogs.com/png.latex?%5Calpha"> and <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> vectors. In practice, new actors appear continuously, statements are pseudonymous, and you cannot know in advance who will speak. This section sketches how to ground the abstract model in something deployable, using PGP keys to establish <img src="https://latex.codecogs.com/png.latex?T"> and extending naturally to an open world.</p>
+<section id="identities-as-public-keys" class="level3">
+<h3 class="anchored" data-anchor-id="identities-as-public-keys">Identities as Public Keys</h3>
+<p>Replace integer node indices with PGP public key fingerprints. A <strong>person</strong> in the model is now a key, and a <strong>statement</strong> is any content-addressed artifact that has been <strong>signed</strong> with that key. This gives us something the integer model lacked: unforgeable authorship — an observation cannot be forged after the fact without breaking the underlying elliptic curve or RSA scheme.</p>
+</section>
+<section id="establishing-t-via-the-pgp-web-of-trust" class="level3">
+<h3 class="anchored" data-anchor-id="establishing-t-via-the-pgp-web-of-trust">Establishing <img src="https://latex.codecogs.com/png.latex?T"> via the PGP Web of Trust</h3>
+<p>The trusted set <img src="https://latex.codecogs.com/png.latex?T"> does not fall from the sky. PGP already has a decades-old mechanism for bootstrapping trust called the <strong>web of trust</strong>: participants sign each other’s public keys to attest that they have verified the real-world identity behind the key. The classical PGP trust levels map naturally onto our model:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>PGP trust level</th>
+<th>Interpretation in our model</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Ultimate</strong> (your own key)</td>
+<td>Member of <img src="https://latex.codecogs.com/png.latex?T"></td>
+</tr>
+<tr class="even">
+<td><strong>Full</strong> (personally verified)</td>
+<td>Also a member of <img src="https://latex.codecogs.com/png.latex?T"></td>
+</tr>
+<tr class="odd">
+<td><strong>Marginal</strong> (partially trusted)</td>
+<td>Initialise with a weak prior, e.g.&nbsp;<img src="https://latex.codecogs.com/png.latex?%5Cmathrm%7BBeta%7D(2,%201)"></td>
+</tr>
+<tr class="even">
+<td><strong>Unknown / untrusted</strong></td>
+<td>Default prior <img src="https://latex.codecogs.com/png.latex?%5Cmathrm%7BBeta%7D(1,%201)"></td>
+</tr>
+</tbody>
+</table>
+<p>Keys you have personally verified at a key signing party, or through out-of-band fingerprint exchange, enter <img src="https://latex.codecogs.com/png.latex?T"> directly. Keys attested by PGP’s classic “three marginal signers” heuristic can instead seed a <img src="https://latex.codecogs.com/png.latex?%5Cmathrm%7BBeta%7D(10,%201)"> prior rather than being fixed at 1, which is more honest about residual uncertainty.</p>
+<p>The Bayesian model then takes over from where PGP stops. PGP’s web of trust is binary and static — a key is either trusted enough or it is not, and trust does not degrade when a key holder is later found to have lied. Our model is continuous and dynamic: <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i"> drifts down whenever a trusted source contradicts a signed statement by key <img src="https://latex.codecogs.com/png.latex?i">, regardless of how that key entered the graph.</p>
+</section>
+<section id="open-world-dynamics-and-revocation" class="level3">
+<h3 class="anchored" data-anchor-id="open-world-dynamics-and-revocation">Open-World Dynamics and Revocation</h3>
+<p>In the open world, new keys appear with every new statement. The graph grows lazily: a previously unseen fingerprint gets a fresh <img src="https://latex.codecogs.com/png.latex?%5Cmathrm%7BBeta%7D(%5Calpha_0,%0A%5Cbeta_0)"> node, so its initial weight is <img src="https://latex.codecogs.com/png.latex?w%20=%200.5"> under a uniform prior and it contributes half a count to anything it endorses until validators speak.</p>
+<p>Key revocation maps to a hard deletion: filter <code>g.obs</code> to remove every observation made by the revoked fingerprint, then re-solve the fixed point. All downstream weights that depended on that validator’s fractional counts are automatically corrected by the re-solve.</p>
+</section>
+<section id="concrete-implementation" class="level3">
+<h3 class="anchored" data-anchor-id="concrete-implementation">Concrete Implementation</h3>
+<p>An <strong>assertion</strong> is a cleartext claim together with a detached PGP signature over its content. The statement identifier is the hex-encoded SHA-256 digest of the content — a globally unambiguous content address.</p>
+<div id="24" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb17-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">using</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">SHA</span></span>
+<span id="cb17-2"></span>
+<span id="cb17-3"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">struct</span> SignedAssertion</span>
+<span id="cb17-4">    content   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> String</span></span>
+<span id="cb17-5">    signature <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> String</span></span>
+<span id="cb17-6"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb17-7"></span>
+<span id="cb17-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">statement_id</span>(a<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">SignedAssertion</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">bytes2hex</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sha256</span>(a.content));</span></code></pre></div></div>
+</div>
+<p>Signature verification shells out to <code>gpg --status-fd 1</code>. The relevant tokens are <code>VALIDSIG</code> (which carries the full key fingerprint) and one of <code>TRUST_ULTIMATE</code>, <code>TRUST_FULLY</code>, <code>TRUST_MARGINAL</code>, or <code>TRUST_UNDEFINED</code>, which reflect the local owner-trust database — the same web of trust the user already maintains with <code>gpg --edit-key</code>. On failure, or if the signature cannot be verified against any key in the keyring, <code>gpg_verify</code> returns <code>nothing</code>.</p>
+<div id="26" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb18-1"><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@enum</span> Trust Unknown Marginal Full</span>
+<span id="cb18-2"></span>
+<span id="cb18-3"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">gpg_verify</span>(content<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">String</span>, signature<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">String</span></span>
+<span id="cb18-4">                    ) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Union{Nothing, Tuple{String, Trust}}</span></span>
+<span id="cb18-5">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mktempdir</span>() <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">do</span> dir</span>
+<span id="cb18-6">        sig_path <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">joinpath</span>(dir, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"sig.asc"</span>)</span>
+<span id="cb18-7">        <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">write</span>(sig_path, signature)</span>
+<span id="cb18-8">        result <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">readchomp</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pipeline</span>(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">`gpg --status-fd 1 --verify $sig_path -`</span>,</span>
+<span id="cb18-9">                                    <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">stdin</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">IOBuffer</span>(content)))</span>
+<span id="cb18-10">        lines <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">split</span>(result, <span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'\n'</span>)</span>
+<span id="cb18-11"></span>
+<span id="cb18-12">        vsig_line  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">findfirst</span>(l <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">occursin</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">" VALIDSIG "</span>, l), lines)</span>
+<span id="cb18-13">        trust_line <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">findfirst</span>(l <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">occursin</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">" TRUST_"</span>,   l), lines)</span>
+<span id="cb18-14"></span>
+<span id="cb18-15">        vsig_line <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">===</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">nothing</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;&amp;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">nothing</span></span>
+<span id="cb18-16"></span>
+<span id="cb18-17">        fingerprint <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">split</span>(lines[vsig_line])[<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>]</span>
+<span id="cb18-18">        trust_tag   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> trust_line <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">!==</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">nothing</span> ? <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">split</span>(lines[trust_line])[<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span></span>
+<span id="cb18-19"></span>
+<span id="cb18-20">        trust <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> trust_tag <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"TRUST_MARGINAL"</span>                   ? Marginal <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span></span>
+<span id="cb18-21">                trust_tag <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">∈</span> (<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"TRUST_FULLY"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"TRUST_ULTIMATE"</span>)   ? Full     <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span></span>
+<span id="cb18-22">                                                                  Unknown</span>
+<span id="cb18-23"></span>
+<span id="cb18-24">        (fingerprint, trust)</span>
+<span id="cb18-25">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb18-26"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span>;</span></code></pre></div></div>
+</div>
+<p>The three trust levels seed the Beta prior for a newly seen key. Full trust (GPG’s <code>TRUST_FULLY</code> and <code>TRUST_ULTIMATE</code>) places the node directly in <img src="https://latex.codecogs.com/png.latex?T">; marginal trust biases the prior towards truthfulness; unknown keys start at the uniform <img src="https://latex.codecogs.com/png.latex?%5Cmathrm%7BBeta%7D(1,1)">.</p>
+<p><code>PGPReputationGraph</code> wraps the inner <code>ReputationGraph</code> with two dictionaries that map cryptographic identifiers — key fingerprints and content hashes — to the integer indices used by the solver. The graph is seeded with a single node for your own key, which is immediately placed in <img src="https://latex.codecogs.com/png.latex?T">.</p>
+<div id="28" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb19-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">mutable struct</span> PGPReputationGraph</span>
+<span id="cb19-2">    g                 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> ReputationGraph</span></span>
+<span id="cb19-3">    fingerprint_index <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Dict{String, Int}</span></span>
+<span id="cb19-4">    statement_index   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Dict{String, Int}</span></span>
+<span id="cb19-5"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb19-6"></span>
+<span id="cb19-7"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">PGPReputationGraph</span>(own_fingerprint<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">String</span>)</span>
+<span id="cb19-8">    g <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ReputationGraph</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Set</span>([<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]); alpha0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>, beta0 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>)</span>
+<span id="cb19-9">    pg <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">PGPReputationGraph</span>(g, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Dict</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">{String,Int}</span>(), <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Dict</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">{String,Int}</span>())</span>
+<span id="cb19-10">    pg.fingerprint_index[own_fingerprint] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span></span>
+<span id="cb19-11">    pg</span>
+<span id="cb19-12"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span>;</span></code></pre></div></div>
+</div>
+<p>New fingerprints and content hashes are registered lazily on first encounter. For fingerprints, the PGP trust level at the moment of first contact determines the prior; subsequent observations update it from there. For statements, if the same content hash arrives from a second signer, that signer is added to the endorser list of the existing <code>Statement</code> node rather than creating a duplicate.</p>
+<div id="30" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb20-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">get_or_create_node!</span>(pg<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PGPReputationGraph</span>,</span>
+<span id="cb20-2">                              fingerprint<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">String</span>,</span>
+<span id="cb20-3">                              trust<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Trust</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Int</span></span>
+<span id="cb20-4">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">haskey</span>(pg.fingerprint_index, fingerprint) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;&amp;</span></span>
+<span id="cb20-5">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> pg.fingerprint_index[fingerprint]</span>
+<span id="cb20-6"></span>
+<span id="cb20-7">    α<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, β<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> trust <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> Marginal ? (<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span> (<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>)</span>
+<span id="cb20-8">    g <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> pg.g</span>
+<span id="cb20-9">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(g.alpha,  α<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>); <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(g.alpha0, α<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)</span>
+<span id="cb20-10">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(g.beta,   β<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>); <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(g.beta0,  β<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)</span>
+<span id="cb20-11">    idx <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">length</span>(g.alpha)</span>
+<span id="cb20-12">    pg.fingerprint_index[fingerprint] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> idx</span>
+<span id="cb20-13">    trust <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> Full <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;&amp;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(g.trusted, idx)</span>
+<span id="cb20-14">    idx</span>
+<span id="cb20-15"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb20-16"></span>
+<span id="cb20-17"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">get_or_create_statement!</span>(pg<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PGPReputationGraph</span>,</span>
+<span id="cb20-18">                                   content_hash<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">String</span>,</span>
+<span id="cb20-19">                                   endorser_idx<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Int</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Int</span></span>
+<span id="cb20-20">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">haskey</span>(pg.statement_index, content_hash)</span>
+<span id="cb20-21">        sid  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> pg.statement_index[content_hash]</span>
+<span id="cb20-22">        stmt <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> pg.g.statements[sid]</span>
+<span id="cb20-23">        endorser_idx <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">∉</span> stmt.endorsers <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;&amp;</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(stmt.endorsers, endorser_idx)</span>
+<span id="cb20-24">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> sid</span>
+<span id="cb20-25">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb20-26">    sid <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">add_statement!</span>(pg.g, [endorser_idx])</span>
+<span id="cb20-27">    pg.statement_index[content_hash] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> sid</span>
+<span id="cb20-28">    sid</span>
+<span id="cb20-29"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span>;</span></code></pre></div></div>
+</div>
+<p><code>process_assertions!</code> is the main entry point. It takes a batch of signed assertions and executes four steps in order: verify each signature and discard failures; look up or allocate nodes and statements; append all new observations to the graph; then re-solve the fixed point exactly once for the whole batch. The function returns a <code>(content_hash, p_true_lower_bound)</code> pair for each assertion whose signature was valid.</p>
+<div id="32" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb21-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">process_assertions!</span>(pg<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PGPReputationGraph</span>,</span>
+<span id="cb21-2">                              assertions<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Vector{SignedAssertion}</span></span>
+<span id="cb21-3">                              ) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;"> Vector{Tuple{String, Float64}}</span></span>
+<span id="cb21-4">    verified <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Tuple</span>{SignedAssertion, <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">String</span>, Trust}[]</span>
+<span id="cb21-5"></span>
+<span id="cb21-6">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> assertion <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> assertions</span>
+<span id="cb21-7">        result <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">gpg_verify</span>(assertion.content, assertion.signature)</span>
+<span id="cb21-8">        result <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">===</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">nothing</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;&amp;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">continue</span></span>
+<span id="cb21-9">        <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(verified, (assertion, result<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">...</span>))</span>
+<span id="cb21-10">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb21-11"></span>
+<span id="cb21-12">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">isempty</span>(verified) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;&amp;</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Tuple</span>{<span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">String</span>,<span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Float64</span>}[]</span>
+<span id="cb21-13"></span>
+<span id="cb21-14">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> (assertion, fingerprint, trust) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> verified</span>
+<span id="cb21-15">        validator_idx <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">get_or_create_node!</span>(pg, fingerprint, trust)</span>
+<span id="cb21-16">        content_hash  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">statement_id</span>(assertion)</span>
+<span id="cb21-17">        stmt_id       <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">get_or_create_statement!</span>(pg, content_hash, validator_idx)</span>
+<span id="cb21-18">        <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">push!</span>(pg.g.obs, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">Observation</span>(validator_idx, stmt_id, <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">true</span>))</span>
+<span id="cb21-19">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb21-20"></span>
+<span id="cb21-21">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">solve_fixedpoint!</span>(pg.g)</span>
+<span id="cb21-22"></span>
+<span id="cb21-23">    [(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">statement_id</span>(a), pg.g.statements[pg.statement_index[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">statement_id</span>(a)]].p_true)</span>
+<span id="cb21-24">     for (a, _, _) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> verified]</span>
+<span id="cb21-25"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span>;</span></code></pre></div></div>
+</div>
+<p>Revocation remains a one-liner: filter the revoked key’s observations out of <code>pg.g.obs</code> and re-solve. All downstream weights that depended on that validator’s fractional counts are corrected automatically.</p>
+</section>
+<section id="signed-observations-as-a-gossip-protocol" class="level3">
+<h3 class="anchored" data-anchor-id="signed-observations-as-a-gossip-protocol">Signed Observations as a Gossip Protocol</h3>
+<p>Because every observation is a signed statement, the observation graph itself can be gossiped over a peer-to-peer network. A node receiving a bundle of signed attestations calls <code>process_assertions!</code> locally, verifies each signature against its own keyring, and re-solves its own fixed point. This yields a fully decentralised reputation system: trust is rooted in each participant’s own key and their personally verified <img src="https://latex.codecogs.com/png.latex?T">, propagated through the Bayesian fixed point over a cryptographically authenticated observation graph, and updated continuously as new signed attestations arrive from peers.</p>
+
+
+</section>
+</section>
+
+ ]]></description>
+  <category>machine_learning</category>
+  <guid>https://samanklesaria.github.io/posts/reputation/reputation.html</guid>
+  <pubDate>Tue, 31 Mar 2026 05:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Fitting Gaussians with Missing Observations</title>
   <link>https://samanklesaria.github.io/posts/missing_obs/missing_obs.html</link>
@@ -10444,1002 +11972,6 @@ font-style: inherit;">unflatten</span>(training_results.minimizer)), y))</span><
   <category>math</category>
   <guid>https://samanklesaria.github.io/posts/Krylov-Methods.html</guid>
   <pubDate>Tue, 13 Feb 2024 06:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Mapping with Gaussian Conditioning</title>
-  <link>https://samanklesaria.github.io/posts/kalman/kalman.html</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<div id="2" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">using</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">LinearAlgebra</span>, <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">SparseArrays</span>, <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">FillArrays</span>, <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">Rotations</span>, <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">RecursiveArrayTools</span>, <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">ForwardDiff</span>, <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">DiffResults</span>, <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">LazyArrays</span>, <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">CairoMakie</span></span>
-<span id="cb1-2">CairoMakie.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">enable_only_mime!</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"png"</span>)</span></code></pre></div></div>
-</div>
-<p>For a robot to navigate autonomously, it needs to learn the locations of any potential obsticles around it. One of the standard ways to do this is with an algorithm known as EKF-Slam. Slam stands for “simultaneous localization and mapping”, as the algorithm must simultaneously find out where the robot is (localization) and where the obstacles are (mapping). The “EKF” part refers to the “extended Kalman filter”, which is just a fancy name for Gaussian conditioning with Taylor approximations. The idea goes as follows:</p>
-<p>Describe the robot by its position coordinates <img src="https://latex.codecogs.com/png.latex?u%20%5Cin%20%5Cmathbb%7BR%7D%5E2">. Assume it has a sensor that gives noisy measurements <img src="https://latex.codecogs.com/png.latex?Y"> of the displacement to an obstacle at location <img src="https://latex.codecogs.com/png.latex?v%20%5Cin%20%5Cmathbb%7BR%7D%5E2">. Specifically, assume <img src="https://latex.codecogs.com/png.latex?Y%20%5Csim%20%5Cmathcal%7BN%7D(v%20-%20u,%20%5CSigma_2)">.</p>
-<p>Let our uncertainty about the locations <img src="https://latex.codecogs.com/png.latex?u"> and <img src="https://latex.codecogs.com/png.latex?v"> be jointly be described by the random variable <img src="https://latex.codecogs.com/png.latex?X%20%5Csim%20%5Cmathcal%7BN%7D(%5Cmu,%20%5CSigma_1)"> in <img src="https://latex.codecogs.com/png.latex?%5Cmathbb%7BR%7D%5E4">. Given the observation <img src="https://latex.codecogs.com/png.latex?Y">, we’d like to find the posterior distribution over <img src="https://latex.codecogs.com/png.latex?X">.</p>
-<p>Conditioning Gaussians is easier in the natural paramteterization. Instead of describing distributions with a mean <img src="https://latex.codecogs.com/png.latex?%5Cmu"> and covariance <img src="https://latex.codecogs.com/png.latex?%5CSigma">, we describe them with a precision <img src="https://latex.codecogs.com/png.latex?%5CLambda"> and information vector <img src="https://latex.codecogs.com/png.latex?%5CLambda%20%5Cmu">. In this parameterization, say <img src="https://latex.codecogs.com/png.latex?X%20%5Csim%20%5Cmathcal%7BN%7D(%5CLambda_1,%20%5CLambda_1%5Cmu_1)"> and <img src="https://latex.codecogs.com/png.latex?Y%20%5Csim%20%5Cmathcal%7BN%7D(%5CLambda_2,%20%5CLambda_2%20(Ax%20%20+%20b))"> where <img src="https://latex.codecogs.com/png.latex?A"> is a linear transformation. Then by Bayes’ rule, a little algebra tells us that <img src="https://latex.codecogs.com/png.latex?%0AX%20%7C%20y%20%5Csim%20%5Cmathcal%7BN%7D(%5CLambda_1%5Cmu%20+%20A%5ET%5CLambda_2(y%20-%20b),%20%5CLambda_1%20+%20A%5ET%5CLambda_2A)%0A"></p>
-<p>When <img src="https://latex.codecogs.com/png.latex?X"> describes robot and obstacle locations and <img src="https://latex.codecogs.com/png.latex?Y"> describes noisy displacement observations as above, we get the posterior natural parameters <img src="https://latex.codecogs.com/png.latex?%0A(%5CSigma_1%5E%7B-1%7D%20%5Cmu%20+%20A%5ET%5CSigma_2%5E%7B-1%7DY,%20%5CSigma_1%5E%7B-1%7D%20+%20A%5ET%5CSigma_2%5E%7B-1%7DA)%0A"> where <img src="https://latex.codecogs.com/png.latex?A%20=%20%5Cbegin%7Bbmatrix%7D%20-I%20&amp;%20I%20%5Cend%7Bbmatrix%7D">.</p>
-<p>We also need to update the distribution for <img src="https://latex.codecogs.com/png.latex?X"> when the robot moves. Say we know that the robot’s position was displaced by some <img src="https://latex.codecogs.com/png.latex?%5CDelta%20%5Csim%20%5Cmathcal%7BN%7D(%5Cdelta,%20%5CSigma_3)">. After this displacement</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0AX%20%5Csim%20%5Cmathcal%7BN%7D%5Cleft(%5Cmu%20+%20%5Cbegin%7Bbmatrix%7D%20%5Cdelta%20%200%20%5Cend%7Bbmatrix%7D,%20%5CSigma_1%20+%20%5Cbegin%7Bbmatrix%7D%20%5CSigma_3%20&amp;%20%20%20&amp;%200%20%5Cend%7Bbmatrix%7D%5Cright)%0A"></p>
-<p>By repeatedly updating our distribution over <img src="https://latex.codecogs.com/png.latex?X"> in response to observations <img src="https://latex.codecogs.com/png.latex?Y"> and movements <img src="https://latex.codecogs.com/png.latex?%5CDelta">, we can track the likely position of the robot and the obstacle over time.</p>
-<section id="adding-a-heading" class="level2">
-<h2 class="anchored" data-anchor-id="adding-a-heading">Adding a Heading</h2>
-<p>To make this toy example slightly more realistic, let us also give the robot a heading angle <img src="https://latex.codecogs.com/png.latex?%5Ctheta">. Assume now that the sensor measurement above is rotated <img src="https://latex.codecogs.com/png.latex?-%5Ctheta"> degrees, so that <img src="https://latex.codecogs.com/png.latex?Y%20=%20f(X)%20+%20%5Cepsilon">, where <img src="https://latex.codecogs.com/png.latex?%5Cepsilon%20%5Csim%20%5Cmathcal%7BN%7D(0,%20%5CSigma_2)">, <img src="https://latex.codecogs.com/png.latex?f(x)%20=%20R_x(x_2%20-%20x_1)">, <img src="https://latex.codecogs.com/png.latex?x_1"> and <img src="https://latex.codecogs.com/png.latex?x_2"> refer to the robot and obstacle coordinate components of <img src="https://latex.codecogs.com/png.latex?x"> respectively, and <img src="https://latex.codecogs.com/png.latex?R_x"> is the corresponding rotation matrix. Although <img src="https://latex.codecogs.com/png.latex?f"> isn’t linear, we can use the Taylor approximation of <img src="https://latex.codecogs.com/png.latex?f"> about <img src="https://latex.codecogs.com/png.latex?%5Cmu"> to pretend it is. <img src="https://latex.codecogs.com/png.latex?%0Af(x)%20=%20f(%5Cmu%20+%20(x%20-%20%5Cmu))%20%5Capprox%20f(%5Cmu)%20+%20%5Cnabla%20f(%5Cmu)(x%20-%20%5Cmu)%0A"> This makes <img src="https://latex.codecogs.com/png.latex?Y"> a linear transformation of <img src="https://latex.codecogs.com/png.latex?X">, so we can continue to use the standard Gaussian conditioning formula. We get natural parameters</p>
-<p><img src="https://latex.codecogs.com/png.latex?%0A(%5CSigma_1%5E%7B-1%7D%20%5Cmu%20+%20J%5ET%5CSigma_2%5E%7B-1%7D(Y%20-%20b),%20%5CSigma_1%5E%7B-1%7D%20+%20J%5ET%5CSigma_2%5E%7B-1%7DJ)%0A"> where <img src="https://latex.codecogs.com/png.latex?J%20=%20%5Cnabla%20f(%5Cmu)"> and <img src="https://latex.codecogs.com/png.latex?b%20=%20f(%5Cmu)%20-%20J%20%5Cmu">. This expression naturally extends to handling observations for multiple obstacles.</p>
-<p>This is the EKF-Slam algorithm in a nutshell. With the math out of the way, let’s get to some code.</p>
-</section>
-<section id="code-for-observing" class="level1">
-<h1>Code for Observing</h1>
-<p>While finding the Jacobian above analytically is easy enough, it’s even easier to let Julia do it with Forward mode automatic differentiation.</p>
-<p>For ease of notation let <img src="https://latex.codecogs.com/png.latex?L=%5CSigma_2%5E%7B-2%7D">.</p>
-<div id="4" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1">L <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>  <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">10</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Eye</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>)</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>2×2 FillArrays.RectDiagonal{Float64, Vector{Float64}, Tuple{Base.OneTo{Int64}, Base.OneTo{Int64}}}:
- 10.0    ⋅ 
-   ⋅   10.0</code></pre>
-</div>
-</div>
-<div id="6" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">obs_approx</span>(μ<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">AbstractVector</span>, ix<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Int</span>, y<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">AbstractVector</span>)</span>
-<span id="cb4-2">    result <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> DiffResults.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">JacobianResult</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">zeros</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>), μ)</span>
-<span id="cb4-3">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">f</span>(μ) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">RotMatrix</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">{2}</span>(<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>μ[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>]) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> (μ[ix<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>ix<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> μ[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>])</span>
-<span id="cb4-4">    ForwardDiff.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">jacobian!</span>(result, f, μ)</span>
-<span id="cb4-5">    f_μ <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> DiffResults.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">value</span>(result)</span>
-<span id="cb4-6">    J <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> DiffResults.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">jacobian</span>(result)</span>
-<span id="cb4-7">    JL <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> J<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">'</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> L</span>
-<span id="cb4-8">    b <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> f_μ <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> J <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> μ</span>
-<span id="cb4-9">    JL <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> (y <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> b), JL <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> J</span>
-<span id="cb4-10"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>obs_approx (generic function with 1 method)</code></pre>
-</div>
-</div>
-</section>
-<section id="code-for-moving" class="level1">
-<h1>Code for Moving</h1>
-<p>For simplicity, let’s assume that at each step in time, the robot walks in the direction <img src="https://latex.codecogs.com/png.latex?(1,1)"> and rotates its heading by <img src="https://latex.codecogs.com/png.latex?2%5Cpi/100"> radians.</p>
-<div id="8" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1">dμ_1 <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> [<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span><span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">π</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span>]</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>3-element Vector{Float64}:
- 1.0
- 1.0
- 0.06283185307179587</code></pre>
-</div>
-</div>
-<p>These updates are noisy however, accounting for any imprecision in our dynamics model. Our uncertainty about the robot’s location increases at each step according to the following covariance matrix.</p>
-<div id="10" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb8-1">Σ<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3_1</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Diagonal</span>([<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.02</span>])</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>3×3 Diagonal{Float64, Vector{Float64}}:
- 1.0   ⋅    ⋅ 
-  ⋅   1.0   ⋅ 
-  ⋅    ⋅   0.02</code></pre>
-</div>
-</div>
-<div id="12" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb10-1">N <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">4</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>4</code></pre>
-</div>
-</div>
-<p>We add this to our mean vector…</p>
-<div id="14" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb12-1">dμ <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sparsevec</span>([<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>], dμ_1, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> N)</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>11-element SparseVector{Float64, Int64} with 3 stored entries:
-  [1]  =  1.0
-  [2]  =  1.0
-  [3]  =  0.0628319</code></pre>
-</div>
-</div>
-<p>…and this to our covariance matrix…</p>
-<div id="16" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb14-1">Σ<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sparse_vcat</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sparse_hcat</span>(Σ<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3_1</span>, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Zeros</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> N)), <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Zeros</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span>N, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> N))</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>11×11 SparseMatrixCSC{Float64, Int64} with 3 stored entries:
- 1.0   ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
-  ⋅   1.0   ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
-  ⋅    ⋅   0.02   ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅     ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ </code></pre>
-</div>
-</div>
-<p>… which can be factored as <img src="https://latex.codecogs.com/png.latex?U%20%5CSigma_%7B3,1%7D%20U'">, where <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign%7D%0AU%20=%20%5Cbegin%7Bbmatrix%7D%20I%20%200%20%5Cend%7Bbmatrix%7D%0A%5Cend%7Balign%7D%0A"></p>
-<div id="18" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb16-1">U <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Vcat</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Diagonal</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ones</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>)), <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Zeros</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> N, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>))</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>vcat(3×3 Diagonal{Float64, Vector{Float64}}, 8×3 Zeros{Float64}):
- 1.0   ⋅    ⋅ 
-  ⋅   1.0   ⋅ 
-  ⋅    ⋅   1.0
-  ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅ 
-  ⋅    ⋅    ⋅ </code></pre>
-</div>
-</div>
-<div id="20" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb18-1">V <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">SparseMatrixCSC</span>(U<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">'</span>)</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>3×11 SparseMatrixCSC{Float64, Int64} with 3 stored entries:
- 1.0   ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
-  ⋅   1.0   ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ 
-  ⋅    ⋅   1.0   ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅    ⋅ </code></pre>
-</div>
-</div>
-<p>This is a low rank matrix. And we’ll need to invert the resut when we condition on the observations, as described above. So we’ll express our update to the covariance matrix <img src="https://latex.codecogs.com/png.latex?%5CSigma_1"> in terms of the Woodbury Matrix identity, which says that <img src="https://latex.codecogs.com/png.latex?(%5CSigma_1%20+%20%20U%5CSigma_%7B3,1%7DV)%5E%7B-1%7D%20=%20%5CSigma_1%5E%7B-1%7D%20-%20%5CSigma_1%5E%7B-1%7D%20U%20(%5CSigma_%7B3,1%7D%5E%7B-1%7D%20+%20V%5CSigma_1%5E%7B-1%7D%20U)%5E%7B-1%7DV%5CSigma_1%5E%7B-1%7D">. Let <img src="https://latex.codecogs.com/png.latex?%5CSigma_1%5E%7B-1%7D%20=%20%5CLambda">.</p>
-<div id="22" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb20-1">Λ<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3_1</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">inv</span>(Σ<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3_1</span>)</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>3×3 Diagonal{Float64, Vector{Float64}}:
- 1.0   ⋅     ⋅ 
-  ⋅   1.0    ⋅ 
-  ⋅    ⋅   50.0</code></pre>
-</div>
-</div>
-<div id="24" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb22-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">update_precision</span>(Λ)</span>
-<span id="cb22-2">    Λ <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> Λ <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> U <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> (((Λ<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3_1</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> Λ[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>]) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">\</span> V) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> Λ)</span>
-<span id="cb22-3"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>update_precision (generic function with 1 method)</code></pre>
-</div>
-</div>
-</section>
-<section id="putting-them-together" class="level1">
-<h1>Putting them Together</h1>
-<p>We want to update the distribution over possible locations <img src="https://latex.codecogs.com/png.latex?X"> after a single time-step. First, the movement of the robot is accounted for by the dynamics model. Then we condition on the observations of each obstacle <img src="https://latex.codecogs.com/png.latex?ys">.</p>
-<div id="26" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb24-1"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">tupsum</span>(x,y) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> x <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.+</span> y</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>tupsum (generic function with 1 method)</code></pre>
-</div>
-</div>
-<div id="28" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb26-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">step</span>((μ,Λ), ys)</span>
-<span id="cb26-2">    μ <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+=</span> dμ</span>
-<span id="cb26-3">    Λ <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">update_precision</span>(Λ)</span>
-<span id="cb26-4">    msg <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">reduce</span>(tupsum, (<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">obs_approx</span>(μ, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">4</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> (i<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>), y)</span>
-<span id="cb26-5">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> (i, y) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">enumerate</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">eachcol</span>(ys))))</span>
-<span id="cb26-6">    (Λμ, Λ) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> (Λ <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> μ, Λ) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.+</span> msg</span>
-<span id="cb26-7">    (Λ <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">\</span> Λμ, Λ)</span>
-<span id="cb26-8"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>step (generic function with 1 method)</code></pre>
-</div>
-</div>
-<p>That’s it! We’ve written the algorithm for EKF-Slam. It remains to see how it performs on fake data.</p>
-</section>
-<section id="fake-data" class="level1">
-<h1>Fake Data</h1>
-<p>Here we generate the unknown, true trajectory that the robot takes by following our dynamics model.</p>
-<div id="30" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb28-1">K <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">100</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>100</code></pre>
-</div>
-</div>
-<div id="32" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb30-1">true_x1s <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> [<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">zeros</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>) <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cumsum</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">repeat</span>(dμ_1, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, K<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sqrt</span>(Σ<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3_1</span>) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">randn</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>,K<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>), dims<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>)]</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>3×100 Matrix{Float64}:
- 0.0  2.11762   4.55484   5.13519   7.09133   …  93.3984   92.5634   93.3861
- 0.0  3.32292   4.84397   5.95895   8.00179      80.1535   82.0442   83.7126
- 0.0  0.242689  0.339492  0.622383  0.606434      8.75449   8.83309   8.99149</code></pre>
-</div>
-</div>
-<p>We’ll also set up the true but unknown obstacle locations.</p>
-<div id="34" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb32-1">true_x2s <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">50</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rand</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, N)</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>2×4 Matrix{Float64}:
- 19.0432    9.47417  14.7808   1.49347
-  6.61717  11.7026   39.9869  46.6605</code></pre>
-</div>
-</div>
-<div id="36" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb34-1"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">begin</span></span>
-<span id="cb34-2">f <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Figure</span>()</span>
-<span id="cb34-3">ax <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> f[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Axis</span>(f)</span>
-<span id="cb34-4"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">plot!</span>(true_x1s[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>], true_x1s[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>], label<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"robot path"</span>)</span>
-<span id="cb34-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">scatter!</span>(true_x2s[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>,<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>], true_x2s[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>,<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>], label<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"obstacles"</span>)</span>
-<span id="cb34-6">f[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>] <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Legend</span>(f, ax)</span>
-<span id="cb34-7">f</span>
-<span id="cb34-8"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<div>
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/kalman/kalman_files/figure-html/cell-19-output-1.png" width="672" height="480" class="figure-img"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>Imagine the displacement observations the robot sees along its trajectory look like this:</p>
-<div id="38" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb35-1">intRootL <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">sqrt</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">inv</span>(L))</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>2×2 Matrix{Float64}:
- 0.316228  0.0
- 0.0       0.316228</code></pre>
-</div>
-</div>
-<div id="40" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb37-1">ys <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> [(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">RotMatrix</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">{2}</span>(<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span>x[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>]) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> (true_x2s <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">.-</span> x[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>])) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> intRootL <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">randn</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>,N) for x <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">eachcol</span>(true_x1s)]</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>100-element Vector{Matrix{Float64}}:
- [19.603741851669007 9.479204551258722 14.900654400589262 1.2139374388079114; 7.109167442992881 11.775011318681827 39.864880815432244 46.47732302265945]
- [17.428417732717854 9.186205752268958 21.58418858968195 10.302514798231858; -1.2775894214216188 6.503682945931601 32.4600792973359 42.1391721408444]
- [13.744198022456898 6.46742218871332 21.604198711877444 11.647194636830429; -3.0604680460453797 5.150291438464928 30.071311279180946 40.276065820668954]
- [11.719737913056772 6.320470356596162 27.311754677102762 21.15040031222601; -7.2877817184007 1.9961194947595295 22.015843280684727 34.7138674395836]
- [9.170647717903567 4.097154497685532 24.594517778984052 17.415084927101788; -8.168926103520667 1.3713381045796311 21.868856926106677 34.58207095408722]
- [6.851771008557176 2.8387315768003183 23.86519784545656 17.74815319262439; -7.620934369097298 1.8534328414257264 21.12961974465073 35.08617798718458]
- [1.398221192786282 1.2409843183837255 27.95514193245455 26.82854294580393; -10.086407748075187 0.018919119178708033 11.240493348899419 25.699635303326286]
- [0.3169655976859883 -0.39285744142372026 26.649019797009263 25.561068751895768; -10.536310387809673 0.30927290312356137 10.084782216747216 25.16572017266392]
- [2.0434381516062126 0.5639742214775894 25.912435608559953 23.022673246126974; -10.776295296075798 0.38883939303539855 13.127995130484802 27.676442341737296]
- [-2.3710757827037687 -3.2802287127408833 23.21854805575887 21.636363251553103; -8.429720638807137 1.7055137837804848 13.483351917616712 28.44462483387499]
- ⋮
- [-85.01537842242018 -82.61016689991195 -53.73990062912071 -51.62829545307723; 48.31044159300804 58.2521122905678 61.27458633125155 75.24876490536376]
- [-77.92158877538101 -74.16003378399459 -45.675320451009426 -40.54218710372369; 60.4334255290315 70.2293122899909 69.20913376130136 83.34947961682585]
- [-70.53372215169925 -64.68037466576178 -36.7496876006135 -29.96711191806724; 69.85817704833501 79.24606738372202 74.53101886911851 87.23432715129978]
- [-33.98099706546737 -25.03165642202575 -2.057248863963723 10.12979068910752; 95.52485097649517 101.22558541520517 84.60871367148738 94.33592881378806]
- [-12.043085472099799 -2.5026403638765027 16.615205968496387 30.48133220980331; 100.64644061904743 106.00976882843113 83.95087259794121 91.08771713790362]
- [25.338843399166226 35.91483691197125 46.137066300048794 61.1525044695857; 100.16309327986784 101.23885333657653 74.11040091177298 75.58909399184269]
- [11.989506064945864 23.753886929613135 36.95714374615932 51.39192149833056; 103.51764309193247 105.77665278482468 80.20229964834772 83.03976466509822]
- [18.689727331037783 29.57774053380095 41.464426214945114 55.489635695847284; 104.09395263404592 104.18947951304438 78.66245385208178 79.59735168397988]
- [34.58203052852036 45.39969886132603 53.65821015648627 67.58345887809908; 101.16246858622048 99.85185965577973 72.26982436583816 72.23512917823203]</code></pre>
-</div>
-</div>
-<div id="42" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb39" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb39-1"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">begin</span></span>
-<span id="cb39-2">plt <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">plot</span>([y[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] for y <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> ys], [y[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] for y <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> ys])</span>
-<span id="cb39-3"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> i <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>N</span>
-<span id="cb39-4">    <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">plot!</span>([y[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>,i] for y <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> ys], [y[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>,i] for y <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> ys])</span>
-<span id="cb39-5"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb39-6">plt</span>
-<span id="cb39-7"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<div>
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/kalman/kalman_files/figure-html/cell-22-output-1.png" width="672" height="480" class="figure-img"></p>
-</figure>
-</div>
-</div>
-</div>
-</section>
-<section id="simulating-the-algorithm" class="level1">
-<h1>Simulating the Algorithm</h1>
-<p>When we start tracking the robot, we know its location almost (making these precision terms super high), but we know nothing about the locations of the obstacles, so the rest of the precision terms should be low.</p>
-<div id="44" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb40-1">Λ<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Diagonal</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">vcat</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">50</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ones</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span>), (<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">50</span>) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">ones</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> N)))</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>11×11 Diagonal{Float64, Vector{Float64}}:
- 50.0    ⋅     ⋅    ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅ 
-   ⋅   50.0    ⋅    ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅ 
-   ⋅     ⋅   50.0   ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅ 
-   ⋅     ⋅     ⋅   0.02   ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅ 
-   ⋅     ⋅     ⋅    ⋅    0.02   ⋅     ⋅     ⋅     ⋅     ⋅     ⋅ 
-   ⋅     ⋅     ⋅    ⋅     ⋅    0.02   ⋅     ⋅     ⋅     ⋅     ⋅ 
-   ⋅     ⋅     ⋅    ⋅     ⋅     ⋅    0.02   ⋅     ⋅     ⋅     ⋅ 
-   ⋅     ⋅     ⋅    ⋅     ⋅     ⋅     ⋅    0.02   ⋅     ⋅     ⋅ 
-   ⋅     ⋅     ⋅    ⋅     ⋅     ⋅     ⋅     ⋅    0.02   ⋅     ⋅ 
-   ⋅     ⋅     ⋅    ⋅     ⋅     ⋅     ⋅     ⋅     ⋅    0.02   ⋅ 
-   ⋅     ⋅     ⋅    ⋅     ⋅     ⋅     ⋅     ⋅     ⋅     ⋅    0.02</code></pre>
-</div>
-</div>
-<div id="46" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb42" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb42-1">start <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> (<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">zeros</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">3</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">*</span> N), <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Matrix</span>(Λ<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>))</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [50.0 0.0 … 0.0 0.0; 0.0 50.0 … 0.0 0.0; … ; 0.0 0.0 … 0.02 0.0; 0.0 0.0 … 0.0 0.02])</code></pre>
-</div>
-</div>
-<div id="48" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb44-1">progress <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">VectorOfArray</span>([p[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>][<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span><span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>] for p <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">accumulate</span>(step, ys; init<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>start)])</span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>VectorOfArray{Float64,2}:
-100-element Vector{Vector{Float64}}:
- [0.19603470614227045, -1.1019964687272161]
- [2.889909146537032, 2.0345416147280435]
- [5.4465674824236805, 3.490024263516243]
- [5.834140865479254, 5.621543266706627]
- [6.867610338133039, 7.345006193785757]
- [8.771160897989832, 7.684325652555491]
- [9.671871792436933, 10.576968282019857]
- [9.719187902983348, 11.137261142975037]
- [9.495176663250813, 10.67180669193075]
- [12.693960332347404, 12.717406136495278]
- ⋮
- [82.59429723485445, 80.39396991410229]
- [83.94394349825295, 80.6031184162581]
- [83.6086549631126, 81.54608657915432]
- [80.03442589307521, 78.98054759382246]
- [85.88962193557168, 81.58140447738558]
- [84.69253231070572, 81.38863317696293]
- [86.65021564031672, 83.97002446611756]
- [87.02483988117402, 87.00435824964622]
- [87.93827854608371, 87.48235512496616]</code></pre>
-</div>
-</div>
-<div id="50" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb46-1"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">begin</span></span>
-<span id="cb46-2">f2 <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Figure</span>()</span>
-<span id="cb46-3">ax2 <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> f2[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>] <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Axis</span>(f2)</span>
-<span id="cb46-4"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">plot!</span>(true_x1s[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>], true_x1s[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>], label<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"true robot trajectory"</span>)</span>
-<span id="cb46-5"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">plot!</span>(progress[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>], progress[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>, <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">:</span>], label<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"inferred robot trajectory"</span>)</span>
-<span id="cb46-6">f2[<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>,<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>] <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Legend</span>(f2, ax2)</span>
-<span id="cb46-7">f2</span>
-<span id="cb46-8"><span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<div>
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/kalman/kalman_files/figure-html/cell-26-output-1.png" width="672" height="480" class="figure-img"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>As we can see, although the robot’s trajectory did not follow our dynamics model exactly thanks to the added noise at each step, conditioning on the observations allowed us to keep track of its approximate position regardless.</p>
-
-
-</section>
-
- ]]></description>
-  <category>SLAM</category>
-  <guid>https://samanklesaria.github.io/posts/kalman/kalman.html</guid>
-  <pubDate>Mon, 02 Oct 2023 05:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
