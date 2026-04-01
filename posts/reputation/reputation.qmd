@@ -173,26 +173,11 @@ cycles the damping ensures contraction.
 
 ---
 
-## Statement-Level Beliefs
-
-Each **statement** $s$ has a set of endorsers $E(s) \subseteq \{1, \ldots, n\}$.
-The lower bound on its probability of being true is
-
-$$P(s \text{ is true}) \geq \max_{i \in E(s)}\; w_i.$$
-
-This quantity is updated automatically whenever the fixed point is re-solved,
-so we get statement-level beliefs as a by-product of maintaining the reputation
-graph.
-
----
-
 ## Julia Implementation
 
 The state of the system lives in a single `ReputationGraph` struct holding the
 Beta parameters $(\alpha, \beta)$, their fixed priors $(\alpha_0, \beta_0)$,
-the trusted set, and the accumulated observations and statements. Separating the
-mutable parameters from the fixed priors means `recompute!` can reset to the
-prior in a single broadcast assignment rather than tracking deltas.
+the trusted set, and the accumulated observations and statements.
 
 ```{julia}
 @kwdef mutable struct Statement
@@ -207,7 +192,7 @@ struct Observation
     confirmed  :: Bool
 end
 
-mutable struct ReputationGraph
+struct ReputationGraph
     trusted    :: Set{Int}
     alpha      :: Vector{Float64}
     beta       :: Vector{Float64}
@@ -255,7 +240,7 @@ function recompute!(g::ReputationGraph, w::Vector{Float64})
         target[stmt.endorsers] .+= w[ob.validator]
     end
     for stmt in g.statements
-        stmt.p_true = isempty(stmt.endorsers) ? 0.0 : maximum(w[stmt.endorsers])
+        stmt.p_true = maximum(w[stmt.endorsers], init=0.0)
     end
 end;
 ```
@@ -315,9 +300,7 @@ end;
 ## Worked Example
 
 We set up six people with persons 1 and 2 in the trusted set and register four
-statements. Each validator assesses any given statement at most once. Each code
-block below ends with an expression whose value is displayed, as in a Jupyter
-notebook — here the current weight vector $w$.
+statements.
 
 **Setup.** Initialise the graph and register statements.
 
@@ -530,7 +513,7 @@ the integer indices used by the solver. The graph is seeded with a single node
 for your own key, which is immediately placed in $T$.
 
 ```{julia}
-mutable struct PGPReputationGraph
+struct PGPReputationGraph
     g                 :: ReputationGraph
     fingerprint_index :: Dict{String, Int}
     statement_index   :: Dict{String, Int}
