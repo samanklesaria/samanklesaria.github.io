@@ -86,7 +86,7 @@ The second moment breaks down similarly. $E[x_i x_i^T]$ can be thought of (up to
 
 $$
 \begin{bmatrix}
-x_o x_o^T & x_o x_u^T
+x_o x_o^T & x_o x_u^T \\
 x_u x_o^T & x_u x_u^T
 \end{bmatrix}
 $$
