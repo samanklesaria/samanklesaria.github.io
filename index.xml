@@ -10,7 +10,244 @@
 <atom:link href="https://samanklesaria.github.io/index.xml" rel="self" type="application/rss+xml"/>
 <description>Dabbling in Data Science</description>
 <generator>quarto-1.8.27</generator>
-<lastBuildDate>Tue, 31 Mar 2026 05:00:00 GMT</lastBuildDate>
+<lastBuildDate>Sun, 30 Aug 2026 05:00:00 GMT</lastBuildDate>
+<item>
+  <title>Counting People You Haven’t Met: Design-Based Survey Inference with NestedSurveys.jl</title>
+  <link>https://samanklesaria.github.io/posts/NestedSurveys.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>Suppose you want to know the average household income in a city of a million people. You can’t ask everyone, so you pick a sample and ask them. The question is: how do you turn answers from a few thousand people into a defensible claim about all million?</p>
+<p>This is the core problem of survey statistics, and it has a surprisingly elegant solution — one that requires almost no assumptions about the population being measured.</p>
+<section id="the-design-based-perspective" class="level2">
+<h2 class="anchored" data-anchor-id="the-design-based-perspective">The Design-Based Perspective</h2>
+<p>Most statistical inference assumes something about the data-generating process. Linear regression assumes errors are normally distributed. Bayesian methods assume a prior. But survey statisticians have a different trick available: <em>they control the sampling process</em>, so they know its probability distribution exactly.</p>
+<p>This is the <strong>design-based</strong> (or <strong>randomization-based</strong>) approach. Instead of assuming the population follows some model, you treat the population values as fixed unknowns and derive your inference from the randomness in <em>how you sampled</em>. Your uncertainty isn’t about the world — it’s about which people you happened to pick.</p>
+<p>The key object is the <strong>inclusion probability</strong> <img src="https://latex.codecogs.com/png.latex?%5Cpi_i">: the probability that individual <img src="https://latex.codecogs.com/png.latex?i"> appears in your sample. If you know these, you can do a lot.</p>
+</section>
+<section id="the-horvitz-thompson-estimator" class="level2">
+<h2 class="anchored" data-anchor-id="the-horvitz-thompson-estimator">The Horvitz-Thompson Estimator</h2>
+<p>Let the indicator variable <img src="https://latex.codecogs.com/png.latex?I_i"> be <img src="https://latex.codecogs.com/png.latex?1"> if individual <img src="https://latex.codecogs.com/png.latex?i"> is included in the sample, so <img src="https://latex.codecogs.com/png.latex?%5Cpi_i%20=%20E%5BI_i%5D">. Let <img src="https://latex.codecogs.com/png.latex?%5Cbreve%7By%7D_i%20=%20y_i%20/%20%5Cpi_i">. In vector form, <img src="https://latex.codecogs.com/png.latex?%5Cbreve%7By%7D"> is a size <img src="https://latex.codecogs.com/png.latex?n"> vector of the <img src="https://latex.codecogs.com/png.latex?%5Cbreve%7By%7D_i"> in the sample.</p>
+<p>An unbiased sample sum estimator is <img src="https://latex.codecogs.com/png.latex?%0A%5Chat%7Bt%7D%20=%20%5Csum_%7Bi%20%5Cin%20U%7D%20I_i%20%5Cbreve%7By%7D_i%0A"> This is known as the <em>Horvitz-Thompson estimator</em>. The intuition: if someone had a 10% chance of being sampled and showed up, they probably “represent” about 10 people in the population, so we weight their value by <img src="https://latex.codecogs.com/png.latex?1/%5Cpi_i%20=%2010">.</p>
+<p>The variance is where things get slightly more involved. Define <img src="https://latex.codecogs.com/png.latex?%5CDelta_%7Bij%7D%20=%20%5Ctext%7BCov%7D(I_i,%20I_j)">. Then:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7BVar%7D(%5Chat%7Bt%7D)%20=%20%5Csum_%7Bi,j%20%5Cin%20U%7D%20%5CDelta_%7Bij%7D%20%5Cbreve%7By%7D_i%20%5Cbreve%7By%7D_j%20=%20%5Cbreve%7By%7D%5ET%20%5CDelta%20%5Cbreve%7By%7D%0A"> To estimate this variance from the sample, we divide each <img src="https://latex.codecogs.com/png.latex?%5CDelta_%7Bij%7D"> by the joint inclusion probability <img src="https://latex.codecogs.com/png.latex?E%5BI_i%20I_j%5D">, giving <img src="https://latex.codecogs.com/png.latex?%5Cbreve%7B%5CDelta%7D_%7Bij%7D">. The estimated variance is then <img src="https://latex.codecogs.com/png.latex?%5Cbreve%7By%7D%5ET%20%5Cbreve%7B%5CDelta%7D%20%5Cbreve%7By%7D"> — a sum only over observed units.</p>
+<section id="simple-random-sampling" class="level3">
+<h3 class="anchored" data-anchor-id="simple-random-sampling">Simple Random Sampling</h3>
+<p>For simple random sampling without replacement (SRS) from a population of <img src="https://latex.codecogs.com/png.latex?N">, drawing <img src="https://latex.codecogs.com/png.latex?n"> units:</p>
+<ul>
+<li><img src="https://latex.codecogs.com/png.latex?%5Cpi_i%20=%20n/N"> for all <img src="https://latex.codecogs.com/png.latex?i"></li>
+<li><img src="https://latex.codecogs.com/png.latex?%5Cpi_%7Bij%7D%20=%20%5Cfrac%7Bn(n-1)%7D%7BN(N-1)%7D"> for <img src="https://latex.codecogs.com/png.latex?i%20%5Cneq%20j"></li>
+<li><img src="https://latex.codecogs.com/png.latex?%5CDelta_%7Bij%7D%20=%20%5Cpi_%7Bij%7D%20-%20%5Cpi_i%20%5Cpi_j"></li>
+</ul>
+<p>The variance simplifies to the familiar <img src="https://latex.codecogs.com/png.latex?N%5E2%20%5Ccdot%20%5Cfrac%7B1-f%7D%7Bn%7D%20S%5E2"> where <img src="https://latex.codecogs.com/png.latex?f%20=%20n/N"> is the sampling fraction and <img src="https://latex.codecogs.com/png.latex?S%5E2"> is the population variance — adjusted by the <strong>finite population correction</strong> <img src="https://latex.codecogs.com/png.latex?(1-f)">. When you sample a large fraction of the population, your estimate gets better, and this correction captures that.</p>
+</section>
+</section>
+<section id="sampling-with-replacement" class="level2">
+<h2 class="anchored" data-anchor-id="sampling-with-replacement">Sampling With Replacement</h2>
+<p>When units are drawn independently with probability <img src="https://latex.codecogs.com/png.latex?p_i"> at each draw, the <em>Hansen-Hurwitz</em>&nbsp;estimator is:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Chat%7Bt%7D%20=%20%5Cfrac%7B1%7D%7Bn%7D%20%5Csum_%7Bi=1%7D%5E%7Bn%7D%20%5Cfrac%7By_i%7D%7Bp_i%7D%0A"> Each draw yields an unbiased estimate of the total, and you average <img src="https://latex.codecogs.com/png.latex?n"> of them. The variance estimator is just the sample variance of the <img src="https://latex.codecogs.com/png.latex?y_i%20/%20p_i"> values. This is simpler to compute because the draws are independent — you don’t need joint inclusion probabilities.</p>
+</section>
+<section id="beyond-totals-taylor-series-linearization" class="level2">
+<h2 class="anchored" data-anchor-id="beyond-totals-taylor-series-linearization">Beyond Totals: Taylor Series Linearization</h2>
+<p>Most quantities of interest aren’t linear in the population values. Means, ratios, regression coefficients — they’re all nonlinear functions of sums. The standard tool for handling this is <strong>Taylor series linearization</strong>. Say we observe want to compute <img src="https://latex.codecogs.com/png.latex?f(a)"> where <img src="https://latex.codecogs.com/png.latex?a%20=%20%5Csum_%7Bi%20%5Cin%20U%7D%20z_i"> is a vector of population totals of different variables and <img src="https://latex.codecogs.com/png.latex?z_i"> are the observation vectors from our survey. As long as <img src="https://latex.codecogs.com/png.latex?f"> is continuous, a consistent estimator is <img src="https://latex.codecogs.com/png.latex?f(%5Chat%7Ba%7D)"> where <img src="https://latex.codecogs.com/png.latex?%5Chat%7Ba%7D"> is the vector of component sum estimates.</p>
+<p>To get the variance of this estimator, note that <img src="https://latex.codecogs.com/png.latex?f(%5Chat%7Ba%7D)%20%5Capprox%20f(a)%20+%20%5Cnabla%20f(a)(%5Chat%7Ba%7D%20-%20a)">. So <img src="https://latex.codecogs.com/png.latex?%5Ctext%7BVar%7D(f(%5Chat%7Ba%7D))%20%5Capprox%20%5Ctext%7BVar%7D(%5Clangle%20%5Cnabla%20f(a),%20%5Chat%7Ba%7D%5Crangle)">. We can use <img src="https://latex.codecogs.com/png.latex?%5Cnabla%20f(%5Chat%7Ba%7D)"> to estimate <img src="https://latex.codecogs.com/png.latex?%5Cnabla%20f(a)">.</p>
+<p>If the underlying <img src="https://latex.codecogs.com/png.latex?z_i"> were sampled without replacement, we could plug in the Horvitz-Thompson estimator as <img src="https://latex.codecogs.com/png.latex?%5Chat%7Ba%7D">&nbsp;to get</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7BVar%7D(f(%5Chat%7Ba%7D))%20%5Capprox%20%5Ctext%7BVar%7D%5Cleft(%5Cnabla%20f(a)%5ET%20%5Csum_i%20%5Cbreve%7Bz%7D_i%5Cright)%0A"></p>
+<p>This is the variance of a different sum, giving <img src="https://latex.codecogs.com/png.latex?g%5ET%20%5Cbreve%7B%5CDelta%7Dg"> where <img src="https://latex.codecogs.com/png.latex?g%20=%20%5Clangle%20%5Cnabla%20f(T),%20%5Cbreve%7Bz%7D%20%5Crangle">.</p>
+<p>If the <img src="https://latex.codecogs.com/png.latex?z_i"> were sampled <em>with</em> replacement, we could plug in the Hansen-Hurwitz estimator to get</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7BVar%7D(f(%5Chat%7Ba%7D))%20=%20%5Ctext%7BVar%7D%5Cleft(%5Cnabla%20f(a)%5ET%20%5Cfrac%7B1%7D%7Bn%7D%5Csum_i%20%5Cfrac%7By_i%7D%7Bp_i%7D%5Cright)%0A"> Once again, this is the variance of a sum, which we already know how to compute!</p>
+</section>
+<section id="regression-assisted-estimation" class="level2">
+<h2 class="anchored" data-anchor-id="regression-assisted-estimation">Regression-Assisted Estimation</h2>
+<p>Sometimes you have auxiliary information: population totals of covariates that aren’t available at the unit level in the sample. Regression-assisted estimation exploits this.</p>
+<p>You want to estimate <img src="https://latex.codecogs.com/png.latex?s%5ET%20%5Cbeta"> where <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%20T%5E%7B-1%7D%20t"> is the population regression coefficient, <img src="https://latex.codecogs.com/png.latex?T%20=%20%5Csum_%7Bi%20%5Cin%20U%7D%20x_i%20x_i%5ET">, <img src="https://latex.codecogs.com/png.latex?t%20=%20%5Csum_%7Bi%20%5Cin%20U%7D%20x_i%20y_i">, and <img src="https://latex.codecogs.com/png.latex?s%20=%20%5Csum_%7Bi%20%5Cin%20U%7D%20x_i"> is the known population covariate total.</p>
+<ul>
+<li>We know <img src="https://latex.codecogs.com/png.latex?s%20=%20%5Csum_%7Bi%20%5Cin%20U%7D%20x_i">. So we can estimate the total with <img src="https://latex.codecogs.com/png.latex?f(T,%20t)%20=%20s%5ET%5Cbeta"> using sampling estimates <img src="https://latex.codecogs.com/png.latex?%5Chat%7BT%7D"> and <img src="https://latex.codecogs.com/png.latex?%5Chat%7Bt%7D">.</li>
+<li>For variance, use Taylor approximation and drop the constant intercept:</li>
+</ul>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7BVar%7D(f(%5Chat%7BT%7D,%20%5Chat%7Bt%7D))%20%5Capprox%20%5Ctext%7BVar%7D(%20%5Clangle%20%5Cnabla%20f(T,%20t),%20%5Cbegin%7Bbmatrix%7D%20%5Chat%7BT%7D%20-%20T%20&amp;%20%5Chat%7Bt%7D%20-%20t%20%5Cend%7Bbmatrix%7D%20%5Crangle%20)%0A"></p>
+<ul>
+<li>Matrix calculus gives <img src="https://latex.codecogs.com/png.latex?%5Cnabla_t%20f%20=%20s%5ET%20T%5E%7B-1%7D"> and <img src="https://latex.codecogs.com/png.latex?%5Cnabla_T%20f=%20-T%5E%7B-1%7D(st%5ET)T%5E%7B-1%7D"></li>
+</ul>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Clangle%20%5Cnabla%20f(T,%20t),%20%5Cbegin%7Bbmatrix%7D%20%5Chat%7BT%7D%20-%20T%20&amp;%20%5Chat%7Bt%7D%20-%20t%20%5Cend%7Bbmatrix%7D%20%5Crangle%20&amp;=%20s%5ET%20T%5E%7B-1%7D(%5Chat%7Bt%7D%20-%20t)%20-%20s%5ET%20T%5E%7B-1%7D%20(%5Chat%7BT%7D%20-%20T)T%5E%7B-1%7Dt%5C%5C%0A&amp;=%20s%5ET%20T%5E%7B-1%7D%20((%5Chat%7Bt%7D%20-%20t)%20-%20(%5Chat%7BT%7D%20-%20T)%5Cbeta%20)%5C%5C%0A&amp;=%20s%5ET%20T%5E%7B-1%7D%20((%5Chat%7Bt%7D%20-%20T%5Cbeta)%20-%20(%5Chat%7BT%7D%20-%20T)%5Cbeta)%5C%5C%0A&amp;=%20s%5ET%20T%5E%7B-1%7D(%5Chat%7Bt%7D%20-%20%5Chat%7BT%7D%5Cbeta)%5C%5C%0A%5Cend%7Balign*%7D%0A"></p>
+<p>Simplifying further requires us to think about which estimators we’re using for <img src="https://latex.codecogs.com/png.latex?%5Chat%7BT%7D"> and <img src="https://latex.codecogs.com/png.latex?%5Chat%7Bt%7D">.</p>
+</section>
+<section id="regression-without-replacement" class="level2">
+<h2 class="anchored" data-anchor-id="regression-without-replacement">Regression Without Replacement</h2>
+<p>If we’ve been sampling <em>without</em> replacement, we can use the sampling approximations <img src="https://latex.codecogs.com/png.latex?%5Chat%7BT%7D%20=%20X%5ET%5CPi%5E%7B-1%7DX"> to <img src="https://latex.codecogs.com/png.latex?T%20=%20%5Csum_%7Bi%20%5Cin%20U%7D%20x_i%20x_i%5ET"> and <img src="https://latex.codecogs.com/png.latex?%5Chat%7Bt%7D%20=X%5ET%5CPi%5E%7B-1%7Dy"> to <img src="https://latex.codecogs.com/png.latex?t=%5Csum_%7Bi%20%5Cin%20U%7D%20x_i%20y_i">. Substitute this into the variance expression to get</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7BVar%7D(f)%20=%20%5Ctext%7BVar%7D(s%5ET%20T%5E%7B-1%7DX%5ET%20%5CPi%5E%7B-1%7D(y%20-%20X%20%5Cbeta))%0A"></p>
+<p>The term in the <img src="https://latex.codecogs.com/png.latex?%5Ctext%7BVar%7D">&nbsp;expression is just a Horvitz-Thompson sum estimate of population values <img src="https://latex.codecogs.com/png.latex?g_i%20=%20s%5ET%20T%5E%7B-1%7D%20x_i(y_i%20-%20x_i%5ET%5Cbeta)">. We know that’s <img src="https://latex.codecogs.com/png.latex?g%5ET%20%5Cbreve%7B%5CDelta%7D%20g">. We can use <img src="https://latex.codecogs.com/png.latex?%5Chat%7BT%7D"> to approximate <img src="https://latex.codecogs.com/png.latex?T"> here.</p>
+</section>
+<section id="regression-with-replacement" class="level2">
+<h2 class="anchored" data-anchor-id="regression-with-replacement">Regression With Replacement</h2>
+<p>If we’ve been sampling <em>with</em> replacement, we can use the sampling approximations <img src="https://latex.codecogs.com/png.latex?%5Chat%7BT%7D%20=%20X%5ETP%5E%7B-1%7DX"> to <img src="https://latex.codecogs.com/png.latex?T%20=%20%5Csum_%7Bi%20%5Cin%20U%7D%20x_i%20x_i%5ET"> and <img src="https://latex.codecogs.com/png.latex?%5Chat%7Bt%7D%20=X%5ETP%5E%7B-1%7Dy"> to <img src="https://latex.codecogs.com/png.latex?t=%5Csum_%7Bi%20%5Cin%20U%7D%20x_i%20y_i"> where <img src="https://latex.codecogs.com/png.latex?P_%7Bii%7D%20=%20np_i">.</p>
+<p>If you squint a bit, you’ll see that this is just the variance of the Hansen-Hurwitz sum estimator on population values <img src="https://latex.codecogs.com/png.latex?h_i%20=%20s%5ETT%5E%7B-1%7D%20x_i(y_i%20-%20x_i%5ET%5Cbeta)">.</p>
+</section>
+<section id="multi-stage-cluster-sampling" class="level2">
+<h2 class="anchored" data-anchor-id="multi-stage-cluster-sampling">Multi-Stage Cluster Sampling</h2>
+<p>Here’s where things get genuinely interesting, and where most survey software starts to strain.</p>
+<p>Real surveys rarely sample individuals directly. You might first sample counties (making them <em>primary sampling units</em> or PSUs), then sample households within those counties. This is two-stage cluster sampling, and the nesting can go arbitrarily deep: counties → blocks → households → people.</p>
+<p>Let <img src="https://latex.codecogs.com/png.latex?I_i%20=%201"> if cluster <img src="https://latex.codecogs.com/png.latex?i"> is selected at the first stage, and let <img src="https://latex.codecogs.com/png.latex?%5Chat%7Bt%7D_i"> be the estimated total within cluster <img src="https://latex.codecogs.com/png.latex?i"> from the second stage. The overall estimator is:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Chat%7Bt%7D%20=%20%5Csum_%7Bi%20%5Cin%20%5Ctext%7BPSU%7D%7D%20I_i%20%5Cfrac%7B%5Chat%7Bt%7D_i%7D%7B%5Cpi_i%7D%0A"> This is unbiased by linearity. For its variance, apply the law of total variance:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Ctext%7BVar%7D(%5Chat%7Bt%7D)%20&amp;=%20%5Ctext%7BVar%7D(E%5B%5Chat%7Bt%7D%20%7C%20I%5D)%20+%20E%5B%5Ctext%7BVar%7D(%5Chat%7Bt%7D%20%7C%20I)%5D%20%5C%5C%0A&amp;=%20V_I%5Cleft%5B%5Csum_%7Bi%20%5Cin%20%5Ctext%7BPSU%7D%7D%20I_i%20%5Cfrac%7B%5Chat%7Bt%7D%7D%7B%5Cpi_i%7D%5Cright%5D%20+%20E_I%5Cleft%5B%5Csum_%7Bi%20%5Cin%20%5Ctext%7BPSU%7D%7D%20I_i%20%5Cfrac%7B%5Ctext%7BVar%7D(%5Chat%7Bt%7D)%7D%7B%5Cpi_i%7D%5Cright%5D%0A%5Cend%7Balign*%7D%0A"></p>
+<p>The first term is the variance of the without-replacement estimator over <img src="https://latex.codecogs.com/png.latex?%5Chat%7Bt%7D_i"> values. The second term is the with-replacement estimator of the sum of the cluster variances. We already know how to compute each of these!</p>
+<p>This recursive structure extends naturally to any depth of nesting. Three-stage sampling? The within-cluster variance is itself computed via a two-stage formula.</p>
+</section>
+<section id="taylor-series-estimates-with-clustering" class="level2">
+<h2 class="anchored" data-anchor-id="taylor-series-estimates-with-clustering">Taylor Series Estimates with Clustering</h2>
+<p>For nonlinear estimators like ratios, the same decomposition applies via Taylor linearization. The gradient <img src="https://latex.codecogs.com/png.latex?%5Cnabla%20f"> filters through to weight the cluster-level sums, and everything falls out cleanly.</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Ctext%7BVar%7D(E%5B%5Chat%7Bt%7D%20%7C%20I%5D)%20&amp;=%20%5Ctext%7BVar%7D_I(%5Clangle%20%5Cnabla%20f,%20%5Chat%7Ba%7D%20%5Crangle)%20%5C%5C%0A&amp;%5Capprox%20%5Ctext%7BVar%7D_I(%5Clangle%20%5Cnabla%20f,%20%5Csum_%7Bi%20%5Cin%20%5Ctext%7BPSU%7D%7D%20I_i%20%5Cfrac%7B%5Chat%7Bz%7D_i%7D%7B%5Cpi_i%7D%20%5Crangle)%20%5C%5C%0A&amp;=%20%5Ctext%7BVar%7D_I(%5Csum_%7Bi%20%5Cin%20%5Ctext%7BPSU%7D%7DI_i%20%5Clangle%20%5Cnabla%20f,%20%5Cfrac%7B%5Chat%7Bz%7D_i%7D%7B%5Cpi_i%7D%20%5Crangle)%0A%5Cend%7Balign*%7D%0A"></p>
+<p>This is the variance of the without-replacement estimator over <img src="https://latex.codecogs.com/png.latex?%5Clangle%20%5Cnabla%20f,%20%5Chat%7Bz%7D_i"> values.</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0AE%5B%5Ctext%7BVar%7D(%5Chat%7Bt%7D%20%7C%20I)%5D%20&amp;=%20E%5B%5Ctext%7BVar%7D(f(%5Chat%7Ba%7D%20%7C%20I)%5D%20%5C%5C%0A&amp;%5Capprox%20E%5B%5Ctext%7BVar%7D(%5Clangle%20%5Cnabla%20f,%20%5Chat%7Ba%7D%20%5Crangle%20%7C%20I)%5D%20%5C%5C%0A&amp;=%20E%5Cleft%5B%5Csum_%7Bi%20%5Cin%20%5Ctext%7BPSU%7D%7D%20%5Cfrac%7BI_i%7D%7B%5Cpi_i%7D%20(%5Clangle%20%5Cnabla%20f,%20%5Ctext%7BVar%7D(%5Chat%7Bz%7D_i)%20%5Crangle)%5Cright%5D%20%5C%5C%0A%5Cend%7Balign*%7D%0A"></p>
+<p>This is the without-replacement estimator of the sum of <img src="https://latex.codecogs.com/png.latex?%5Clangle%20%5Cnabla%20f,%20%5Ctext%7BVar%7D(%5Chat%7Bz%7D_i)"> values.</p>
+</section>
+<section id="enter-nestedsurveys.jl" class="level2">
+<h2 class="anchored" data-anchor-id="enter-nestedsurveys.jl">Enter NestedSurveys.jl</h2>
+<p><code>NestedSurveys.jl</code> is a Julia package implementing all of the above, currently under active development. The design philosophy is to make the math visible in the code: the hierarchical structure of a multi-stage estimate should be reflected directly in how you write the computation.</p>
+<p>The basic building block is a <code>SampleSum</code>, which bundles an estimate with its variance. Arithmetic on <code>SampleSum</code> objects propagates variance correctly, so you can compose estimates naturally.</p>
+<p>For a simple random sample:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">using</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">NestedSurveys</span></span>
+<span id="cb1-2"></span>
+<span id="cb1-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 500 sampled from a population of 5000</span></span>
+<span id="cb1-4">estimate <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(sample_values, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">SI</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5000</span>))</span>
+<span id="cb1-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Returns a SampleSum with Horvitz-Thompson estimate and variance</span></span></code></pre></div></div>
+<p>For two-stage cluster sampling, you nest the calls. This is often easiest within data manipultion frameworks like <code>DataFramesMeta</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@chain</span> df <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">begin</span></span>
+<span id="cb2-2">    <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@groupby</span>(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>county)</span>
+<span id="cb2-3">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Stage 1: estimate totals within each county</span></span>
+<span id="cb2-4">    <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@combine</span>(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>subtotal <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>Burglary, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">SI</span>(county_sizes[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">first</span>(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>county)])))</span>
+<span id="cb2-5">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Stage 2: estimate the population total from county estimates</span></span>
+<span id="cb2-6">    <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@combine</span>(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>total <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>subtotal, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">SI</span>(N_counties)))</span>
+<span id="cb2-7"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span></code></pre></div></div>
+<p>The inner <code>sum</code> returns a vector of <code>SampleSum</code> objects. The outer <code>sum</code> sees these and applies the cluster variance formula — between-cluster variance plus average within-cluster variance — automatically.</p>
+<p>For ratio estimation, Taylor linearization is built in via automatic differentiation:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1">ratio <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">taylor</span>(z <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> z[<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> z[<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>]) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">do</span> g</span>
+<span id="cb3-2">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">g</span>([<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>numerator_col, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span>denominator_col]), <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">SI</span>(N))</span>
+<span id="cb3-3"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span></code></pre></div></div>
+<p>The <code>taylor</code> function takes your nonlinear function <img src="https://latex.codecogs.com/png.latex?f">, evaluates the gradient at the sample estimates using ForwardDiff, and applies the linearization formula to get the variance. You write the estimator; the package handles the variance.</p>
+<p>Regression-assisted estimation uses a formula interface:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sum</span>(<span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@formula</span>(outcome <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> covariate), sample_data, pop_totals, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">SI</span>(N))</span></code></pre></div></div>
+<p>This fits the design-weighted regression and applies the residual-based variance formula described above.</p>
+<p>The package validates against R’s <code>survey</code> package — the reference implementation in the field — to ensure correctness. For the estimators that are implemented, the output matches.</p>
+</section>
+<section id="why-this-matters" class="level2">
+<h2 class="anchored" data-anchor-id="why-this-matters">Why This Matters</h2>
+<p>The design-based framework is notable for what it <em>doesn’t</em> require. You don’t need to assume anything about how <img src="https://latex.codecogs.com/png.latex?y_i"> is distributed. You don’t need a model of the population. Your inferences are valid for the specific population you sampled from, based purely on the randomness you introduced when sampling. That’s a strong foundation.</p>
+<p>For practitioners, the practical implication is that survey weights aren’t just a nuisance correction — they’re the mechanism by which your sample results become statements about a population. Getting them right, and propagating their uncertainty correctly through nonlinear estimators and multi-stage designs, is what separates defensible estimates from wishful ones.</p>
+<p><code>NestedSurveys.jl</code> is working toward making that easier to get right in Julia, with an API that reflects the actual structure of the problem rather than hiding it behind opaque weight adjustments.</p>
+<p>The code is at <a href="https://github.com/samanklesaria/NestedSurveys.jl">https://github.com/samanklesaria/NestedSurveys.jl</a>. Contributions and bug reports welcome.</p>
+
+
+</section>
+
+ ]]></description>
+  <category>statistics</category>
+  <guid>https://samanklesaria.github.io/posts/NestedSurveys.html</guid>
+  <pubDate>Sun, 30 Aug 2026 05:00:00 GMT</pubDate>
+</item>
 <item>
   <title>A Recursive Bayesian Model of Reputation</title>
   <link>https://samanklesaria.github.io/posts/reputation/reputation.html</link>
@@ -11932,37 +12169,6 @@ font-style: inherit;">unflatten</span>(training_results.minimizer)), y))</span><
   <category>machine_learning</category>
   <guid>https://samanklesaria.github.io/posts/nearest_neighbor_gps/nngp.html</guid>
   <pubDate>Fri, 16 Feb 2024 06:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Krylov Methods</title>
-  <link>https://samanklesaria.github.io/posts/Krylov-Methods.html</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<p>The <img src="https://latex.codecogs.com/png.latex?i">th <em>Krylov subspace</em> <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BK%7D_i"> for a symmetric matrix <img src="https://latex.codecogs.com/png.latex?A"> starting from vector <img src="https://latex.codecogs.com/png.latex?b"> is the subspace spanned by the vectors <img src="https://latex.codecogs.com/png.latex?b,%20Ab,%20A%5E2b,%20%5Cdotsc%20A%5E%7Bi-1%7Db">. Algorithms that use these subspaces are called Krylov subspace methods. To see why this subspace can be useful, it helps to see some examples.</p>
-<section id="the-lanczos-algorithm" class="level3">
-<h3 class="anchored" data-anchor-id="the-lanczos-algorithm">The Lanczos Algorithm</h3>
-<p>The Lanczos algorithm finds an orthonormal matrix <img src="https://latex.codecogs.com/png.latex?V"> and tridiagonal matrix <img src="https://latex.codecogs.com/png.latex?T"> so that <img src="https://latex.codecogs.com/png.latex?A%20=%20VTV%5ET">. The columns of <img src="https://latex.codecogs.com/png.latex?V"> are chosen from successive Krylov subspaces. <img src="https://latex.codecogs.com/png.latex?v_1"> is chosen to be <img src="https://latex.codecogs.com/png.latex?b/%20%5C%7Cb%5C%7C">. Afterwards, <img src="https://latex.codecogs.com/png.latex?v_i"> is just <img src="https://latex.codecogs.com/png.latex?Av_%7Bi-1%7D">, but normalized and without any components parallel to the previous columns. Specifically <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0Aw_%7Bi+1%7D'%20&amp;=%20Av_i%20%5C%5C%0Aw_%7Bi+1%7D%20&amp;=%20w_%7Bi+1%7D'%20-%20%5Csum_%7Bk=1%7D%5Ei%20%5Clangle%20v_k,%20w_%7Bi+1%7D'%5Crangle%20v_k%20%5C%5C%0Av_%7Bi+1%7D%20&amp;=%20w_%7Bi+1%7D%20/%20%5C%7Cw_%7Bi+1%7D%5C%7C%0A%5Cend%7Balign*%7D%0A"> Note that this means <img src="https://latex.codecogs.com/png.latex?Av_k"> is a linear combination of <img src="https://latex.codecogs.com/png.latex?v_1"> through <img src="https://latex.codecogs.com/png.latex?v_%7Bk+1%7D">, so <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Clangle%20v_k%20,%20w_%7Bi+1%7D'%20%5Crangle%20&amp;=%20%5Clangle%20v_k%20,%20A%20v_i%20%5Crangle%20%5C%5C%0A&amp;=%20%5Clangle%20Av_k,%20v_i%20%5Crangle%20%5C%5C%0A&amp;=%20%5Cleft%20%5Clangle%20%5Csum_%7Bj=1%7D%5E%7Bk+1%7D%20c_j%20v_j%20,%20v_i%20%5Cright%5Crangle%0A%5Cend%7Balign*%7D%0A"> for some constants <img src="https://latex.codecogs.com/png.latex?c_j">. As the <img src="https://latex.codecogs.com/png.latex?v_i"> are chosen to be orthogonal, the inner product will be zero whenever <img src="https://latex.codecogs.com/png.latex?k+1%3Ci">. This means that we only need to orthogonalize each <img src="https://latex.codecogs.com/png.latex?w_%7Bi+1%7D%E2%80%99"> with respect to <img src="https://latex.codecogs.com/png.latex?v_i"> and <img src="https://latex.codecogs.com/png.latex?v_%7Bi-1%7D">; the rest will already be orthogonal. This property shows that <img src="https://latex.codecogs.com/png.latex?T%20=%20V%5ETAV"> (with entry <img src="https://latex.codecogs.com/png.latex?(i,j)"> of the form <img src="https://latex.codecogs.com/png.latex?v_i%5ETAv_j">) must be tridiagonal as required.</p>
-<p>Finally, note that <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Clangle%20v_%7Bi-1%7D%20,%20w_%7Bi+1%7D'%20%5Crangle%20&amp;=%20%5Clangle%20Av_%7Bi-1%7D,%20v_i%20%5Crangle%20%5C%5C%0A&amp;=%20%5Clangle%20w_i',%20v_i%20%5Crangle%20%5C%5C%0A&amp;=%20%5Clangle%20w_i%20+%20c_1%20v_%7Bi-1%7D%20+%20c_2%20v_%7Bi-2%7D,%20v_i%20%5Crangle%20%5C%5C%0A&amp;=%20%5Clangle%20w_i%20,%20v_i%20%5Crangle%20%5C%5C%0A&amp;=%20%5Clangle%20w_i%20,%20w_i%20%5Crangle%20/%20%5C%7Cw_i%5C%7C%20=%20%5C%7Cw_i%5C%7C%0A%5Cend%7Balign*%7D%0A"></p>
-<p>We already calculated this quantity when normalizing to get <img src="https://latex.codecogs.com/png.latex?v_i">, so this saves us an extra multiplication at each step.</p>
-</section>
-<section id="the-conjugate-gradients-algorithm" class="level3">
-<h3 class="anchored" data-anchor-id="the-conjugate-gradients-algorithm">The Conjugate Gradients Algorithm</h3>
-<p>The conjugate gradients algorithm computes <img src="https://latex.codecogs.com/png.latex?A%5E%7B-1%7Db"> using a similar strategy. While the Lanczos algorithm makes <img src="https://latex.codecogs.com/png.latex?v_i"> orthogonal to the previous <img src="https://latex.codecogs.com/png.latex?v_j">, the conjugate gradients algorithm makes it <img src="https://latex.codecogs.com/png.latex?A">-orthogonal. We say that <img src="https://latex.codecogs.com/png.latex?v_i"> and <img src="https://latex.codecogs.com/png.latex?v_j"> are <img src="https://latex.codecogs.com/png.latex?A">-orthogonal when <img src="https://latex.codecogs.com/png.latex?v_i%5ETAv_j%20=%200">. I will also write <img src="https://latex.codecogs.com/png.latex?v_i%5ETAv_j"> as <img src="https://latex.codecogs.com/png.latex?%5Clangle%20v_i,%20v_j%20%5Crangle_A">.</p>
-<p>Say there was a matrix where <img src="https://latex.codecogs.com/png.latex?u%20=%20%5Csum_t%20c_t%20v_t"> for <img src="https://latex.codecogs.com/png.latex?A">-orthogonal <img src="https://latex.codecogs.com/png.latex?v_t">. Then <img src="https://latex.codecogs.com/png.latex?%5Clangle%20v_i,u%20%5Crangle_A%20=%20c_i%20%5Clangle%20v_i,%20v_i%20%5Crangle_A">, so <img src="https://latex.codecogs.com/png.latex?c_i%20=%20%5Cfrac%7B%5Clangle%20v_i%20u%20%5Crangle_A%7D%7B%5Clangle%20v_i,%20v_i%20%5Crangle_A%7D">. This means we can make <img src="https://latex.codecogs.com/png.latex?u"> <img src="https://latex.codecogs.com/png.latex?A">-orthogonal to <img src="https://latex.codecogs.com/png.latex?v_i"> by subtracting <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B%5Clangle%20v_i%20u%20%5Crangle_A%7D%7B%5Clangle%20v_i,%20v_i%20%5Crangle_A%7D%20v_i">.</p>
-<p>This lets conjugate gradients compute the vectors <img src="https://latex.codecogs.com/png.latex?v_i"> as follows: <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0Aw_%7Bi+1%7D'%20&amp;=%20Av_i%20%5C%5C%0Aw_%7Bi+1%7D%20&amp;=%20w_%7Bi+1%7D'%20-%20%5Csum_%7Bk=1%7D%5Ei%20%5Cfrac%7B%5Clangle%20v_k,%20w_%7Bi+1%7D'%5Crangle_A%7D%7B%5Clangle%20v_k,%20v_k%5Crangle_A%7Dv_k%20%5C%5C%0Av_%7Bi+1%7D%20&amp;=%20w_%7Bi+1%7D/%5C%7Cw_%7Bi+1%7D%5C%7C%0A%5Cend%7Balign*%7D%0A"> This is exactly the same as the computation of the <img src="https://latex.codecogs.com/png.latex?v_i"> in the Lanczos algorithm except that the inner products use the <img src="https://latex.codecogs.com/png.latex?A"> metric.</p>
-<p>Once we have an <img src="https://latex.codecogs.com/png.latex?A">-orthogonal basis like this, we can find an <img src="https://latex.codecogs.com/png.latex?x"> to minimize <img src="https://latex.codecogs.com/png.latex?%5C%7Cx%20-%20A%5E%7B-1%7Db%5C%7C_A"> (which is equivalent to finding <img src="https://latex.codecogs.com/png.latex?A%5E%7B-1%7Db"> if it exists). This is the same as minimizing <img src="https://latex.codecogs.com/png.latex?x%5ETAx%20-2x%5ETb">. Expressing <img src="https://latex.codecogs.com/png.latex?x"> as <img src="https://latex.codecogs.com/png.latex?%5Csum_i%20%5Calpha_i%20v_i"> and using A-orthogonality gives <img src="https://latex.codecogs.com/png.latex?%0A%5Csum_i%20(%5Calpha_i)%5E2%20v_i%5ETAv_i%20-%202%5Calpha_iv_i%5ETb%0A"> The derivative is zero when <img src="https://latex.codecogs.com/png.latex?%5Calpha_i%20=%20%5Cfrac%7Bv_i%5ETb%7D%7Bv_i%5ETAv_i%7D">. This lets us solve <img src="https://latex.codecogs.com/png.latex?A%5E%7B-1%7Db"> in a linear number of matrix vector multiplications. If multiplication by <img src="https://latex.codecogs.com/png.latex?A"> is <img src="https://latex.codecogs.com/png.latex?O(n%5E2)">, then this isn’t any better than <img src="https://latex.codecogs.com/png.latex?O(n%5E3)"> Gaussian elimination. But it’s often the case that multiplication by <img src="https://latex.codecogs.com/png.latex?A"> is much faster than that, especially if it’s sparse or Toeplitz or comes from a Kronecker product.</p>
-
-
-</section>
-
- ]]></description>
-  <category>math</category>
-  <guid>https://samanklesaria.github.io/posts/Krylov-Methods.html</guid>
-  <pubDate>Tue, 13 Feb 2024 06:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>

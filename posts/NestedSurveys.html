@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2026-08-30">
+
+<title>Counting People You Haven’t Met: Design-Based Survey Inference with NestedSurveys.jl – Sam's Blog</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-ff63373b1067ca6f91cf1456aa1f00a2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Sam’s Blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/samanklesaria"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Counting People You Haven’t Met: Design-Based Survey Inference with NestedSurveys.jl</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">statistics</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">August 30, 2026</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<p>Suppose you want to know the average household income in a city of a million people. You can’t ask everyone, so you pick a sample and ask them. The question is: how do you turn answers from a few thousand people into a defensible claim about all million?</p>
+<p>This is the core problem of survey statistics, and it has a surprisingly elegant solution — one that requires almost no assumptions about the population being measured.</p>
+<section id="the-design-based-perspective" class="level2">
+<h2 class="anchored" data-anchor-id="the-design-based-perspective">The Design-Based Perspective</h2>
+<p>Most statistical inference assumes something about the data-generating process. Linear regression assumes errors are normally distributed. Bayesian methods assume a prior. But survey statisticians have a different trick available: <em>they control the sampling process</em>, so they know its probability distribution exactly.</p>
+<p>This is the <strong>design-based</strong> (or <strong>randomization-based</strong>) approach. Instead of assuming the population follows some model, you treat the population values as fixed unknowns and derive your inference from the randomness in <em>how you sampled</em>. Your uncertainty isn’t about the world — it’s about which people you happened to pick.</p>
+<p>The key object is the <strong>inclusion probability</strong> <span class="math inline">\(\pi_i\)</span>: the probability that individual <span class="math inline">\(i\)</span> appears in your sample. If you know these, you can do a lot.</p>
+</section>
+<section id="the-horvitz-thompson-estimator" class="level2">
+<h2 class="anchored" data-anchor-id="the-horvitz-thompson-estimator">The Horvitz-Thompson Estimator</h2>
+<p>Let the indicator variable <span class="math inline">\(I_i\)</span> be <span class="math inline">\(1\)</span> if individual <span class="math inline">\(i\)</span> is included in the sample, so <span class="math inline">\(\pi_i = E[I_i]\)</span>. Let <span class="math inline">\(\breve{y}_i = y_i / \pi_i\)</span>. In vector form, <span class="math inline">\(\breve{y}\)</span> is a size <span class="math inline">\(n\)</span> vector of the <span class="math inline">\(\breve{y}_i\)</span> in the sample.</p>
+<p>An unbiased sample sum estimator is <span class="math display">\[
+\hat{t} = \sum_{i \in U} I_i \breve{y}_i
+\]</span> This is known as the <em>Horvitz-Thompson estimator</em>. The intuition: if someone had a 10% chance of being sampled and showed up, they probably “represent” about 10 people in the population, so we weight their value by <span class="math inline">\(1/\pi_i = 10\)</span>.</p>
+<p>The variance is where things get slightly more involved. Define <span class="math inline">\(\Delta_{ij} = \text{Cov}(I_i, I_j)\)</span>. Then:</p>
+<p><span class="math display">\[
+\text{Var}(\hat{t}) = \sum_{i,j \in U} \Delta_{ij} \breve{y}_i \breve{y}_j = \breve{y}^T \Delta \breve{y}
+\]</span> To estimate this variance from the sample, we divide each <span class="math inline">\(\Delta_{ij}\)</span> by the joint inclusion probability <span class="math inline">\(E[I_i I_j]\)</span>, giving <span class="math inline">\(\breve{\Delta}_{ij}\)</span>. The estimated variance is then <span class="math inline">\(\breve{y}^T \breve{\Delta} \breve{y}\)</span> — a sum only over observed units.</p>
+<section id="simple-random-sampling" class="level3">
+<h3 class="anchored" data-anchor-id="simple-random-sampling">Simple Random Sampling</h3>
+<p>For simple random sampling without replacement (SRS) from a population of <span class="math inline">\(N\)</span>, drawing <span class="math inline">\(n\)</span> units:</p>
+<ul>
+<li><span class="math inline">\(\pi_i = n/N\)</span> for all <span class="math inline">\(i\)</span></li>
+<li><span class="math inline">\(\pi_{ij} = \frac{n(n-1)}{N(N-1)}\)</span> for <span class="math inline">\(i \neq j\)</span></li>
+<li><span class="math inline">\(\Delta_{ij} = \pi_{ij} - \pi_i \pi_j\)</span></li>
+</ul>
+<p>The variance simplifies to the familiar <span class="math inline">\(N^2 \cdot \frac{1-f}{n} S^2\)</span> where <span class="math inline">\(f = n/N\)</span> is the sampling fraction and <span class="math inline">\(S^2\)</span> is the population variance — adjusted by the <strong>finite population correction</strong> <span class="math inline">\((1-f)\)</span>. When you sample a large fraction of the population, your estimate gets better, and this correction captures that.</p>
+</section>
+</section>
+<section id="sampling-with-replacement" class="level2">
+<h2 class="anchored" data-anchor-id="sampling-with-replacement">Sampling With Replacement</h2>
+<p>When units are drawn independently with probability <span class="math inline">\(p_i\)</span> at each draw, the <em>Hansen-Hurwitz</em>&nbsp;estimator is:</p>
+<p><span class="math display">\[
+\hat{t} = \frac{1}{n} \sum_{i=1}^{n} \frac{y_i}{p_i}
+\]</span> Each draw yields an unbiased estimate of the total, and you average <span class="math inline">\(n\)</span> of them. The variance estimator is just the sample variance of the <span class="math inline">\(y_i / p_i\)</span> values. This is simpler to compute because the draws are independent — you don’t need joint inclusion probabilities.</p>
+</section>
+<section id="beyond-totals-taylor-series-linearization" class="level2">
+<h2 class="anchored" data-anchor-id="beyond-totals-taylor-series-linearization">Beyond Totals: Taylor Series Linearization</h2>
+<p>Most quantities of interest aren’t linear in the population values. Means, ratios, regression coefficients — they’re all nonlinear functions of sums. The standard tool for handling this is <strong>Taylor series linearization</strong>. Say we observe want to compute <span class="math inline">\(f(a)\)</span> where <span class="math inline">\(a = \sum_{i \in U} z_i\)</span> is a vector of population totals of different variables and <span class="math inline">\(z_i\)</span> are the observation vectors from our survey. As long as <span class="math inline">\(f\)</span> is continuous, a consistent estimator is <span class="math inline">\(f(\hat{a})\)</span> where <span class="math inline">\(\hat{a}\)</span> is the vector of component sum estimates.</p>
+<p>To get the variance of this estimator, note that <span class="math inline">\(f(\hat{a}) \approx f(a) + \nabla f(a)(\hat{a} - a)\)</span>. So <span class="math inline">\(\text{Var}(f(\hat{a})) \approx \text{Var}(\langle \nabla f(a), \hat{a}\rangle)\)</span>. We can use <span class="math inline">\(\nabla f(\hat{a})\)</span> to estimate <span class="math inline">\(\nabla f(a)\)</span>.</p>
+<p>If the underlying <span class="math inline">\(z_i\)</span> were sampled without replacement, we could plug in the Horvitz-Thompson estimator as <span class="math inline">\(\hat{a}\)</span>&nbsp;to get</p>
+<p><span class="math display">\[
+\text{Var}(f(\hat{a})) \approx \text{Var}\left(\nabla f(a)^T \sum_i \breve{z}_i\right)
+\]</span></p>
+<p>This is the variance of a different sum, giving <span class="math inline">\(g^T \breve{\Delta}g\)</span> where <span class="math inline">\(g = \langle \nabla f(T), \breve{z} \rangle\)</span>.</p>
+<p>If the <span class="math inline">\(z_i\)</span> were sampled <em>with</em> replacement, we could plug in the Hansen-Hurwitz estimator to get</p>
+<p><span class="math display">\[
+\text{Var}(f(\hat{a})) = \text{Var}\left(\nabla f(a)^T \frac{1}{n}\sum_i \frac{y_i}{p_i}\right)
+\]</span> Once again, this is the variance of a sum, which we already know how to compute!</p>
+</section>
+<section id="regression-assisted-estimation" class="level2">
+<h2 class="anchored" data-anchor-id="regression-assisted-estimation">Regression-Assisted Estimation</h2>
+<p>Sometimes you have auxiliary information: population totals of covariates that aren’t available at the unit level in the sample. Regression-assisted estimation exploits this.</p>
+<p>You want to estimate <span class="math inline">\(s^T \beta\)</span> where <span class="math inline">\(\beta = T^{-1} t\)</span> is the population regression coefficient, <span class="math inline">\(T = \sum_{i \in U} x_i x_i^T\)</span>, <span class="math inline">\(t = \sum_{i \in U} x_i y_i\)</span>, and <span class="math inline">\(s = \sum_{i \in U} x_i\)</span> is the known population covariate total.</p>
+<ul>
+<li>We know <span class="math inline">\(s = \sum_{i \in U} x_i\)</span>. So we can estimate the total with <span class="math inline">\(f(T, t) = s^T\beta\)</span> using sampling estimates <span class="math inline">\(\hat{T}\)</span> and <span class="math inline">\(\hat{t}\)</span>.</li>
+<li>For variance, use Taylor approximation and drop the constant intercept:</li>
+</ul>
+<p><span class="math display">\[
+\text{Var}(f(\hat{T}, \hat{t})) \approx \text{Var}( \langle \nabla f(T, t), \begin{bmatrix} \hat{T} - T &amp; \hat{t} - t \end{bmatrix} \rangle )
+\]</span></p>
+<ul>
+<li>Matrix calculus gives <span class="math inline">\(\nabla_t f = s^T T^{-1}\)</span> and <span class="math inline">\(\nabla_T f= -T^{-1}(st^T)T^{-1}\)</span></li>
+</ul>
+<p><span class="math display">\[
+\begin{align*}
+\langle \nabla f(T, t), \begin{bmatrix} \hat{T} - T &amp; \hat{t} - t \end{bmatrix} \rangle &amp;= s^T T^{-1}(\hat{t} - t) - s^T T^{-1} (\hat{T} - T)T^{-1}t\\
+&amp;= s^T T^{-1} ((\hat{t} - t) - (\hat{T} - T)\beta )\\
+&amp;= s^T T^{-1} ((\hat{t} - T\beta) - (\hat{T} - T)\beta)\\
+&amp;= s^T T^{-1}(\hat{t} - \hat{T}\beta)\\
+\end{align*}
+\]</span></p>
+<p>Simplifying further requires us to think about which estimators we’re using for <span class="math inline">\(\hat{T}\)</span> and <span class="math inline">\(\hat{t}\)</span>.</p>
+</section>
+<section id="regression-without-replacement" class="level2">
+<h2 class="anchored" data-anchor-id="regression-without-replacement">Regression Without Replacement</h2>
+<p>If we’ve been sampling <em>without</em> replacement, we can use the sampling approximations <span class="math inline">\(\hat{T} = X^T\Pi^{-1}X\)</span> to <span class="math inline">\(T = \sum_{i \in U} x_i x_i^T\)</span> and <span class="math inline">\(\hat{t} =X^T\Pi^{-1}y\)</span> to <span class="math inline">\(t=\sum_{i \in U} x_i y_i\)</span>. Substitute this into the variance expression to get</p>
+<p><span class="math display">\[
+\text{Var}(f) = \text{Var}(s^T T^{-1}X^T \Pi^{-1}(y - X \beta))
+\]</span></p>
+<p>The term in the <span class="math inline">\(\text{Var}\)</span>&nbsp;expression is just a Horvitz-Thompson sum estimate of population values <span class="math inline">\(g_i = s^T T^{-1} x_i(y_i - x_i^T\beta)\)</span>. We know that’s <span class="math inline">\(g^T \breve{\Delta} g\)</span>. We can use <span class="math inline">\(\hat{T}\)</span> to approximate <span class="math inline">\(T\)</span> here.</p>
+</section>
+<section id="regression-with-replacement" class="level2">
+<h2 class="anchored" data-anchor-id="regression-with-replacement">Regression With Replacement</h2>
+<p>If we’ve been sampling <em>with</em> replacement, we can use the sampling approximations <span class="math inline">\(\hat{T} = X^TP^{-1}X\)</span> to <span class="math inline">\(T = \sum_{i \in U} x_i x_i^T\)</span> and <span class="math inline">\(\hat{t} =X^TP^{-1}y\)</span> to <span class="math inline">\(t=\sum_{i \in U} x_i y_i\)</span> where <span class="math inline">\(P_{ii} = np_i\)</span>.</p>
+<p>If you squint a bit, you’ll see that this is just the variance of the Hansen-Hurwitz sum estimator on population values <span class="math inline">\(h_i = s^TT^{-1} x_i(y_i - x_i^T\beta)\)</span>.</p>
+</section>
+<section id="multi-stage-cluster-sampling" class="level2">
+<h2 class="anchored" data-anchor-id="multi-stage-cluster-sampling">Multi-Stage Cluster Sampling</h2>
+<p>Here’s where things get genuinely interesting, and where most survey software starts to strain.</p>
+<p>Real surveys rarely sample individuals directly. You might first sample counties (making them <em>primary sampling units</em> or PSUs), then sample households within those counties. This is two-stage cluster sampling, and the nesting can go arbitrarily deep: counties → blocks → households → people.</p>
+<p>Let <span class="math inline">\(I_i = 1\)</span> if cluster <span class="math inline">\(i\)</span> is selected at the first stage, and let <span class="math inline">\(\hat{t}_i\)</span> be the estimated total within cluster <span class="math inline">\(i\)</span> from the second stage. The overall estimator is:</p>
+<p><span class="math display">\[
+\hat{t} = \sum_{i \in \text{PSU}} I_i \frac{\hat{t}_i}{\pi_i}
+\]</span> This is unbiased by linearity. For its variance, apply the law of total variance:</p>
+<p><span class="math display">\[
+\begin{align*}
+\text{Var}(\hat{t}) &amp;= \text{Var}(E[\hat{t} | I]) + E[\text{Var}(\hat{t} | I)] \\
+&amp;= V_I\left[\sum_{i \in \text{PSU}} I_i \frac{\hat{t}}{\pi_i}\right] + E_I\left[\sum_{i \in \text{PSU}} I_i \frac{\text{Var}(\hat{t})}{\pi_i}\right]
+\end{align*}
+\]</span></p>
+<p>The first term is the variance of the without-replacement estimator over <span class="math inline">\(\hat{t}_i\)</span> values. The second term is the with-replacement estimator of the sum of the cluster variances. We already know how to compute each of these!</p>
+<p>This recursive structure extends naturally to any depth of nesting. Three-stage sampling? The within-cluster variance is itself computed via a two-stage formula.</p>
+</section>
+<section id="taylor-series-estimates-with-clustering" class="level2">
+<h2 class="anchored" data-anchor-id="taylor-series-estimates-with-clustering">Taylor Series Estimates with Clustering</h2>
+<p>For nonlinear estimators like ratios, the same decomposition applies via Taylor linearization. The gradient <span class="math inline">\(\nabla f\)</span> filters through to weight the cluster-level sums, and everything falls out cleanly.</p>
+<p><span class="math display">\[
+\begin{align*}
+\text{Var}(E[\hat{t} | I]) &amp;= \text{Var}_I(\langle \nabla f, \hat{a} \rangle) \\
+&amp;\approx \text{Var}_I(\langle \nabla f, \sum_{i \in \text{PSU}} I_i \frac{\hat{z}_i}{\pi_i} \rangle) \\
+&amp;= \text{Var}_I(\sum_{i \in \text{PSU}}I_i \langle \nabla f, \frac{\hat{z}_i}{\pi_i} \rangle)
+\end{align*}
+\]</span></p>
+<p>This is the variance of the without-replacement estimator over <span class="math inline">\(\langle \nabla f, \hat{z}_i\)</span> values.</p>
+<p><span class="math display">\[
+\begin{align*}
+E[\text{Var}(\hat{t} | I)] &amp;= E[\text{Var}(f(\hat{a} | I)] \\
+&amp;\approx E[\text{Var}(\langle \nabla f, \hat{a} \rangle | I)] \\
+&amp;= E\left[\sum_{i \in \text{PSU}} \frac{I_i}{\pi_i} (\langle \nabla f, \text{Var}(\hat{z}_i) \rangle)\right] \\
+\end{align*}
+\]</span></p>
+<p>This is the without-replacement estimator of the sum of <span class="math inline">\(\langle \nabla f, \text{Var}(\hat{z}_i)\)</span> values.</p>
+</section>
+<section id="enter-nestedsurveys.jl" class="level2">
+<h2 class="anchored" data-anchor-id="enter-nestedsurveys.jl">Enter NestedSurveys.jl</h2>
+<p><code>NestedSurveys.jl</code> is a Julia package implementing all of the above, currently under active development. The design philosophy is to make the math visible in the code: the hierarchical structure of a multi-stage estimate should be reflected directly in how you write the computation.</p>
+<p>The basic building block is a <code>SampleSum</code>, which bundles an estimate with its variance. Arithmetic on <code>SampleSum</code> objects propagates variance correctly, so you can compose estimates naturally.</p>
+<p>For a simple random sample:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">NestedSurveys</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 500 sampled from a population of 5000</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>estimate <span class="op">=</span> <span class="fu">sum</span>(sample_values, <span class="fu">SI</span>(<span class="fl">5000</span>))</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Returns a SampleSum with Horvitz-Thompson estimate and variance</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>For two-stage cluster sampling, you nest the calls. This is often easiest within data manipultion frameworks like <code>DataFramesMeta</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="pp">@chain</span> df <span class="cf">begin</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@groupby</span>(<span class="op">:</span>county)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Stage 1: estimate totals within each county</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@combine</span>(<span class="op">:</span>subtotal <span class="op">=</span> <span class="fu">sum</span>(<span class="op">:</span>Burglary, <span class="fu">SI</span>(county_sizes[<span class="fu">first</span>(<span class="op">:</span>county)])))</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Stage 2: estimate the population total from county estimates</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="pp">@combine</span>(<span class="op">:</span>total <span class="op">=</span> <span class="fu">sum</span>(<span class="op">:</span>subtotal, <span class="fu">SI</span>(N_counties)))</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The inner <code>sum</code> returns a vector of <code>SampleSum</code> objects. The outer <code>sum</code> sees these and applies the cluster variance formula — between-cluster variance plus average within-cluster variance — automatically.</p>
+<p>For ratio estimation, Taylor linearization is built in via automatic differentiation:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>ratio <span class="op">=</span> <span class="fu">taylor</span>(z <span class="op">-&gt;</span> z[<span class="fl">1</span>] <span class="op">/</span> z[<span class="fl">2</span>]) <span class="cf">do</span> g</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(<span class="fu">g</span>([<span class="op">:</span>numerator_col, <span class="op">:</span>denominator_col]), <span class="fu">SI</span>(N))</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>taylor</code> function takes your nonlinear function <span class="math inline">\(f\)</span>, evaluates the gradient at the sample estimates using ForwardDiff, and applies the linearization formula to get the variance. You write the estimator; the package handles the variance.</p>
+<p>Regression-assisted estimation uses a formula interface:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(<span class="pp">@formula</span>(outcome <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> covariate), sample_data, pop_totals, <span class="fu">SI</span>(N))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This fits the design-weighted regression and applies the residual-based variance formula described above.</p>
+<p>The package validates against R’s <code>survey</code> package — the reference implementation in the field — to ensure correctness. For the estimators that are implemented, the output matches.</p>
+</section>
+<section id="why-this-matters" class="level2">
+<h2 class="anchored" data-anchor-id="why-this-matters">Why This Matters</h2>
+<p>The design-based framework is notable for what it <em>doesn’t</em> require. You don’t need to assume anything about how <span class="math inline">\(y_i\)</span> is distributed. You don’t need a model of the population. Your inferences are valid for the specific population you sampled from, based purely on the randomness you introduced when sampling. That’s a strong foundation.</p>
+<p>For practitioners, the practical implication is that survey weights aren’t just a nuisance correction — they’re the mechanism by which your sample results become statements about a population. Getting them right, and propagating their uncertainty correctly through nonlinear estimators and multi-stage designs, is what separates defensible estimates from wishful ones.</p>
+<p><code>NestedSurveys.jl</code> is working toward making that easier to get right in Julia, with an API that reflects the actual structure of the problem rather than hiding it behind opaque weight adjustments.</p>
+<p>The code is at <a href="https://github.com/samanklesaria/NestedSurveys.jl">https://github.com/samanklesaria/NestedSurveys.jl</a>. Contributions and bug reports welcome.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/samanklesaria\.github\.io");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
