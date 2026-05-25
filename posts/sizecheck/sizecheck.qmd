@@ -2,6 +2,7 @@
 title: "Sizecheck: Making Tensor Code Self-Documenting with Runtime Shape Validation"
 date: 8/30/2025
 categories: [tools]
+image: logo.png
 ---
 
 

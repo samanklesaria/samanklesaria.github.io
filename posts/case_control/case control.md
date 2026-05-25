@@ -1,6 +1,7 @@
 ---
 title: "Case Control Studies"
 date: 5/20/2026
+image: img.png
 categories: [statistics]
 ---
 
@@ -40,4 +41,4 @@ For simplicity, we can work with binary $X \in \{0,1\}$ for a clean closed form.
 $$
 \operatorname{Var}(\hat\beta) = \frac{1}{n_1 p_1} + \frac{1}{n_1(1-p_1)} + \frac{1}{n_0 p_0} + \frac{1}{n_0(1-p_0)} = \frac{1}{n_1 V_1} + \frac{1}{n_0 V_0}
 $$
-where $V_j = p_j(1-p_j) = \operatorname{Var}(X \mid D=j)$. Deriving the variance wrt $n_1$ for a fixed total sample size gives $\frac{n_1}{n_0} = \sqrt{\frac{V_0}{V_1}}$. So: we should sample group $i$ in proportion to $\sqrt{V_i}$. 
+where $V_j = p_j(1-p_j) = \operatorname{Var}(X \mid D=j)$. Deriving the variance wrt $n_1$ for a fixed total sample size gives $\frac{n_1}{n_0} = \sqrt{\frac{V_0}{V_1}}$. So: we should sample group $i$ in proportion to $\sqrt{V_i}$.

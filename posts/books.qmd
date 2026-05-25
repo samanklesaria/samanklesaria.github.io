@@ -2,6 +2,7 @@
 title: "Books and Guides"
 date: "2025-08-21"
 categories: ["statistics", "machine learning"]
+image: https://upload.wikimedia.org/wikipedia/commons/3/39/Noto_Emoji_v2.034_1f4da.svg
 ---
 
 In the style of Susan Rigetti's classic ["So You Want to Learn Physics"](https://www.susanrigetti.com/physics), this post
