@@ -1,6 +1,6 @@
 ---
-title: Counting People You Haven't Met: Design-Based Survey Inference with NestedSurveys.jl
-date: 8/30/2026
+title: "Counting People You Haven't Met: Design-Based Survey Inference with NestedSurveys.jl"
+date: 4/30/2026
 categories: [statistics]
 ---
 
@@ -177,9 +177,9 @@ $$
 
 This is the without-replacement estimator of the sum of $\langle \nabla f, \text{Var}(\hat{z}_i)$ values.
 
-
-
 ## Enter NestedSurveys.jl
+
+![](logo.png)
 
 `NestedSurveys.jl` is a Julia package implementing all of the above, currently under active development. The design philosophy is to make the math visible in the code: the hierarchical structure of a multi-stage estimate should be reflected directly in how you write the computation.
 

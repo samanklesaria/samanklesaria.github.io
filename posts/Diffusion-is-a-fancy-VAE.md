@@ -1,6 +1,6 @@
 ---
 title: Generative ODE Models are VAEs
-categories: ["machine_learning"]
+categories: ["machine learning"]
 date: 2023-08-15
 ---
 

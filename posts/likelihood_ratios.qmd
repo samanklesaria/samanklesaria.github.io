@@ -1,7 +1,7 @@
 ---
 title: Fun with Likelihood Ratios
 date: 1/14/2021
-categories: [machine_learning]
+categories: [machine learning]
 summary: Say you're trying to maximize a likelihood $p_{\theta}(x)$, but you only have an unnormalized version $\hat{p_{\theta}}$ for which $p_{\theta}(x) = \frac{\hat{p_\theta}(x)}{N_\theta}$. How do you pick $\theta$? Well, you can rely on the magic of self normalized importance sampling.
 ---
 

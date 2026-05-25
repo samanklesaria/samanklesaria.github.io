@@ -1,7 +1,7 @@
 ---
 title: "Classifying Ships with Gaussian Process Mixtures"
 date: "2025-11-19"
-categories: ["machine_learning"]
+categories: ["machine learning"]
 engine: julia
 ---
 

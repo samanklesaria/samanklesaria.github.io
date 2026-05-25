@@ -1,6 +1,6 @@
 ---
 title: Finite Particle Approximations
-categories: [machine_learning]
+categories: [machine learning]
 date: 04/02/2024
 ---
 

@@ -1,7 +1,7 @@
 ---
 title: Finding Common Topics
 date: 02/10/25
-categories: [machine_learning]
+categories: [machine learning]
 jupyter: python3
 ---
 

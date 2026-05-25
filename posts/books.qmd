@@ -1,7 +1,7 @@
 ---
 title: "Books and Guides"
 date: "2025-08-21"
-categories: ["statistics", "machine_learning"]
+categories: ["statistics", "machine learning"]
 ---
 
 In the style of Susan Rigetti's classic ["So You Want to Learn Physics"](https://www.susanrigetti.com/physics), this post

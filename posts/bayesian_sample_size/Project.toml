@@ -1,0 +1,22 @@
+
+[deps]
+AlgebraOfGraphics = "cbdf2221-f076-402e-a563-3d30da359d67"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DataFramesMeta = "1313f7d8-7da2-5740-9ea0-a2ca25f37964"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
+Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
+
+[compat]
+AlgebraOfGraphics = "~0.12.2"
+CairoMakie = "~0.15.9"
+CategoricalArrays = "~1.0.2"
+DataFrames = "~1.8.1"
+DataFramesMeta = "~0.15.6"
+Distributions = "~0.25.123"
+LogExpFunctions = "~0.3.29"
+Roots = "~2.2.13"
+

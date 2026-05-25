@@ -1,7 +1,7 @@
 ---
 title: "Finite Basis Gaussian Processes"
 date: "2024-04-02"
-categories: ["machine_learning"]
+categories: ["machine learning"]
 engine: julia
 ---
 

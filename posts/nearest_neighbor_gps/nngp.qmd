@@ -1,7 +1,7 @@
 ---
 title: "Nearest Neighbor Gaussian Processes"
 date: "2/16/2024"
-categories: [machine_learning]
+categories: [machine learning]
 engine: julia
 ---
 
