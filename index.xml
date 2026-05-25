@@ -10,7 +10,2392 @@
 <atom:link href="https://samanklesaria.github.io/index.xml" rel="self" type="application/rss+xml"/>
 <description>Dabbling in Data Science</description>
 <generator>quarto-1.8.27</generator>
-<lastBuildDate>Sun, 30 Aug 2026 05:00:00 GMT</lastBuildDate>
+<lastBuildDate>Mon, 25 May 2026 05:00:00 GMT</lastBuildDate>
+<item>
+  <title>Building a Choral Source Separator with SepReformer in JAX</title>
+  <link>https://samanklesaria.github.io/posts/sepreformer/sepreformer.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>title: “Building a Choral Source Separator with SepReformer in JAX” date: 5/25/2026 categories: [machine_learning] include-in-header: scrubber.js —</p>
+<p>This tutorial demonstrates how to perform audio source separation using the <code>SepReformer</code> architecture. We’ll use <code>equinoix</code> for the neural network, with <code>beartype</code> for runtime type checking.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> numpy <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> np</span>
+<span id="cb1-2"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> jax</span>
+<span id="cb1-3"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> jax.numpy <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> jnp</span>
+<span id="cb1-4"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> equinox <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> eqx</span>
+<span id="cb1-5"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> jaxtyping <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> Float, Array, jaxtyped</span>
+<span id="cb1-6"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> beartype <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> beartype</span>
+<span id="cb1-7"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> soundfile <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> sf</span></code></pre></div></div>
+<section id="the-task" class="level2">
+<h2 class="anchored" data-anchor-id="the-task">The Task</h2>
+<p>Given a mono mixture waveform <img src="https://latex.codecogs.com/png.latex?x%20%5Cin%20%5Cmathbb%7BR%7D%5ET">, produce <img src="https://latex.codecogs.com/png.latex?N"> separated stem waveforms <img src="https://latex.codecogs.com/png.latex?%5Chat%7Bs%7D_1,%20%5Cldots,%20%5Chat%7Bs%7D_N%20%5Cin%20%5Cmathbb%7BR%7D%5ET"> such that <img src="https://latex.codecogs.com/png.latex?%5Csum_n%20%5Chat%7Bs%7D_n%20%5Capprox%20x"> and each <img src="https://latex.codecogs.com/png.latex?%5Chat%7Bs%7D_n"> matches one isolated voice track.</p>
+<p>We use the <strong>JaCappella</strong> corpus (35 a cappella songs) via Hugging Face. Each song has 5 isolated stems — <code>lead_vocal</code>, <code>soprano</code>, <code>alto</code>, <code>tenor</code>, <code>bass</code> — and the mixture is their sum.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> librosa</span>
+<span id="cb2-2"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> pathlib <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> Path</span>
+<span id="cb2-3"></span>
+<span id="cb2-4">STEM_NAMES <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"lead_vocal"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"soprano"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"alto"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"tenor"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"bass"</span>)</span>
+<span id="cb2-5">SAMPLE_RATE <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">44100</span></span>
+<span id="cb2-6"></span>
+<span id="cb2-7"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> JaCappellaDataset:</span>
+<span id="cb2-8">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, root) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>:</span>
+<span id="cb2-9">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.root <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Path(root)</span>
+<span id="cb2-10">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.sample_rate <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">44100</span></span>
+<span id="cb2-11">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.songs <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sorted</span>(</span>
+<span id="cb2-12">            song</span>
+<span id="cb2-13">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> genre <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.root.iterdir()</span>
+<span id="cb2-14">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> genre.is_dir() <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">and</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">not</span> genre.name.startswith(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"."</span>)</span>
+<span id="cb2-15">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> song <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> genre.iterdir()</span>
+<span id="cb2-16">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> song.is_dir() <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">and</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">not</span> song.name.startswith(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"."</span>))</span>
+<span id="cb2-17"></span>
+<span id="cb2-18">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@jaxtyped</span>(typechecker<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>beartype)</span>
+<span id="cb2-19">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> _load_wav(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, path: Path) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[np.ndarray, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"T"</span>]:</span>
+<span id="cb2-20">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""Load a wav file, resample if needed, return mono float32."""</span></span>
+<span id="cb2-21">        audio, sr <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> sf.read(path, dtype<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"float32"</span>, always_2d<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb2-22">        audio <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> audio[:, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># take first channel if stereo</span></span>
+<span id="cb2-23">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> sr <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">!=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.sample_rate:</span>
+<span id="cb2-24">            audio <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> librosa.resample(audio, orig_sr<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>sr, target_sr<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.sample_rate)</span>
+<span id="cb2-25">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> audio</span>
+<span id="cb2-26"></span>
+<span id="cb2-27">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@jaxtyped</span>(typechecker<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>beartype)</span>
+<span id="cb2-28">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> _load_stems(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, song_dir: Path) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[np.ndarray, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"N T"</span>]:</span>
+<span id="cb2-29">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""Load all available stems for a song."""</span></span>
+<span id="cb2-30">        stems <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [] </span>
+<span id="cb2-31">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> i, name <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">enumerate</span>(STEM_NAMES):</span>
+<span id="cb2-32">            path <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> song_dir <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>name<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">.wav"</span></span>
+<span id="cb2-33">            stems.append(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>._load_wav(path) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> path.exists() <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> np.zeros(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, dtype<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>np.float32))</span>
+<span id="cb2-34">        max_len <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(s) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> s <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> stems)</span>
+<span id="cb2-35">        result <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.zeros((<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, max_len), dtype<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>np.float32)</span>
+<span id="cb2-36">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> i, s <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">enumerate</span>(stems):</span>
+<span id="cb2-37">            result[i, :<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(s)] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> s</span>
+<span id="cb2-38">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> result</span>
+<span id="cb2-39"></span>
+<span id="cb2-40">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@jaxtyped</span>(typechecker<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>beartype)</span>
+<span id="cb2-41">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__getitem__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, idx: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">tuple</span>[Float[np.ndarray, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"T"</span>], Float[np.ndarray, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"N T"</span>]]:</span>
+<span id="cb2-42">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""Load full song."""</span></span>
+<span id="cb2-43">        song_dir <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.songs[idx]</span>
+<span id="cb2-44">        stems <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>._load_stems(song_dir)</span>
+<span id="cb2-45">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> stems.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>), stems</span>
+<span id="cb2-46"></span>
+<span id="cb2-47">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__len__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>:</span>
+<span id="cb2-48">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.songs)</span>
+<span id="cb2-49"></span>
+<span id="cb2-50">dataset <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> JaCappellaDataset(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"/space/samanklesaria/data/jacappella"</span>)</span></code></pre></div></div>
+<p>We’ll feed the dataset to our model using the <code>grain</code> library.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> grain</span>
+<span id="cb3-2"></span>
+<span id="cb3-3">SEG_SAMPLES <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> SAMPLE_RATE <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># 2-second segments</span></span>
+<span id="cb3-4">BATCH_SIZE  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span></span>
+<span id="cb3-5"></span>
+<span id="cb3-6"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> extract_segment(item, rng):</span>
+<span id="cb3-7">    mixture, stems <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> item</span>
+<span id="cb3-8">    T <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> mixture.shape[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb3-9">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> T <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;=</span> SEG_SAMPLES:</span>
+<span id="cb3-10">        pad <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> SEG_SAMPLES <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> T</span>
+<span id="cb3-11">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> np.pad(mixture, (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, pad)), np.pad(stems, ((<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>), (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, pad)))</span>
+<span id="cb3-12">    start <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> rng.integers(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, T <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> SEG_SAMPLES)</span>
+<span id="cb3-13">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> mixture[start:start <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> SEG_SAMPLES], stems[:, start:start <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> SEG_SAMPLES]</span>
+<span id="cb3-14"></span>
+<span id="cb3-15"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> batch_to_jax(items):</span>
+<span id="cb3-16">    mixtures <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.array(np.stack([m <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> m, _ <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> items]))  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (B, T)</span></span>
+<span id="cb3-17">    stems    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.array(np.stack([s <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> _, s <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> items]))  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (B, N, T)</span></span>
+<span id="cb3-18">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> mixtures, stems</span>
+<span id="cb3-19"></span>
+<span id="cb3-20">loader <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (grain.MapDataset.source(dataset)</span>
+<span id="cb3-21">        .seed(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>).shuffle()</span>
+<span id="cb3-22">        .random_map(extract_segment)</span>
+<span id="cb3-23">        .batch(BATCH_SIZE, drop_remainder<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>, batch_fn<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>batch_to_jax))</span></code></pre></div></div>
+<p>To make sure the data is loading correctly, we can sample a batch and log it to Tensorboard.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">from</span> tensorboardX <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> SummaryWriter</span>
+<span id="cb4-2"></span>
+<span id="cb4-3">mixture, stems <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">next</span>(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">iter</span>(loader))</span>
+<span id="cb4-4">mixture <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array(mixture[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>])  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (T,)</span></span>
+<span id="cb4-5">stems <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array(stems[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>])      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (N, T)</span></span>
+<span id="cb4-6">writer <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> SummaryWriter(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"samples"</span>)</span>
+<span id="cb4-7">peak <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">abs</span>(mixture))</span>
+<span id="cb4-8">scale <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.99</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> peak <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> peak <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span></span>
+<span id="cb4-9">writer.add_audio(</span>
+<span id="cb4-10">    <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"mixture"</span>,</span>
+<span id="cb4-11">    mixture <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> scale,</span>
+<span id="cb4-12">    sample_rate<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>dataset.sample_rate)</span>
+<span id="cb4-13"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> n <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(stems.shape[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]):</span>
+<span id="cb4-14">    writer.add_audio(</span>
+<span id="cb4-15">        <span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"stem/</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>n<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>,</span>
+<span id="cb4-16">        stems[n] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> scale,</span>
+<span id="cb4-17">        sample_rate<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>dataset.sample_rate)</span>
+<span id="cb4-18">writer.close()</span></code></pre></div></div>
+<style>
+    .item-container { margin-bottom: 40px; padding: 20px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .item-container img { max-width: 100%; height: auto; display: block; margin-top: 15px; border-radius: 4px; }
+    .item-container h3 { margin-top: 0; color: #1a73e8; font-size: 1.2rem; margin-bottom: 5px; }
+    .item-container .meta { color: #666; font-size: 0.85rem; margin-bottom: 15px; }
+    .scrubber-control { background: #f8f9fa; border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-top: 15px; }
+    .scrubber-label { font-size: 0.9rem; font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .step-slider { width: 100%; margin: 10px 0; cursor: pointer; }
+    .item-container audio { display: block; width: 100%; margin-top: 10px; }
+    .item-container table { width: 100%; border-collapse: collapse; }
+    .item-container td { vertical-align: top; padding: 8px; }
+    .item-container tr { background: none !important; }
+</style>
+<div class="item-container">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>mixture</span><span>step 0</span>
+</div>
+<audio controls="">
+<source src="mixture_assets/audio_mixture_step0.wav" type="audio/wav">
+</audio>
+</div>
+<style>
+    .item-container { margin-bottom: 40px; padding: 20px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .item-container img { max-width: 100%; height: auto; display: block; margin-top: 15px; border-radius: 4px; }
+    .item-container h3 { margin-top: 0; color: #1a73e8; font-size: 1.2rem; margin-bottom: 5px; }
+    .item-container .meta { color: #666; font-size: 0.85rem; margin-bottom: 15px; }
+    .scrubber-control { background: #f8f9fa; border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-top: 15px; }
+    .scrubber-label { font-size: 0.9rem; font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .step-slider { width: 100%; margin: 10px 0; cursor: pointer; }
+    .item-container audio { display: block; width: 100%; margin-top: 10px; }
+    .item-container table { width: 100%; border-collapse: collapse; }
+    .item-container td { vertical-align: top; padding: 8px; }
+    .item-container tr { background: none !important; }
+</style>
+<div class="item-container">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>Audio Summary: stem</span><span>5 components</span>
+</div>
+<table>
+<tbody><tr>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>0</span><span>step 0</span>
+</div>
+<audio controls="">
+<source src="stem_assets/audio_stem_0_step0.wav" type="audio/wav">
+</audio>
+</td>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>1</span><span>step 0</span>
+</div>
+<audio controls="">
+<source src="stem_assets/audio_stem_1_step0.wav" type="audio/wav">
+</audio>
+</td>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>2</span><span>step 0</span>
+</div>
+<audio controls="">
+<source src="stem_assets/audio_stem_2_step0.wav" type="audio/wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>3</span><span>step 0</span>
+</div>
+<audio controls="">
+<source src="stem_assets/audio_stem_3_step0.wav" type="audio/wav">
+</audio>
+</td>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>4</span><span>step 0</span>
+</div>
+<audio controls="">
+<source src="stem_assets/audio_stem_4_step0.wav" type="audio/wav">
+</audio>
+</td>
+<td>
+</td>
+</tr>
+</tbody></table>
+</div>
+<section id="architecture" class="level2">
+<h2 class="anchored" data-anchor-id="architecture">Architecture</h2>
+<p>At a high level: - The input waveform is encoded to a latent space using convolutional and transformer layers. - The result gets split into separate pieces for each voice part - Each piece is decoded back to a waveform by the same stack of transformer and convolutional layers.</p>
+<p><img src="https://latex.codecogs.com/png.latex?x%20%5Cxrightarrow%7B%5Ctext%7BConv%7D%7D%20h%20%5Cxrightarrow%7B%5Ctext%7BEnc%20blocks%7D%7D%20h%20%5Cxrightarrow%7B%5Ctext%7BSplit%7D%7D%20%5C%7Bh_n%5C%7D%20%5Cxrightarrow%7B%5Ctext%7BDec%20blocks%20(vmapped)%7D%7D%20%5Cxrightarrow%7B%5Ctext%7BConvT%20(vmapped)%7D%7D%20%5C%7B%5Chat%7Bs%7D_n%5C%7D"></p>
+</section>
+<section id="convolutional-layers-waveform-latent-frames-and-back" class="level2">
+<h2 class="anchored" data-anchor-id="convolutional-layers-waveform-latent-frames-and-back">Convolutional Layers: Waveform → Latent Frames and Back</h2>
+<p>A strided 1-D convolution converts the raw waveform into a sequence of latent frames. With kernel <img src="https://latex.codecogs.com/png.latex?K"> and stride <img src="https://latex.codecogs.com/png.latex?S">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?L%20=%20%5Cleft%5Clfloor%20%5Cfrac%7BT%20-%20K%7D%7BS%7D%20%5Cright%5Crfloor%20+%201"></p>
+<p>The encoder applies a GELU after the convolution:</p>
+<p><img src="https://latex.codecogs.com/png.latex?h%20=%20%5Ctext%7BGELU%7D(W_%5Ctext%7Benc%7D%20*%20x),%20%5Cquad%20h%20%5Cin%20%5Cmathbb%7BR%7D%5E%7BL%20%5Ctimes%20C%7D"></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> Encoder(eqx.Module):</span>
+<span id="cb5-2">    conv: eqx.nn.Conv1d</span>
+<span id="cb5-3"></span>
+<span id="cb5-4">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, out_channels: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>, key: jax.random.PRNGKey):</span>
+<span id="cb5-5">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.conv <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> eqx.nn.Conv1d(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, out_channels, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">16</span>, stride<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>key)</span>
+<span id="cb5-6">            </span>
+<span id="cb5-7">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__call__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, x: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"T"</span>]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"L C"</span>]:</span>
+<span id="cb5-8">        h <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.conv(x[<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>, :])   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (C, L)</span></span>
+<span id="cb5-9">        h <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.nn.gelu(h)</span>
+<span id="cb5-10">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> jnp.transpose(h)     <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (L, C)</span></span></code></pre></div></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> Decoder(eqx.Module):</span>
+<span id="cb6-2">    conv_t: eqx.nn.ConvTranspose1d</span>
+<span id="cb6-3"></span>
+<span id="cb6-4">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, in_channels, key: jax.random.PRNGKey):</span>
+<span id="cb6-5">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.conv_t <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> eqx.nn.ConvTranspose1d(in_channels, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">16</span>, stride<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>key)</span>
+<span id="cb6-6"></span>
+<span id="cb6-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@jaxtyped</span>(typechecker<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>beartype)</span>
+<span id="cb6-8">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__call__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, h: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"L C"</span>]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"T"</span>]:</span>
+<span id="cb6-9">        h <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.transpose(h)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (C, L)</span></span>
+<span id="cb6-10">        out <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.conv_t(h)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (1, T)</span></span>
+<span id="cb6-11">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> out[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (T,)</span></span></code></pre></div></div>
+<p>Default: <img src="https://latex.codecogs.com/png.latex?K=16">, <img src="https://latex.codecogs.com/png.latex?S=8">, <img src="https://latex.codecogs.com/png.latex?C=256">. At 44.1 kHz a 2-second clip becomes <img src="https://latex.codecogs.com/png.latex?L%20%5Capprox%2011%7B,%7D025"> frames.</p>
+</section>
+<section id="snake-activation" class="level2">
+<h2 class="anchored" data-anchor-id="snake-activation">SNAKE Activation</h2>
+<p><strong>SNAKE</strong> (Liu et al., 2022) adds a learnable sinusoidal term that preserves the periodic structure present in harmonic audio:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Ctext%7BSNAKE%7D(x;%20%5Calpha)%20=%20x%20+%20%5Cfrac%7B1%7D%7B%5Calpha%7D%5Csin%5E2(%5Calpha%20x)"></p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Calpha"> is initialized to <img src="https://latex.codecogs.com/png.latex?%5Cmathbf%7B1%7D"> (small perturbation at startup) and learned per channel. SNAKE is used inside every feed-forward sub-layer in the transformer blocks.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> Snake(eqx.Module):</span>
+<span id="cb7-2">    alpha: Array   <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (F,), one per feature</span></span>
+<span id="cb7-3"></span>
+<span id="cb7-4">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, features: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>, key: jax.random.PRNGKey):</span>
+<span id="cb7-5">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.alpha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.ones(features)</span>
+<span id="cb7-6">            </span>
+<span id="cb7-7">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__call__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, x: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"... F"</span>], <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span>_) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"... F"</span>]:</span>
+<span id="cb7-8">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> (<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.alpha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-6</span>)) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> jnp.sin(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.alpha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> x) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span></span></code></pre></div></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> feedforward(dim, ff_dim, key: jax.random.PRNGKey):</span>
+<span id="cb8-2">    k1, k2, k3 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.random.split(key, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>)</span>
+<span id="cb8-3">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> eqx.nn.Sequential([</span>
+<span id="cb8-4">            eqx.nn.Linear(dim, ff_dim, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>k1),</span>
+<span id="cb8-5">            Snake(ff_dim, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>k2),</span>
+<span id="cb8-6">            eqx.nn.Linear(ff_dim, dim, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>k3)])</span></code></pre></div></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> TransformerBlock(eqx.Module):</span>
+<span id="cb9-2">    norm1: eqx.nn.LayerNorm</span>
+<span id="cb9-3">    norm2: eqx.nn.LayerNorm</span>
+<span id="cb9-4">    attn: eqx.nn.MultiheadAttention</span>
+<span id="cb9-5">    ff: eqx.nn.Sequential</span>
+<span id="cb9-6">    rope: eqx.nn.RotaryPositionalEmbedding</span>
+<span id="cb9-7">    scale1: Array</span>
+<span id="cb9-8">    scale2: Array</span>
+<span id="cb9-9"></span>
+<span id="cb9-10">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(</span>
+<span id="cb9-11">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, dim: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>, num_heads: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>, ff_dim: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>, key: jax.random.PRNGKey</span>
+<span id="cb9-12">    ):</span>
+<span id="cb9-13">        k1, k2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.random.split(key)</span>
+<span id="cb9-14">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.norm1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> eqx.nn.LayerNorm(dim)</span>
+<span id="cb9-15">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.attn <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> eqx.nn.MultiheadAttention(</span>
+<span id="cb9-16">            num_heads<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>num_heads, query_size<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>dim, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>k1</span>
+<span id="cb9-17">        )</span>
+<span id="cb9-18">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.norm2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> eqx.nn.LayerNorm(dim)</span>
+<span id="cb9-19">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.ff <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> feedforward(dim, ff_dim, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>k2)</span>
+<span id="cb9-20">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rope <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> eqx.nn.RotaryPositionalEmbedding(dim <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">//</span> num_heads)</span>
+<span id="cb9-21">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.scale1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.full(dim, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-4</span>)</span>
+<span id="cb9-22">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.scale2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.full(dim, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-4</span>)</span>
+<span id="cb9-23"></span>
+<span id="cb9-24">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@jaxtyped</span>(typechecker<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>beartype)</span>
+<span id="cb9-25">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__call__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, x: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"S D"</span>]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"S D"</span>]:</span>
+<span id="cb9-26">        normed <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.vmap(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.norm1)(x)</span>
+<span id="cb9-27"></span>
+<span id="cb9-28">        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> process_heads(q, k, v):</span>
+<span id="cb9-29">            q <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.vmap(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rope, in_axes<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, out_axes<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)(q)</span>
+<span id="cb9-30">            k <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.vmap(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rope, in_axes<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, out_axes<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)(k)</span>
+<span id="cb9-31">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> q, k, v</span>
+<span id="cb9-32"></span>
+<span id="cb9-33">        attn_out <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.attn(normed, normed, normed, process_heads<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>process_heads)</span>
+<span id="cb9-34">        x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.scale1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> attn_out</span>
+<span id="cb9-35">        x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.scale2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> jax.vmap(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.ff)(jax.vmap(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.norm2)(x))</span>
+<span id="cb9-36">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> x</span></code></pre></div></div>
+</section>
+<section id="stacking-transformer-layers-the-dual-path-approach" class="level2">
+<h2 class="anchored" data-anchor-id="stacking-transformer-layers-the-dual-path-approach">Stacking Transformer Layers: The Dual-Path Approach</h2>
+<p>Full self-attention over <img src="https://latex.codecogs.com/png.latex?L%20%5Capprox%2011%7B,%7D000"> frames costs <img src="https://latex.codecogs.com/png.latex?O(L%5E2)">. The dual-path trick (Luo &amp; Mesgarani, 2020) splits this into two <img src="https://latex.codecogs.com/png.latex?O(L%20%5Ccdot%20K)"> passes:</p>
+<ol type="1">
+<li><strong>Intra-chunk</strong> — reshape to <img src="https://latex.codecogs.com/png.latex?(M,%20K,%20C)">; each of the <img src="https://latex.codecogs.com/png.latex?M"> chunks attends within itself. Captures local patterns. Cost: <img src="https://latex.codecogs.com/png.latex?O(M%20%5Ccdot%20K%5E2)">.</li>
+<li><strong>Inter-chunk</strong> — transpose to <img src="https://latex.codecogs.com/png.latex?(K,%20M,%20C)">; each time-slot attends across all <img src="https://latex.codecogs.com/png.latex?M"> chunks. Propagates global pitch/rhythm. Cost: <img src="https://latex.codecogs.com/png.latex?O(K%20%5Ccdot%20M%5E2)">.</li>
+</ol>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> DualPathBlock(eqx.Module):</span>
+<span id="cb10-2">    intra_block: TransformerBlock</span>
+<span id="cb10-3">    inter_block: TransformerBlock</span>
+<span id="cb10-4">    chunk_size: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> eqx.field(static<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb10-5"></span>
+<span id="cb10-6">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(</span>
+<span id="cb10-7">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>,</span>
+<span id="cb10-8">        dim: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>,</span>
+<span id="cb10-9">        num_heads: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>,</span>
+<span id="cb10-10">        ff_dim: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>,</span>
+<span id="cb10-11">        chunk_size: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">64</span>,</span>
+<span id="cb10-12">        <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>,</span>
+<span id="cb10-13">        key: jax.random.PRNGKey,</span>
+<span id="cb10-14">    ):</span>
+<span id="cb10-15">        k1, k2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.random.split(key)</span>
+<span id="cb10-16">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.intra_block <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> TransformerBlock(dim, num_heads, ff_dim, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>k1)</span>
+<span id="cb10-17">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.inter_block <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> TransformerBlock(dim, num_heads, ff_dim, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>k2)</span>
+<span id="cb10-18">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.chunk_size <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> chunk_size</span>
+<span id="cb10-19"></span>
+<span id="cb10-20">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@jaxtyped</span>(typechecker<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>beartype)</span>
+<span id="cb10-21">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__call__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, x: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"L C"</span>]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"L C"</span>]:</span>
+<span id="cb10-22">        L, C <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> x.shape</span>
+<span id="cb10-23">        K <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.chunk_size</span>
+<span id="cb10-24"></span>
+<span id="cb10-25">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Pad to multiple of chunk_size</span></span>
+<span id="cb10-26">        pad_len <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (K <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> L <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%</span> K) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%</span> K</span>
+<span id="cb10-27">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> pad_len <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>:</span>
+<span id="cb10-28">            x <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.pad(x, ((<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, pad_len), (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)))</span>
+<span id="cb10-29"></span>
+<span id="cb10-30">        L_padded <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> x.shape[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb10-31">        num_chunks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> L_padded <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">//</span> K</span>
+<span id="cb10-32"></span>
+<span id="cb10-33">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Reshape to (num_chunks, chunk_size, C)</span></span>
+<span id="cb10-34">        chunks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> x.reshape(num_chunks, K, C)</span>
+<span id="cb10-35"></span>
+<span id="cb10-36">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Intra-chunk attention: attend within each chunk</span></span>
+<span id="cb10-37">        chunks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.vmap(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.intra_block)(chunks)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (num_chunks, K, C)</span></span>
+<span id="cb10-38"></span>
+<span id="cb10-39">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Inter-chunk attention: transpose to (K, num_chunks, C), attend across chunks</span></span>
+<span id="cb10-40">        inter <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.transpose(chunks, (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>))  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (K, num_chunks, C)</span></span>
+<span id="cb10-41">        inter <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.vmap(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.inter_block)(inter)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (K, num_chunks, C)</span></span>
+<span id="cb10-42">        chunks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.transpose(inter, (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>))  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (num_chunks, K, C)</span></span>
+<span id="cb10-43"></span>
+<span id="cb10-44">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Reshape back</span></span>
+<span id="cb10-45">        out <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> chunks.reshape(L_padded, C)</span>
+<span id="cb10-46">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> out[:L]  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># remove padding</span></span></code></pre></div></div>
+</section>
+<section id="splitting-into-speaker-streams" class="level2">
+<h2 class="anchored" data-anchor-id="splitting-into-speaker-streams">Splitting into Speaker Streams</h2>
+<p>After the shared encoder blocks, a <code>SplitLayer</code> expands <img src="https://latex.codecogs.com/png.latex?(L,%20C)"> into <img src="https://latex.codecogs.com/png.latex?(N,%0AL,%20C)">. Splitting here lets each of the <img src="https://latex.codecogs.com/png.latex?N"> reconstruction stacks specialize on one speaker while sharing parameters (via <code>vmap</code>) to keep the model compact.</p>
+<p>A GLU gate first refines the shared features before expanding:</p>
+<p><img src="https://latex.codecogs.com/png.latex?g,%20v%20=%20%5Ctext%7Bsplit%7D(W_1%20h),%20%5Cquad%20h'%20=%20%5Csigma(g)%20%5Codot%20v,%20%5Cquad%20%5Ctext%7Bstreams%7D%20=%20W_2%20h'%20%5C;%5Ctext%7Breshaped%20to%7D%5C;%20(N,%20L,%20C)"></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> SplitLayer(eqx.Module):</span>
+<span id="cb11-2">    linear1: eqx.nn.Linear  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># C → 2C</span></span>
+<span id="cb11-3">    linear2: eqx.nn.Linear  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># C → N*C</span></span>
+<span id="cb11-4">    num_stems: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span></span>
+<span id="cb11-5"></span>
+<span id="cb11-6">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, dim: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>, num_stems: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>, key: jax.random.PRNGKey):</span>
+<span id="cb11-7">        k1, k2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.random.split(key)</span>
+<span id="cb11-8">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.linear1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> eqx.nn.Linear(dim, dim <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>k1)</span>
+<span id="cb11-9">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.linear2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> eqx.nn.Linear(dim, dim <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> num_stems, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>k2)</span>
+<span id="cb11-10">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.num_stems <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> num_stems</span>
+<span id="cb11-11"></span>
+<span id="cb11-12">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__call__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, x: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"L C"</span>]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"N L C"</span>]:</span>
+<span id="cb11-13">        h <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.vmap(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.linear1)(x)               <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (L, 2C)</span></span>
+<span id="cb11-14">        gate, val <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.split(h, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb11-15">        h <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.nn.sigmoid(gate) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> val              <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (L, C)</span></span>
+<span id="cb11-16">        h <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.vmap(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.linear2)(h)               <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (L, N*C)</span></span>
+<span id="cb11-17">        h <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> h.reshape(x.shape[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>], <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.num_stems, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb11-18">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> jnp.transpose(h, (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>))          <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (N, L, C)</span></span></code></pre></div></div>
+</section>
+<section id="full-forward-pass" class="level2">
+<h2 class="anchored" data-anchor-id="full-forward-pass">Full Forward Pass</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">class</span> SepReformer(eqx.Module):</span>
+<span id="cb12-2">    encoder: Encoder</span>
+<span id="cb12-3">    sep_blocks: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">list</span>[DualPathBlock]</span>
+<span id="cb12-4">    split: SplitLayer</span>
+<span id="cb12-5">    rec_blocks: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">list</span>[DualPathBlock]</span>
+<span id="cb12-6">    decoder: Decoder</span>
+<span id="cb12-7"></span>
+<span id="cb12-8">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__init__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, key: jax.random.PRNGKey):</span>
+<span id="cb12-9">        num_sep_blocks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span></span>
+<span id="cb12-10">        num_rec_blocks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span></span>
+<span id="cb12-11">        dim <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">256</span></span>
+<span id="cb12-12">        num_heads <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span></span>
+<span id="cb12-13">        ff_dim <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1024</span></span>
+<span id="cb12-14">        chunk_size <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">64</span></span>
+<span id="cb12-15"></span>
+<span id="cb12-16">        num_blocks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> num_sep_blocks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> num_rec_blocks</span>
+<span id="cb12-17">        keys <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.random.split(key, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> num_blocks)</span>
+<span id="cb12-18">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.encoder <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Encoder(dim, keys[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>])</span>
+<span id="cb12-19">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.decoder <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> Decoder(dim, keys[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>])</span>
+<span id="cb12-20">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.split <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> SplitLayer(dim, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>keys[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>])</span>
+<span id="cb12-21">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.sep_blocks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [</span>
+<span id="cb12-22">            DualPathBlock(dim, num_heads, ff_dim, chunk_size, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>keys[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> i])</span>
+<span id="cb12-23">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> i <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(num_sep_blocks)</span>
+<span id="cb12-24">        ]</span>
+<span id="cb12-25">        <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rec_blocks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [</span>
+<span id="cb12-26">            DualPathBlock(dim, num_heads, ff_dim, chunk_size, key<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>keys[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> num_sep_blocks <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> i])</span>
+<span id="cb12-27">            <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> i <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(num_rec_blocks)</span>
+<span id="cb12-28">        ]</span>
+<span id="cb12-29">        </span>
+<span id="cb12-30"></span>
+<span id="cb12-31">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">__call__</span>(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>, x: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"T"</span>]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"N T"</span>]:</span>
+<span id="cb12-32">        h <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.encoder(x)</span>
+<span id="cb12-33">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> block <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.sep_blocks:</span>
+<span id="cb12-34">            h <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> block(h)</span>
+<span id="cb12-35">        stems <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.split(h)                    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (N, L, C)</span></span>
+<span id="cb12-36">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> block <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.rec_blocks:</span>
+<span id="cb12-37">            stems <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.vmap(block)(stems)</span>
+<span id="cb12-38">        out <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jax.vmap(<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">self</span>.decoder)(stems)      <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (N, T')</span></span>
+<span id="cb12-39">        <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># trim / pad to original length</span></span>
+<span id="cb12-40">        T <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> x.shape[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]</span>
+<span id="cb12-41">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> out.shape[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> T:</span>
+<span id="cb12-42">            out <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> out[:, :T]</span>
+<span id="cb12-43">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">elif</span> out.shape[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> T:</span>
+<span id="cb12-44">            out <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.pad(out, ((<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>), (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, T <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> out.shape[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>])))</span>
+<span id="cb12-45">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> out</span>
+<span id="cb12-46"></span>
+<span id="cb12-47">model <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> SepReformer(jax.random.PRNGKey(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>))</span></code></pre></div></div>
+</section>
+<section id="loss-functions" class="level2">
+<h2 class="anchored" data-anchor-id="loss-functions">Loss Functions</h2>
+<p>Supervising a source separator is not straightforward. A plain mean-squared error (MSE) in the waveform domain penalises tiny timing offsets and global loudness differences equally, so the model spends capacity chasing irrelevant phase shifts rather than learning to separate voices. We instead use two complementary objectives — one waveform-domain and one spectral — that together give stable, perceptually meaningful gradients.</p>
+<section id="si-sdr" class="level3">
+<h3 class="anchored" data-anchor-id="si-sdr">SI-SDR</h3>
+<p>SI-SDR projects the estimate onto the target and reports the energy ratio in dB. It is invariant to global loudness, which matters for a cappella where voices differ widely in level:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Chat%7Bs%7D_%5Ctext%7Btgt%7D%20=%20%5Cfrac%7B%5Clangle%20%5Chat%7Bs%7D,%20s%20%5Crangle%7D%7B%5C%7Cs%5C%7C%5E2%7D%20s,%20%5Cqquad%20%5Ctext%7BSI-SDR%7D%20=%2010%5Clog_%7B10%7D%5Cfrac%7B%5C%7C%5Chat%7Bs%7D_%5Ctext%7Btgt%7D%5C%7C%5E2%7D%7B%5C%7C%5Chat%7Bs%7D%20-%20%5Chat%7Bs%7D_%5Ctext%7Btgt%7D%5C%7C%5E2%7D"></p>
+<p>The projection step removes any DC offset before computing the ratio, so a perfectly separated signal that is merely scaled up or down still scores the maximum possible value. In practice, SI-SDR values above <img src="https://latex.codecogs.com/png.latex?+10%5C%20%5Ctext%7BdB%7D"> indicate clearly separated sources; below <img src="https://latex.codecogs.com/png.latex?0%5C%20%5Ctext%7BdB%7D"> the estimate is dominated by leakage from other voices. We negate it to turn maximisation into minimisation.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@jaxtyped</span>(typechecker<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>beartype)</span>
+<span id="cb13-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> si_sdr(estimate: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"T"</span>], target: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"T"</span>], eps: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-8</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>]:</span>
+<span id="cb13-3">    estimate <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> estimate <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> jnp.mean(estimate)</span>
+<span id="cb13-4">    target   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> target   <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> jnp.mean(target)</span>
+<span id="cb13-5">    dot      <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(estimate <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> target)</span>
+<span id="cb13-6">    s_target <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (dot <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (jnp.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(target <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> eps)) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> target</span>
+<span id="cb13-7">    e_noise  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> estimate <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> s_target</span>
+<span id="cb13-8">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10.0</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> jnp.log10(jnp.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(s_target <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (jnp.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(e_noise <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> eps) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> eps)</span></code></pre></div></div>
+</section>
+<section id="multi-resolution-stft-loss" class="level3">
+<h3 class="anchored" data-anchor-id="multi-resolution-stft-loss">Multi-Resolution STFT Loss</h3>
+<p>SI-SDR is blind to spectral texture: two signals can have the same SI-SDR yet sound very different if one has unnatural resonances or missing harmonics. Adding a frequency-domain term at three FFT scales <img src="https://latex.codecogs.com/png.latex?%5C%7B512,%201024,%202048%5C%7D"> addresses this at multiple time-frequency resolutions simultaneously.</p>
+<p>A small FFT (<img src="https://latex.codecogs.com/png.latex?512">) gives sharp time resolution — useful for detecting onset smearing — while a large FFT (<img src="https://latex.codecogs.com/png.latex?2048">) gives fine frequency resolution — useful for resolving individual harmonics in a choir. Using all three averages out the inherent time-frequency tradeoff of any single STFT.</p>
+<p>Each scale contributes two terms:</p>
+<ul>
+<li><strong>Spectral convergence</strong> — the Frobenius-norm distance between magnitude spectrograms, normalised by the target energy. This drives the gross shape of the spectrum towards the reference.</li>
+<li><strong>Log-magnitude distance</strong> — the mean absolute difference on a log scale. Because human pitch perception is logarithmic, this term penalises errors in quiet harmonics just as strongly as errors in loud ones.</li>
+</ul>
+<p><img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BL%7D_%5Ctext%7BSTFT%7D%20=%20%5Cfrac%7B1%7D%7B3%7D%5Csum_%5Ctext%7Bscale%7D%5Cleft(%5Cunderbrace%7B%5Cfrac%7B%5C%7C%7CS%7C%20-%20%7C%5Chat%7BS%7D%7C%5C%7C_F%7D%7B%5C%7C%7CS%7C%5C%7C_F%7D%7D_%7B%5Ctext%7Bspectral%20convergence%7D%7D%20+%20%5Cunderbrace%7B%5Ctext%7Bmean%7D%7C%5Clog%7CS%7C%20-%20%5Clog%7C%5Chat%7BS%7D%7C%7C%7D_%7B%5Ctext%7Blog-magnitude%7D%7D%5Cright)"></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@jaxtyped</span>(typechecker<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>beartype)</span>
+<span id="cb14-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> stft_mag(x: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"T"</span>], fft_size: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>, hop: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>, win_size: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"F K"</span>]:</span>
+<span id="cb14-3">    window <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.hanning(win_size)</span>
+<span id="cb14-4">    x_pad  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.pad(x, (fft_size <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">//</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, fft_size <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">//</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>))</span>
+<span id="cb14-5">    n_frames <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(x_pad) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> win_size) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">//</span> hop <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span></span>
+<span id="cb14-6">    idx    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.arange(win_size)[<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>, :] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> jnp.arange(n_frames)[:, <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">None</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> hop</span>
+<span id="cb14-7">    frames <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> x_pad[idx] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> window</span>
+<span id="cb14-8">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> jnp.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">abs</span>(jnp.fft.rfft(frames, n<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>fft_size, axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)).T  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># (F, K)</span></span>
+<span id="cb14-9"></span>
+<span id="cb14-10"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@jaxtyped</span>(typechecker<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>beartype)</span>
+<span id="cb14-11"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> stft_loss_single(est: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"T"</span>], tgt: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"T"</span>], fft_size: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>, hop: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>, win: <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>]:</span>
+<span id="cb14-12">    em, tm <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stft_mag(est, fft_size, hop, win), stft_mag(tgt, fft_size, hop, win)</span>
+<span id="cb14-13">    sc <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.linalg.norm(tm <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> em) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (jnp.linalg.norm(tm) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-8</span>)</span>
+<span id="cb14-14">    lm <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> jnp.mean(jnp.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">abs</span>(jnp.log(em <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-8</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> jnp.log(tm <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-8</span>)))</span>
+<span id="cb14-15">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> sc <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> lm</span>
+<span id="cb14-16"></span>
+<span id="cb14-17"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@jaxtyped</span>(typechecker<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>beartype)</span>
+<span id="cb14-18"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> mr_stft_loss(est: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"T"</span>], tgt: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"T"</span>]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>]:</span>
+<span id="cb14-19">    scales <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> [(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">512</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">128</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">512</span>), (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1024</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">256</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1024</span>), (<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2048</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">512</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2048</span>)]</span>
+<span id="cb14-20">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>(stft_loss_single(est, tgt, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>s) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> s <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> scales) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(scales)</span></code></pre></div></div>
+</section>
+<section id="composite-loss" class="level3">
+<h3 class="anchored" data-anchor-id="composite-loss">Composite Loss</h3>
+<p>The final objective combines the two terms, with the STFT loss weighted at <img src="https://latex.codecogs.com/png.latex?0.5"> so that SI-SDR — which operates directly in the waveform domain and carries the strongest perceptual signal — dominates early in training. The STFT term then fills in spectral detail that SI-SDR cannot see. Both terms are averaged across the <img src="https://latex.codecogs.com/png.latex?N"> stems before being averaged across the batch.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@jaxtyped</span>(typechecker<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>beartype)</span>
+<span id="cb15-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> composite_loss(estimates: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"N T"</span>], targets: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"N T"</span>]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>]:</span>
+<span id="cb15-3">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> pair(est, tgt):</span>
+<span id="cb15-4">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span>si_sdr(est, tgt) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> mr_stft_loss(est, tgt)</span>
+<span id="cb15-5">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> jnp.mean(jax.vmap(pair)(estimates, targets))</span>
+<span id="cb15-6"></span>
+<span id="cb15-7"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@eqx.filter_value_and_grad</span></span>
+<span id="cb15-8"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> loss_fn(m, mixture: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"B T"</span>], targets: Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"B N T"</span>]) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-&gt;</span> Float[Array, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>]:</span>
+<span id="cb15-9">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> single(mix, tgt):</span>
+<span id="cb15-10">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> composite_loss(m(mix), tgt)</span>
+<span id="cb15-11">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> jnp.mean(jax.vmap(single)(mixture, targets))</span></code></pre></div></div>
+</section>
+</section>
+<section id="overfitting-on-jacappella" class="level2">
+<h2 class="anchored" data-anchor-id="overfitting-on-jacappella">Overfitting on JaCappella</h2>
+<p>Before training on the full corpus, we overfit on a single batch. This is a fast sanity check: if the model cannot memorise even one example, something is wrong with the architecture, the loss, or the data pipeline. It is much cheaper to discover this now than after a multi-hour training run.</p>
+<section id="audio-logging" class="level3">
+<h3 class="anchored" data-anchor-id="audio-logging">Audio Logging</h3>
+<p>The loss curve tells you the model is learning, but it does not tell you <em>what</em> it is learning. Listening to the actual estimates at checkpoints is irreplaceable: you can hear immediately whether the model is separating voices, producing silence, or emitting noise. <code>log_audio_samples</code> writes one batch of audio to TensorBoard — the raw mixture, each ground-truth stem, and the corresponding model estimate — all normalised to a peak of <img src="https://latex.codecogs.com/png.latex?0.99"> so playback levels are comparable across steps.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> log_audio_samples(model, loader, writer, global_step):</span>
+<span id="cb16-2">    mixture, stems <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">next</span>(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">iter</span>(loader))</span>
+<span id="cb16-3">    mix_np <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array(mixture[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>])</span>
+<span id="cb16-4">    stems_np <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array(stems[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>])</span>
+<span id="cb16-5">    est_np <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.array(model(mixture[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]))</span>
+<span id="cb16-6">    scale  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.99</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">abs</span>(mix_np)) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-8</span>)</span>
+<span id="cb16-7">    writer.add_audio(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"mixture"</span>, mix_np <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> scale, global_step, sample_rate<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>SAMPLE_RATE)</span>
+<span id="cb16-8">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> n <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(stems_np.shape[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]):</span>
+<span id="cb16-9">        writer.add_audio(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"true/</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>n<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>, stems_np[n] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> scale, global_step, sample_rate<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>SAMPLE_RATE)</span>
+<span id="cb16-10">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> n <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(est_np.shape[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>]):</span>
+<span id="cb16-11">        est_scale  <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.99</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">max</span>(np.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">abs</span>(est_np[n])) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-8</span>)</span>
+<span id="cb16-12">        writer.add_audio(<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"estimate/</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>n<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span>, est_np[n] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> est_scale, global_step, sample_rate<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>SAMPLE_RATE)</span></code></pre></div></div>
+</section>
+<section id="optimizer-and-training-loop" class="level3">
+<h3 class="anchored" data-anchor-id="optimizer-and-training-loop">Optimizer and Training Loop</h3>
+<p>We use AdamW with a global gradient-norm clip of <img src="https://latex.codecogs.com/png.latex?1.0">. Clipping is important here because early in training the split layer and decoder produce near-random outputs, which can generate very large gradients through the SI-SDR loss. Weight decay of <img src="https://latex.codecogs.com/png.latex?10%5E%7B-2%7D"> provides mild regularisation to prevent any single stem stream from collapsing to zero.</p>
+<p>The loop runs for 50 epochs, logging the scalar loss every 50 steps and uploading a fresh set of audio samples at the end of each epoch. You can monitor progress in TensorBoard with <code>tensorboard --logdir runs/overfit</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@eqx.filter_jit</span></span>
+<span id="cb17-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> step(model, opt_state, mixture, targets):</span>
+<span id="cb17-3">    loss, grads <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> loss_fn(model, mixture, targets)</span>
+<span id="cb17-4">    updates, opt_state <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> optimizer.update(grads, opt_state, model)</span>
+<span id="cb17-5">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> eqx.apply_updates(model, updates), opt_state, loss</span></code></pre></div></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> optax</span>
+<span id="cb18-2"></span>
+<span id="cb18-3">optimizer <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> optax.chain(optax.clip_by_global_norm(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>), optax.adamw(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3e-4</span>, weight_decay<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1e-2</span>))</span>
+<span id="cb18-4">opt_state <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> optimizer.init(eqx.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">filter</span>(model, eqx.is_array))</span>
+<span id="cb18-5"></span>
+<span id="cb18-6">writer <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> SummaryWriter(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"runs/overfit"</span>)</span>
+<span id="cb18-7"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> epoch <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">200</span>):</span>
+<span id="cb18-8">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> mixture, targets <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> loader[:<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>]:</span>
+<span id="cb18-9">        model, opt_state, loss <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> step(model, opt_state, mixture, targets)</span>
+<span id="cb18-10">        writer.add_scalar(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"loss"</span>, <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>(loss), epoch)</span>
+<span id="cb18-11">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> epoch <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">%</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">20</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>:</span>
+<span id="cb18-12">            log_audio_samples(model, loader, writer, epoch)</span>
+<span id="cb18-13">writer.close()</span></code></pre></div></div>
+<p>The exported Tensorboard results are shown below:</p>
+<style>
+    .item-container { margin-bottom: 40px; padding: 20px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .item-container img { max-width: 100%; height: auto; display: block; margin-top: 15px; border-radius: 4px; }
+    .item-container h3 { margin-top: 0; color: #1a73e8; font-size: 1.2rem; margin-bottom: 5px; }
+    .item-container .meta { color: #666; font-size: 0.85rem; margin-bottom: 15px; }
+    .scrubber-control { background: #f8f9fa; border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-top: 15px; }
+    .scrubber-label { font-size: 0.9rem; font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .step-slider { width: 100%; margin: 10px 0; cursor: pointer; }
+    .item-container audio { display: block; width: 100%; margin-top: 10px; }
+    .item-container table { width: 100%; border-collapse: collapse; }
+    .item-container td { vertical-align: top; padding: 8px; }
+    .item-container tr { background: none !important; }
+</style>
+<div class="item-container">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>Audio Summary: estimate</span><span>5 components</span>
+</div>
+<table>
+<tbody><tr>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>0</span><span></span>
+</div>
+<div class="scrubber-control" data-audio-steps="[0, 20, 40, 60, 80, 100, 120, 140, 160, 180]" data-audio-path="estimate_assets/audio_estimate_0_step{step}.wav">
+<div class="scrubber-label">
+<span>Step Scrubber</span><span><strong class="step-display">0</strong></span>
+</div>
+<input type="range" class="step-slider" min="0" max="9" value="0" step="1"><audio controls="" src="estimate_assets/audio_estimate_0_step0.wav" type="audio/wav"></audio>
+</div>
+</td>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>1</span><span></span>
+</div>
+<div class="scrubber-control" data-audio-steps="[0, 20, 40, 60, 80, 100, 120, 140, 160, 180]" data-audio-path="estimate_assets/audio_estimate_1_step{step}.wav">
+<div class="scrubber-label">
+<span>Step Scrubber</span><span><strong class="step-display">0</strong></span>
+</div>
+<input type="range" class="step-slider" min="0" max="9" value="0" step="1"><audio controls="" src="estimate_assets/audio_estimate_1_step0.wav" type="audio/wav"></audio>
+</div>
+</td>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>2</span><span></span>
+</div>
+<div class="scrubber-control" data-audio-steps="[0, 20, 40, 60, 80, 100, 120, 140, 160, 180]" data-audio-path="estimate_assets/audio_estimate_2_step{step}.wav">
+<div class="scrubber-label">
+<span>Step Scrubber</span><span><strong class="step-display">0</strong></span>
+</div>
+<input type="range" class="step-slider" min="0" max="9" value="0" step="1"><audio controls="" src="estimate_assets/audio_estimate_2_step0.wav" type="audio/wav"></audio>
+</div>
+</td>
+</tr>
+<tr>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>3</span><span></span>
+</div>
+<div class="scrubber-control" data-audio-steps="[0, 20, 40, 60, 80, 100, 120, 140, 160, 180]" data-audio-path="estimate_assets/audio_estimate_3_step{step}.wav">
+<div class="scrubber-label">
+<span>Step Scrubber</span><span><strong class="step-display">0</strong></span>
+</div>
+<input type="range" class="step-slider" min="0" max="9" value="0" step="1"><audio controls="" src="estimate_assets/audio_estimate_3_step0.wav" type="audio/wav"></audio>
+</div>
+</td>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>4</span><span></span>
+</div>
+<div class="scrubber-control" data-audio-steps="[0, 20, 40, 60, 80, 100, 120, 140, 160, 180]" data-audio-path="estimate_assets/audio_estimate_4_step{step}.wav">
+<div class="scrubber-label">
+<span>Step Scrubber</span><span><strong class="step-display">0</strong></span>
+</div>
+<input type="range" class="step-slider" min="0" max="9" value="0" step="1"><audio controls="" src="estimate_assets/audio_estimate_4_step0.wav" type="audio/wav"></audio>
+</div>
+</td>
+<td>
+</td>
+</tr>
+</tbody></table>
+</div>
+
+
+</section>
+</section>
+</section> ]]></description>
+  <category>machine_learning</category>
+  <guid>https://samanklesaria.github.io/posts/sepreformer/sepreformer.html</guid>
+  <pubDate>Mon, 25 May 2026 05:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>Case Control Studies</title>
+  <link>https://samanklesaria.github.io/posts/case control.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>Say we want to find the odds ratio for how a factor <img src="https://latex.codecogs.com/png.latex?X"> affects the probability of having a disease <img src="https://latex.codecogs.com/png.latex?D">. We can model this with logistic regression: <img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7Blogit%7D(P(D=1%7C%20X))%20=%20%5Calpha%20+%20%5Cbeta%20X%0A"> But if the disease is sufficiently rare, sampling everyone and waiting for cases is impractical. We need to oversample the population that has the disease. Let <img src="https://latex.codecogs.com/png.latex?S=1"> for units we sample. Let <img src="https://latex.codecogs.com/png.latex?%5Cpi_1%20=%20P(S=1%20%7C%20D%20=%201)"> and <img src="https://latex.codecogs.com/png.latex?%5Cpi_0%20=%20P(S=1%20%7C%20D%20=%200)">. How do we change our regression for account for the unequal sampling probabilities?</p>
+<section id="perspective-1" class="level3">
+<h3 class="anchored" data-anchor-id="perspective-1">Perspective 1</h3>
+<p>If we use logistic regression on our oversampled dataset, the coefficient <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> we get actually estimates <img src="https://latex.codecogs.com/png.latex?%5Clog%20%5Cfrac%7B%5Ctext%7Bodds%20%7D%20D%20%7C%20X%20=%201,%20S=1%7D%7B%5Ctext%7Bodds%20%7DD%20%7C%20X=0,%20S=1%7D">. But once you condition on <img src="https://latex.codecogs.com/png.latex?X">, the odds of <img src="https://latex.codecogs.com/png.latex?D"> don’t change with <img src="https://latex.codecogs.com/png.latex?S">. By Bayes’ Rule: <img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BP(D%20=1%20%7C%20X,%20S=1)%7D%7BP(D=0%20%7C%20X,%20S=1)%7D%20=%20%5Cfrac%7B%5Cpi_1P(D%20=1%20%7C%20X)%7D%7B%5Cpi_0P(D=0%20%7C%20X)%7D%0A"> The <img src="https://latex.codecogs.com/png.latex?%5Cpi_1/%5Cpi_0"> factor cancels out when we divide the odds for <img src="https://latex.codecogs.com/png.latex?X=1"> by the odds of <img src="https://latex.codecogs.com/png.latex?X=0">. So the <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> coefficient we get from the oversampled dataset represents the true log odds ratio! No adjustment to the estimate or its standard errors are necessary!</p>
+</section>
+<section id="perspective-2" class="level3">
+<h3 class="anchored" data-anchor-id="perspective-2">Perspective 2</h3>
+<p>The standard way to dealt with unequal sampling probabilities is to weigh observations where <img src="https://latex.codecogs.com/png.latex?D=i"> by <img src="https://latex.codecogs.com/png.latex?1%20/%20%5Cpi_i"> when doing maximum likelihood estimation. This is equivalent to us fitting the model <img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7Blogit%7D(P(D%7C%20X))%20=%20%5Clog%20%5Cpi_1/%5Cpi_0%20+%20%5Calpha%20+%20%5Cbeta%20X%0A"> The <img src="https://latex.codecogs.com/png.latex?%5Clog%20%5Cpi_1/%5Cpi_0"> part will get rolled into our estimate of the intercept, but our the coefficient for <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> will stay the same.</p>
+</section>
+<section id="how-many-should-we-sample" class="level3">
+<h3 class="anchored" data-anchor-id="how-many-should-we-sample">How many should we sample?</h3>
+<p>So now we know that it’s fine to sample the <img src="https://latex.codecogs.com/png.latex?D=1"> and <img src="https://latex.codecogs.com/png.latex?D=0"> populations separately. How many samples should we take from each population?</p>
+<p>For simplicity, we can work with binary <img src="https://latex.codecogs.com/png.latex?X%20%5Cin%20%5C%7B0,1%5C%7D"> for a clean closed form. The case-control data form a 2×2 table with cells <img src="https://latex.codecogs.com/png.latex?n_1%20p_1,%5C,%20n_1(1-p_1),%5C,%20(n%20-%20n_1)%20p_0,%5C,%20(n%20-%20n_1)(1-p_0)">, where <img src="https://latex.codecogs.com/png.latex?p_j%20=%20P(X=1%20%5Cmid%20D=j)">. By the delta method on <img src="https://latex.codecogs.com/png.latex?%5Chat%5Cbeta%20=%20%5Clog%5Chat%7BOR%7D">: <img src="https://latex.codecogs.com/png.latex?%0A%5Coperatorname%7BVar%7D(%5Chat%5Cbeta)%20=%20%5Cfrac%7B1%7D%7Bn_1%20p_1%7D%20+%20%5Cfrac%7B1%7D%7Bn_1(1-p_1)%7D%20+%20%5Cfrac%7B1%7D%7Bn_0%20p_0%7D%20+%20%5Cfrac%7B1%7D%7Bn_0(1-p_0)%7D%20=%20%5Cfrac%7B1%7D%7Bn_1%20V_1%7D%20+%20%5Cfrac%7B1%7D%7Bn_0%20V_0%7D%0A"> where <img src="https://latex.codecogs.com/png.latex?V_j%20=%20p_j(1-p_j)%20=%20%5Coperatorname%7BVar%7D(X%20%5Cmid%20D=j)">. Deriving the variance wrt <img src="https://latex.codecogs.com/png.latex?n_1"> for a fixed total sample size gives <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7Bn_1%7D%7Bn_0%7D%20=%20%5Csqrt%7B%5Cfrac%7BV_0%7D%7BV_1%7D%7D">. So: we should sample group <img src="https://latex.codecogs.com/png.latex?i"> in proportion to <img src="https://latex.codecogs.com/png.latex?%5Csqrt%7BV_i%7D">.</p>
+
+
+</section>
+
+ ]]></description>
+  <category>statistics</category>
+  <guid>https://samanklesaria.github.io/posts/case control.html</guid>
+  <pubDate>Wed, 20 May 2026 05:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Counting People You Haven’t Met: Design-Based Survey Inference with NestedSurveys.jl</title>
   <link>https://samanklesaria.github.io/posts/NestedSurveys.html</link>
@@ -246,38 +2631,7 @@ font-style: inherit;">SI</span>(N))</span></code></pre></div></div>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/NestedSurveys.html</guid>
-  <pubDate>Sun, 30 Aug 2026 05:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Case Control Studies</title>
-  <link>https://samanklesaria.github.io/posts/case control.html</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<p>Say we want to find the odds ratio for how a factor <img src="https://latex.codecogs.com/png.latex?X"> affects the probability of having a disease <img src="https://latex.codecogs.com/png.latex?D">. We can model this with logistic regression: <img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7Blogit%7D(P(D=1%7C%20X))%20=%20%5Calpha%20+%20%5Cbeta%20X%0A"> But if the disease is sufficiently rare, sampling everyone and waiting for cases is impractical. We need to oversample the population that has the disease. Let <img src="https://latex.codecogs.com/png.latex?S=1"> for units we sample. Let <img src="https://latex.codecogs.com/png.latex?%5Cpi_1%20=%20P(S=1%20%7C%20D%20=%201)"> and <img src="https://latex.codecogs.com/png.latex?%5Cpi_0%20=%20P(S=1%20%7C%20D%20=%200)">. How do we change our regression for account for the unequal sampling probabilities?</p>
-<section id="perspective-1" class="level3">
-<h3 class="anchored" data-anchor-id="perspective-1">Perspective 1</h3>
-<p>If we use logistic regression on our oversampled dataset, the coefficient <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> we get actually estimates <img src="https://latex.codecogs.com/png.latex?%5Clog%20%5Cfrac%7B%5Ctext%7Bodds%20%7D%20D%20%7C%20X%20=%201,%20S=1%7D%7B%5Ctext%7Bodds%20%7DD%20%7C%20X=0,%20S=1%7D">. But once you condition on <img src="https://latex.codecogs.com/png.latex?X">, the odds of <img src="https://latex.codecogs.com/png.latex?D"> don’t change with <img src="https://latex.codecogs.com/png.latex?S">. By Bayes’ Rule: <img src="https://latex.codecogs.com/png.latex?%0A%5Cfrac%7BP(D%20=1%20%7C%20X,%20S=1)%7D%7BP(D=0%20%7C%20X,%20S=1)%7D%20=%20%5Cfrac%7B%5Cpi_1P(D%20=1%20%7C%20X)%7D%7B%5Cpi_0P(D=0%20%7C%20X)%7D%0A"> The <img src="https://latex.codecogs.com/png.latex?%5Cpi_1/%5Cpi_0"> factor cancels out when we divide the odds for <img src="https://latex.codecogs.com/png.latex?X=1"> by the odds of <img src="https://latex.codecogs.com/png.latex?X=0">. So the <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> coefficient we get from the oversampled dataset represents the true log odds ratio! No adjustment to the estimate or its standard errors are necessary!</p>
-</section>
-<section id="perspective-2" class="level3">
-<h3 class="anchored" data-anchor-id="perspective-2">Perspective 2</h3>
-<p>The standard way to dealt with unequal sampling probabilities is to weigh observations where <img src="https://latex.codecogs.com/png.latex?D=i"> by <img src="https://latex.codecogs.com/png.latex?1%20/%20%5Cpi_i"> when doing maximum likelihood estimation. This is equivalent to us fitting the model <img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7Blogit%7D(P(D%7C%20X))%20=%20%5Clog%20%5Cpi_1/%5Cpi_0%20+%20%5Calpha%20+%20%5Cbeta%20X%0A"> The <img src="https://latex.codecogs.com/png.latex?%5Clog%20%5Cpi_1/%5Cpi_0"> part will get rolled into our estimate of the intercept, but our the coefficient for <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> will stay the same.</p>
-</section>
-<section id="how-many-should-we-sample" class="level3">
-<h3 class="anchored" data-anchor-id="how-many-should-we-sample">How many should we sample?</h3>
-<p>So now we know that it’s fine to sample the <img src="https://latex.codecogs.com/png.latex?D=1"> and <img src="https://latex.codecogs.com/png.latex?D=0"> populations separately. How many samples should we take from each population?</p>
-<p>For simplicity, we can work with binary <img src="https://latex.codecogs.com/png.latex?X%20%5Cin%20%5C%7B0,1%5C%7D"> for a clean closed form. The case-control data form a 2×2 table with cells <img src="https://latex.codecogs.com/png.latex?n_1%20p_1,%5C,%20n_1(1-p_1),%5C,%20(n%20-%20n_1)%20p_0,%5C,%20(n%20-%20n_1)(1-p_0)">, where <img src="https://latex.codecogs.com/png.latex?p_j%20=%20P(X=1%20%5Cmid%20D=j)">. By the delta method on <img src="https://latex.codecogs.com/png.latex?%5Chat%5Cbeta%20=%20%5Clog%5Chat%7BOR%7D">: <img src="https://latex.codecogs.com/png.latex?%0A%5Coperatorname%7BVar%7D(%5Chat%5Cbeta)%20=%20%5Cfrac%7B1%7D%7Bn_1%20p_1%7D%20+%20%5Cfrac%7B1%7D%7Bn_1(1-p_1)%7D%20+%20%5Cfrac%7B1%7D%7Bn_0%20p_0%7D%20+%20%5Cfrac%7B1%7D%7Bn_0(1-p_0)%7D%20=%20%5Cfrac%7B1%7D%7Bn_1%20V_1%7D%20+%20%5Cfrac%7B1%7D%7Bn_0%20V_0%7D%0A"> where <img src="https://latex.codecogs.com/png.latex?V_j%20=%20p_j(1-p_j)%20=%20%5Coperatorname%7BVar%7D(X%20%5Cmid%20D=j)">. Deriving the variance wrt <img src="https://latex.codecogs.com/png.latex?n_1"> for a fixed total sample size gives <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7Bn_1%7D%7Bn_0%7D%20=%20%5Csqrt%7B%5Cfrac%7BV_0%7D%7BV_1%7D%7D">. So: we should sample group <img src="https://latex.codecogs.com/png.latex?i"> in proportion to <img src="https://latex.codecogs.com/png.latex?%5Csqrt%7BV_i%7D">.</p>
-
-
-</section>
-
- ]]></description>
-  <category>statistics</category>
-  <guid>https://samanklesaria.github.io/posts/case control.html</guid>
-  <pubDate>Wed, 20 May 2026 05:00:00 GMT</pubDate>
+  <pubDate>Thu, 30 Apr 2026 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>A Recursive Bayesian Model of Reputation</title>
@@ -11322,53 +13676,6 @@ font-style: inherit;">.-</span> ff_C)))</span></code></pre></div></div>
  ]]></description>
   <category>machine_learning</category>
   <guid>https://samanklesaria.github.io/posts/finite_basis_gps/finite_basis_gps.html</guid>
-  <pubDate>Tue, 02 Apr 2024 05:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Finite Particle Approximations</title>
-  <link>https://samanklesaria.github.io/posts/finite_particle_approx.html</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<p>Say you have a discrete distribution <img src="https://latex.codecogs.com/png.latex?%5Cpi"> that you want to approximate with a small number of weighted particles. Intuitively, it seems like the the best choice of particles would be the outputs of highest probability under <img src="https://latex.codecogs.com/png.latex?%5Cpi">, and that the relative weights of these particles should be the same under our approximation as they were under <img src="https://latex.codecogs.com/png.latex?%5Cpi">. This actually isn’t hard to prove!</p>
-<section id="minimizing-the-kl-divergence" class="level3">
-<h3 class="anchored" data-anchor-id="minimizing-the-kl-divergence">Minimizing the KL Divergence</h3>
-<p>Let <img src="https://latex.codecogs.com/png.latex?q"> be our approximation: a version of <img src="https://latex.codecogs.com/png.latex?%5Cpi"> with support restricted to <img src="https://latex.codecogs.com/png.latex?b"> outcomes. We’ll try to minimize <img src="https://latex.codecogs.com/png.latex?KL%5Bq,%20%5Cpi%5D">. (Note that <img src="https://latex.codecogs.com/png.latex?KL%5B%5Cpi,%20q%5D"> will always be infinite as we do not have $ q$, so using this distance isn’t an option). Treat <img src="https://latex.codecogs.com/png.latex?%5Cpi"> and <img src="https://latex.codecogs.com/png.latex?q"> as vectors in <img src="https://latex.codecogs.com/png.latex?%5Cmathbb%7BR%7D%5En">, and assume without loss of generality that <img src="https://latex.codecogs.com/png.latex?%5Cpi_1%20%5Cgeq%20%5Cpi_2%20%5Cgeq%20%5Cpi_3%20%5Cdotsc">.</p>
-<p><strong>Claim 1: <img src="https://latex.codecogs.com/png.latex?KL%5Bq,%20%5Cpi%5D"> is minimized when the nonzero components of <img src="https://latex.codecogs.com/png.latex?q"> have <img src="https://latex.codecogs.com/png.latex?q%20%5Cpropto%20%5Cpi">.</strong></p>
-<p><em>Proof:</em> Use Lagrange multipliers. Let <img src="https://latex.codecogs.com/png.latex?S"> be the support of <img src="https://latex.codecogs.com/png.latex?q">. <img src="https://latex.codecogs.com/png.latex?L(%5Clambda,%20q)%20=%20%5Csum_%7Bi%20%5Cin%20S%7D%20q_i%20%5Clog%20(q_i%20/%20%5Cpi_i)%20+%20%5Clambda%20(1%20-%20%5Clangle%20q,%201%20%5Crangle)">. The minimum will be at a fixed point of the Lagrangian. Differentiating, we find that <img src="https://latex.codecogs.com/png.latex?%5Clog%20(q_i/%5Cpi_i)%20+%20(q_i/q_i)%20+%20%5Clambda%20=%200"> for all <img src="https://latex.codecogs.com/png.latex?i"> in <img src="https://latex.codecogs.com/png.latex?q">’s support, or <img src="https://latex.codecogs.com/png.latex?%5Cpi_i%20/%20q_i%20=e%5E%7B%5Clambda%20+%201%7D">. As this proportionality constant is the same for all <img src="https://latex.codecogs.com/png.latex?i">, this confirms that minimizer is proportional to <img src="https://latex.codecogs.com/png.latex?%5Cpi"> whenever it is nonzero. <img src="https://latex.codecogs.com/png.latex?%5Csquare"></p>
-<p><strong>Claim 2: If <img src="https://latex.codecogs.com/png.latex?q%20%5Cpropto%20m%20%5Codot%20%5Cpi"> where <img src="https://latex.codecogs.com/png.latex?%5Codot"> indicates point-wise multiplication and <img src="https://latex.codecogs.com/png.latex?m"> is a binary mask with <img src="https://latex.codecogs.com/png.latex?%5C%7Cm%5C%7C_0%20=%20b"> picking out the support of <img src="https://latex.codecogs.com/png.latex?q">, then <img src="https://latex.codecogs.com/png.latex?%5Carg%20%5Cmin%20KL%5Bq,%20%5Cpi%5D"> is obtained when <img src="https://latex.codecogs.com/png.latex?m_i%20=%201"> when <img src="https://latex.codecogs.com/png.latex?i%20%5Cleq%20b"> and <img src="https://latex.codecogs.com/png.latex?m_i%20=%200"> otherwise.</strong></p>
-<p><em>Proof</em>: Let <img src="https://latex.codecogs.com/png.latex?P%20=%20m%5ET%5Cpi">. The KL divergence simplifies as follows <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0AKL%5Bq,%20%5Cpi%5D%20&amp;=%20%5Cfrac%7B1%7D%7BP%7D%5Csum_%7Bi=1%7D%5En%20%5Cpi_i%20m_i%20%5Cleft(%20%5Clog%20(%5Cpi_i%20/%20P)%20-%20%5Clog%20%5Cpi_i%5Cright)%20%5C%5C%0A&amp;=%20-%5Clog(P)%0A%5Cend%7Balign*%7D%0A"> The <img src="https://latex.codecogs.com/png.latex?m"> maximizing <img src="https://latex.codecogs.com/png.latex?m%5ET%5Cpi"> is clearly the one with its mass on the <img src="https://latex.codecogs.com/png.latex?b"> highest outcomes in <img src="https://latex.codecogs.com/png.latex?%5Cpi">. <img src="https://latex.codecogs.com/png.latex?%5Csquare"></p>
-</section>
-<section id="minimizing-maximum-mean-discrepancy" class="level3">
-<h3 class="anchored" data-anchor-id="minimizing-maximum-mean-discrepancy">Minimizing Maximum Mean Discrepancy</h3>
-<p>The KL divergence isn’t the only way to measure distance between distributions. In fact, it’s not a particularly flexible way, as it only lets us compare our discrete distribution <img src="https://latex.codecogs.com/png.latex?q"> with other discrete distributions <img src="https://latex.codecogs.com/png.latex?%5Cpi">. Instead, we can minimize the “maximum mean discrepancy” or MMD. The big idea is to choose <img src="https://latex.codecogs.com/png.latex?q"> to make <img src="https://latex.codecogs.com/png.latex?E_%7BX%20%5Csim%20q%7Df(X)"> as close as possible to <img src="https://latex.codecogs.com/png.latex?E_%7BX%20%5Csim%20%5Cpi%7D%20f(X)"> for all functions <img src="https://latex.codecogs.com/png.latex?f"> in some space <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BH%7D">. <img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7BMMD%7D%20=%20%5Csup_%7Bf%20%5Cin%20%5Cmathcal%7BH%7D,%20%5C%7Cf%5C%7C%20%5Cleq%201%7D%20(E_%7BX%20%5Csim%20%5Cpi%7D%20f(X)%20-%20E_%7BX%20%5Csim%20q%7D%20f(X))%5E2%0A"> If we assume that <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BH%7D"> is closed under negation, squaring this difference won’t change the optimal distribution <img src="https://latex.codecogs.com/png.latex?q%5E*"> minimizing the expression, so we can equivalently write this as <img src="https://latex.codecogs.com/png.latex?%0A%5Csup_%7Bf%20%5Cin%20%5Cmathcal%7BH%7D,%20%5C%7Cf%5C%7C%20%5Cleq%201%7D%20(E_%7BX%20%5Csim%20%5Cpi%7D%20f(X)%20-%20E_%7BX%20%5Csim%20q%7D%20f(X))%0A"> If we let <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BH%7D"> be a <a href="https://web.archive.org/web/https://en.wikipedia.org/wiki/Reproducing_kernel_Hilbert_space">reproducing kernel Hilbert space</a> with kernel <img src="https://latex.codecogs.com/png.latex?k">, function evaluation <img src="https://latex.codecogs.com/png.latex?f(x)"> is the same as taking the inner product <img src="https://latex.codecogs.com/png.latex?%5Clangle%20f,%20k(x,%20%5Ccdot)%20%5Crangle">, and we can write the result as <img src="https://latex.codecogs.com/png.latex?%0A%5Csup_%7Bf%20%5Cin%20%5Cmathcal%7BH%7D,%20%5C%7Cf%5C%7C%20%5Cleq%201%7D%20(E_%7BX%20%5Csim%20%5Cpi%7D%20%5Clangle%20f,%20k(X,%20%5Ccdot)%20%5Crangle%20-%20E_%7BX%20%5Csim%20q%7D%20%5Clangle%20f,%20k(X,%20%5Ccdot)%20%5Crangle)%0A"> You can read more about kernel mean embeddings like this <a href="https://web.archive.org/web/https://en.wikipedia.org/wiki/Kernel_embedding_of_distributions">here</a>.</p>
-<p>Let’s assume that <img src="https://latex.codecogs.com/png.latex?%5Cpi"> is discrete, and we can use <img src="https://latex.codecogs.com/png.latex?%5Cmathbb%7BR%7D%5En"> as this Hilbert space. Letting <img src="https://latex.codecogs.com/png.latex?%5Cpi"> and <img src="https://latex.codecogs.com/png.latex?q"> also indicate vectors of component probabilities, the expression simplifies as <img src="https://latex.codecogs.com/png.latex?%0A%5Csup_%7Bf%20%5Cin%20%5Cmathbb%7BR%7D%5En,%20%5C%7Cf%5C%7C%20%5Cleq%201%7D%20%5Clangle%20f,%20E_%7BX%20%5Csim%20%5Cpi%7D%5BX%5D,%20-%20E_%7BX%20%5Csim%20q%7D%5BX%5D%20%5Crangle%20=%20%5C%7C%5Cpi%20-%20q%5C%7C_2%5E2%20%5C%5C%0A"> Our problem, therefore, is to project <img src="https://latex.codecogs.com/png.latex?%5Cpi"> onto the space of all <img src="https://latex.codecogs.com/png.latex?q"> for which <img src="https://latex.codecogs.com/png.latex?%5C%7Cq%5C%7C_1%20=%201"> (the sum of components is 1) and <img src="https://latex.codecogs.com/png.latex?%5C%7Cq%5C%7C_0%20=%20b"> (the total number of non-zero components is <img src="https://latex.codecogs.com/png.latex?b">).</p>
-<p>This space is not convex, but we can get around this by fixing a binary mask vector <img src="https://latex.codecogs.com/png.latex?m"> with 1-norm <img src="https://latex.codecogs.com/png.latex?b"> and minimizing <img src="https://latex.codecogs.com/png.latex?%5C%7C%5Cpi%20-%20m%20%5Codot%20q%5C%7C_2%5E2"> over all unit <img src="https://latex.codecogs.com/png.latex?q">, where <img src="https://latex.codecogs.com/png.latex?%5Codot"> indicates the Hadamard product. This gives us the Lagrangian <img src="https://latex.codecogs.com/png.latex?%0AL(%5Clambda,%20q)%20=%20%5C%7Cm%20%5Codot%20q%5C%7C%5E2%20-%202%20%5Clangle%20m%20%5Codot%20%5Cpi,%20q%20%5Crangle%20+%20%5Clambda%20(%5Clangle%20q,%20m%20%5Crangle%20-%201).%0A"> The derivative with respect to <img src="https://latex.codecogs.com/png.latex?q_i"> is zero when <img src="https://latex.codecogs.com/png.latex?2m_i%20q_i%20-%202m_i%20%5Cpi_i%20+%20%5Clambda%20m_i%20=%200"> from which we can conclude that <img src="https://latex.codecogs.com/png.latex?q_i%20=%20%5Cpi_i%20+%20c"> for some normalizing constant <img src="https://latex.codecogs.com/png.latex?c"> shared by all components in the support.</p>
-<p>We can plug in this result about the optimal <img src="https://latex.codecogs.com/png.latex?q_i"> and solve to find the optimal <img src="https://latex.codecogs.com/png.latex?m_i">. Let <img src="https://latex.codecogs.com/png.latex?S"> be the support of <img src="https://latex.codecogs.com/png.latex?q"> we get from <img src="https://latex.codecogs.com/png.latex?m"> and <img src="https://latex.codecogs.com/png.latex?1"> be the all ones vector. We want to minimize <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Ctext%7BMMD%7D%20&amp;=%20%5C%7Cm%5Cpi%20+%20%5Cfrac%7B%5Clangle%201-m,%20%5Cpi%20%5Crangle%7D%7Bb%7Dm%20-%20%5Cpi%5C%7C%5E2%20%5C%5C%0A&amp;=%20%5Csum_i%20%5Cleft(%201_%7Bi%20%5Cnotin%20S%7D%20%5Cpi_i%20+%201_%7Bi%20%5Cin%20S%7D%5Cfrac%7B%5Clangle%201-m,%20%5Cpi%20%5Crangle%7D%7Bb%7D%5Cright)%5E2%20%5C%5C%0A&amp;=%20(1%20-%20b)%20+%20%5Csum_%7Bi%20%5Cnotin%20S%7D%20%5Cpi_i%5E2%0A%5Cend%7Balign*%7D%0A"> Clearly, this quantity is minimized by choosing <img src="https://latex.codecogs.com/png.latex?S"> to contain the <img src="https://latex.codecogs.com/png.latex?b"> most likely components of <img src="https://latex.codecogs.com/png.latex?%5Cpi">.</p>
-</section>
-<section id="unbiased-mmd-minimization" class="level3">
-<h3 class="anchored" data-anchor-id="unbiased-mmd-minimization">Unbiased MMD Minimization</h3>
-<p>The approximation schemes we’ve looked at so far have been deterministic: to make a <img src="https://latex.codecogs.com/png.latex?b"> particle approximation <img src="https://latex.codecogs.com/png.latex?q"> to a more complicated distribution <img src="https://latex.codecogs.com/png.latex?%5Cpi">, we always choose <img src="https://latex.codecogs.com/png.latex?q">’s support <img src="https://latex.codecogs.com/png.latex?S"> to be the <img src="https://latex.codecogs.com/png.latex?b"> most likely elements in <img src="https://latex.codecogs.com/png.latex?%5Cpi">. But because of this determinism, these approximations are biased. By <em>biased</em> here, I mean that it is not generally the case that <img src="https://latex.codecogs.com/png.latex?E%5B%5Csum_%7Bi=1%7D%5En%20q_i%20f(x_i)%5D%20%5Cneq%20E_%7BX%20%5Csim%20%5Cpi%7D%20f(X)"> for any function <img src="https://latex.codecogs.com/png.latex?f"> unless <img src="https://latex.codecogs.com/png.latex?b"> is large enough to capture the full support of <img src="https://latex.codecogs.com/png.latex?%5Cpi">.</p>
-<p>If this property (unbiased-ness) was more important to us than truly minimizing the maximum mean discrepancy, we could instead try to choose <img src="https://latex.codecogs.com/png.latex?S"> stochastically. Specifically, we could do the following: - Assign each outcome <img src="https://latex.codecogs.com/png.latex?i"> in <img src="https://latex.codecogs.com/png.latex?%5Cpi">’s support a weight <img src="https://latex.codecogs.com/png.latex?w_i">. - Sample an outcome with probability proportional to the remaining weights. - Put that outcome in <img src="https://latex.codecogs.com/png.latex?S"> and prevent it from being sampled again. - Repeat <img src="https://latex.codecogs.com/png.latex?b"> times.</p>
-<p>With this scheme, the number of times outcome <img src="https://latex.codecogs.com/png.latex?i"> is included in <img src="https://latex.codecogs.com/png.latex?S"> is given by <a href="https://web.archive.org/web/https://en.wikipedia.org/wiki/Wallenius%27_noncentral_hypergeometric_distribution">Wallenius’ non-central hypergeometric distribution</a> with success-outcomes parameter <img src="https://latex.codecogs.com/png.latex?m_1%20=1">, total outcomes parameter <img src="https://latex.codecogs.com/png.latex?N"> being the size of <img src="https://latex.codecogs.com/png.latex?%5Cpi">’s support, draws parameter <img src="https://latex.codecogs.com/png.latex?n=b">, and odds parameter <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i%20=%20%5Cfrac%7B(n-1)w_i%7D%7B1%20-%20w_i%7D">. If we know the odds parameter <img src="https://latex.codecogs.com/png.latex?%5Ctheta_i">, we can get back <img src="https://latex.codecogs.com/png.latex?w_i"> using <img src="https://latex.codecogs.com/png.latex?%5Csigma(%5Clog(%5Ctheta_i%20/%20(n-1)))"> where <img src="https://latex.codecogs.com/png.latex?%5Csigma"> is the standard logistic function.</p>
-<p>Once we choose the support set <img src="https://latex.codecogs.com/png.latex?S">, we can deterministically assign probabilities to each outcome in <img src="https://latex.codecogs.com/png.latex?q"> to minimize the maximum mean discrepancy from our target distribution <img src="https://latex.codecogs.com/png.latex?%5Cpi">. As shown above, the optimal choice is to set <img src="https://latex.codecogs.com/png.latex?q_i%20=%20%5Cpi_i%20+%20c"> where <img src="https://latex.codecogs.com/png.latex?c"> is the equally distributed un-allocated probability mass <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7B1%7D%7Bb%7D%20%5Csum_%7Bj%20%5Cnotin%20S%7D%20%5Cpi_j">.</p>
-<p>Now, we can choose the <img src="https://latex.codecogs.com/png.latex?w_i"> for each outcome in such a way that <img src="https://latex.codecogs.com/png.latex?%5Cpi_i%20=%20E%5Bq_i%5D">, making <img src="https://latex.codecogs.com/png.latex?q"> <em>unbiased</em> unlike the deterministic approximation discussed earlier. Let <img src="https://latex.codecogs.com/png.latex?s_i%20=%20P(i%20%5Cin%20S)"> and <img src="https://latex.codecogs.com/png.latex?r_i%20=%201%20-%20s_i">. <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A%5Cpi_i%20&amp;=%20E%5B1_%7Bi%20%5Cin%20S%7D(%5Cpi_i%20+%20%5Cfrac%7B1%7D%7Bb%7D%5Csum_j%201_%7Bj%20%5Cnotin%20S%7D%20P_j)%5D%20%5C%5C%0A&amp;=%20s_i(%5Cpi_i%20+%20%5Cfrac%7B1%7D%7Bb%7D%5Csum_j%20%5Cpi_j%20(1%20-%20s_j))%20%5C%5C%0Ab(1-s_i)%5Cpi_i%20&amp;=%20%5Csum_j%20%5Cpi_j%20(1%20-%20s_j)%20%5C%5C%0A(b%20-%201)r_i%20%5Cpi_i%20&amp;=%20%5Csum_%7Bj%20%5Cneq%20i%7D%20%5Cpi_j%20r_i%0A%5Cend%7Balign*%7D%0A"> This holds for all <img src="https://latex.codecogs.com/png.latex?i"> simultaneously, so letting <img src="https://latex.codecogs.com/png.latex?P"> be the matrix with <img src="https://latex.codecogs.com/png.latex?%5Cpi"> along its diagonal and <img src="https://latex.codecogs.com/png.latex?1"> be the all ones matrix, we can write the above equation in vectorized form as <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A(b-1)Pr%20&amp;=%20(1-I)Pr%20%5C%5C%0A((b-1)I%20-%201%20+%20I)Pr%20&amp;=%200%20%5C%5C%0A(bI%20-%201)Pr%20&amp;=%200%20%5C%5C%0A%5Cend%7Balign*%7D%0A"> We can see that if we find an eigenvector of <img src="https://latex.codecogs.com/png.latex?(bI%20-%201)P"> with eigenvalue zero, the entries will indicate the probability mass functions of our our non-central hypergeometric distributions at zero.</p>
-<p>However, as <img src="https://latex.codecogs.com/png.latex?(bI%20-%201)"> is nonsingular for nonzero <img src="https://latex.codecogs.com/png.latex?b">, no such eigenvalue exists! This means this whole approach is actually impossible. <strong>We can’t randomly choose a support and then optimally pick the weights if we want the result to be unbiased.</strong> We can either choose optimal weights, or we can have an unbiased approximation. Having both at the same time is fundamentally impossible.</p>
-</section>
-<section id="quasi-monte-carlo-approximation" class="level3">
-<h3 class="anchored" data-anchor-id="quasi-monte-carlo-approximation">Quasi Monte Carlo Approximation</h3>
-<p>If we’d prefer to have unbiased-ness to optimal weights, there are other finite particle approximation strategies we could use besides standard Monte Carlo. One simple approach is to use randomized lattice <a href="https://web.archive.org/web/https://en.wikipedia.org/wiki/Quasi-Monte_Carlo_method">Quasi Monte Carlo</a>. The basic idea goes like this: - Let <img src="https://latex.codecogs.com/png.latex?u_i%20=%20i/b"> for <img src="https://latex.codecogs.com/png.latex?b"> different particles. - Choose a random number <img src="https://latex.codecogs.com/png.latex?s"> between 0 and 1 and add it to all the <img src="https://latex.codecogs.com/png.latex?u_i"> mod 1. These are unbiased, evenly dispersed samples from a uniform distribution. - Now apply the inverse CDF <img src="https://latex.codecogs.com/png.latex?%5CPhi"> of <img src="https://latex.codecogs.com/png.latex?%5Cpi"> to each of these samples. Here, we’re assuming an ordering among the possible outcomes; if <img src="https://latex.codecogs.com/png.latex?%5CPhi(0.3)%20=%203">, for example, that would mean that 30% of <img src="https://latex.codecogs.com/png.latex?%5Cpi">’s probability mass is for outcomes below 3. This is known as inverse transform sampling, and guarantees we’ll get unbiased samples from <img src="https://latex.codecogs.com/png.latex?%5Cpi">! We’ll set all the weights to be <img src="https://latex.codecogs.com/png.latex?1/b">, just as in the standard Monte Carlo case.</p>
-<p>Some connections to think about: when the <img src="https://latex.codecogs.com/png.latex?%5Cpi"> we’re trying to approximate is a the empirical distribution of particles during a round of sequential Monte Carlo, this approximation is known as <em>systematic resampling</em>. If, as is often the case in probabilistic programming, we’re not trying to sample from a single categorical distribution <img src="https://latex.codecogs.com/png.latex?%5Cpi">, but rather a sequence of dependent distributions <img src="https://latex.codecogs.com/png.latex?%5Cpi%5E1,%20%5Cpi%5E2,%20%5Cdotsc">, we can sample our uniform grid in the unit hypercube rather than along the unit interval and apply the inverse CDF of <img src="https://latex.codecogs.com/png.latex?%5Cpi%5Ei"> to the <img src="https://latex.codecogs.com/png.latex?i">th coordinates. In multiple dimensions, however, a uniform grid might not be the best idea. If we try to pick the lattice structure in a way that minimizes MMD between <img src="https://latex.codecogs.com/png.latex?q"> and <img src="https://latex.codecogs.com/png.latex?%5Cpi">, the best choice of lattice will depend on the class of functions <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%7BH%7D"> we’re considering for the MMD. For example, one common RKHS for multidimensional spaces has a kernel that is just the product of the kernels for each dimension. If the kernel for one of the dimensions has a lower bandwidth, it will make sense to pack our grid points more tightly in this dimension.</p>
-
-
-</section>
-
- ]]></description>
-  <category>machine_learning</category>
-  <guid>https://samanklesaria.github.io/posts/finite_particle_approx.html</guid>
   <pubDate>Tue, 02 Apr 2024 05:00:00 GMT</pubDate>
 </item>
 </channel>

@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2026-05-25">
+
+<title>Building a Choral Source Separator with SepReformer in JAX – Sam’s Blog</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-ff63373b1067ca6f91cf1456aa1f00a2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="scrubber.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Sam’s Blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/samanklesaria"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Building a Choral Source Separator with SepReformer in JAX</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">machine_learning</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">May 25, 2026</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<p>This tutorial demonstrates how to perform audio source separation using the <code>SepReformer</code> architecture. We’ll use <code>equinoix</code> for the neural network, with <code>beartype</code> for runtime type checking.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> equinox <span class="im">as</span> eqx</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> jaxtyping <span class="im">import</span> Float, Array, jaxtyped</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> beartype <span class="im">import</span> beartype</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> soundfile <span class="im">as</span> sf</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="the-task" class="level2">
+<h2 class="anchored" data-anchor-id="the-task">The Task</h2>
+<p>Given a mono mixture waveform <span class="math inline">\(x \in \mathbb{R}^T\)</span>, produce <span class="math inline">\(N\)</span> separated stem waveforms <span class="math inline">\(\hat{s}_1, \ldots, \hat{s}_N \in \mathbb{R}^T\)</span> such that <span class="math inline">\(\sum_n \hat{s}_n \approx x\)</span> and each <span class="math inline">\(\hat{s}_n\)</span> matches one isolated voice track.</p>
+<p>We use the <strong>JaCappella</strong> corpus (35 a cappella songs) via Hugging Face. Each song has 5 isolated stems — <code>lead_vocal</code>, <code>soprano</code>, <code>alto</code>, <code>tenor</code>, <code>bass</code> — and the mixture is their sum.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> librosa</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>STEM_NAMES <span class="op">=</span> (<span class="st">"lead_vocal"</span>, <span class="st">"soprano"</span>, <span class="st">"alto"</span>, <span class="st">"tenor"</span>, <span class="st">"bass"</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>SAMPLE_RATE <span class="op">=</span> <span class="dv">44100</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> JaCappellaDataset:</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, root) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.root <span class="op">=</span> Path(root)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.sample_rate <span class="op">=</span> <span class="dv">44100</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.songs <span class="op">=</span> <span class="bu">sorted</span>(</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>            song</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> genre <span class="kw">in</span> <span class="va">self</span>.root.iterdir()</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> genre.is_dir() <span class="kw">and</span> <span class="kw">not</span> genre.name.startswith(<span class="st">"."</span>)</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> song <span class="kw">in</span> genre.iterdir()</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> song.is_dir() <span class="kw">and</span> <span class="kw">not</span> song.name.startswith(<span class="st">"."</span>))</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">@jaxtyped</span>(typechecker<span class="op">=</span>beartype)</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _load_wav(<span class="va">self</span>, path: Path) <span class="op">-&gt;</span> Float[np.ndarray, <span class="st">"T"</span>]:</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Load a wav file, resample if needed, return mono float32."""</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>        audio, sr <span class="op">=</span> sf.read(path, dtype<span class="op">=</span><span class="st">"float32"</span>, always_2d<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>        audio <span class="op">=</span> audio[:, <span class="dv">0</span>]  <span class="co"># take first channel if stereo</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> sr <span class="op">!=</span> <span class="va">self</span>.sample_rate:</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>            audio <span class="op">=</span> librosa.resample(audio, orig_sr<span class="op">=</span>sr, target_sr<span class="op">=</span><span class="va">self</span>.sample_rate)</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> audio</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">@jaxtyped</span>(typechecker<span class="op">=</span>beartype)</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _load_stems(<span class="va">self</span>, song_dir: Path) <span class="op">-&gt;</span> Float[np.ndarray, <span class="st">"N T"</span>]:</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Load all available stems for a song."""</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>        stems <span class="op">=</span> [] </span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i, name <span class="kw">in</span> <span class="bu">enumerate</span>(STEM_NAMES):</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>            path <span class="op">=</span> song_dir <span class="op">/</span> <span class="ss">f"</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">.wav"</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>            stems.append(<span class="va">self</span>._load_wav(path) <span class="cf">if</span> path.exists() <span class="cf">else</span> np.zeros(<span class="dv">0</span>, dtype<span class="op">=</span>np.float32))</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>        max_len <span class="op">=</span> <span class="bu">max</span>(<span class="bu">len</span>(s) <span class="cf">for</span> s <span class="kw">in</span> stems)</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>        result <span class="op">=</span> np.zeros((<span class="dv">5</span>, max_len), dtype<span class="op">=</span>np.float32)</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i, s <span class="kw">in</span> <span class="bu">enumerate</span>(stems):</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>            result[i, :<span class="bu">len</span>(s)] <span class="op">=</span> s</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> result</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>    <span class="at">@jaxtyped</span>(typechecker<span class="op">=</span>beartype)</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__getitem__</span>(<span class="va">self</span>, idx: <span class="bu">int</span>) <span class="op">-&gt;</span> <span class="bu">tuple</span>[Float[np.ndarray, <span class="st">"T"</span>], Float[np.ndarray, <span class="st">"N T"</span>]]:</span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>        <span class="co">"""Load full song."""</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>        song_dir <span class="op">=</span> <span class="va">self</span>.songs[idx]</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>        stems <span class="op">=</span> <span class="va">self</span>._load_stems(song_dir)</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> stems.<span class="bu">sum</span>(axis<span class="op">=</span><span class="dv">0</span>), stems</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__len__</span>(<span class="va">self</span>) <span class="op">-&gt;</span> <span class="bu">int</span>:</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="bu">len</span>(<span class="va">self</span>.songs)</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>dataset <span class="op">=</span> JaCappellaDataset(<span class="st">"/space/samanklesaria/data/jacappella"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>We’ll feed the dataset to our model using the <code>grain</code> library.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> grain</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>SEG_SAMPLES <span class="op">=</span> SAMPLE_RATE <span class="op">*</span> <span class="dv">2</span>   <span class="co"># 2-second segments</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>BATCH_SIZE  <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> extract_segment(item, rng):</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    mixture, stems <span class="op">=</span> item</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    T <span class="op">=</span> mixture.shape[<span class="dv">0</span>]</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> T <span class="op">&lt;=</span> SEG_SAMPLES:</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>        pad <span class="op">=</span> SEG_SAMPLES <span class="op">-</span> T</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> np.pad(mixture, (<span class="dv">0</span>, pad)), np.pad(stems, ((<span class="dv">0</span>, <span class="dv">0</span>), (<span class="dv">0</span>, pad)))</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    start <span class="op">=</span> rng.integers(<span class="dv">0</span>, T <span class="op">-</span> SEG_SAMPLES)</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mixture[start:start <span class="op">+</span> SEG_SAMPLES], stems[:, start:start <span class="op">+</span> SEG_SAMPLES]</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> batch_to_jax(items):</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    mixtures <span class="op">=</span> jnp.array(np.stack([m <span class="cf">for</span> m, _ <span class="kw">in</span> items]))  <span class="co"># (B, T)</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    stems    <span class="op">=</span> jnp.array(np.stack([s <span class="cf">for</span> _, s <span class="kw">in</span> items]))  <span class="co"># (B, N, T)</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mixtures, stems</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>loader <span class="op">=</span> (grain.MapDataset.source(dataset)</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>        .seed(<span class="dv">0</span>).shuffle()</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>        .random_map(extract_segment)</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>        .batch(BATCH_SIZE, drop_remainder<span class="op">=</span><span class="va">True</span>, batch_fn<span class="op">=</span>batch_to_jax))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>To make sure the data is loading correctly, we can sample a batch and log it to Tensorboard.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> tensorboardX <span class="im">import</span> SummaryWriter</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>mixture, stems <span class="op">=</span> <span class="bu">next</span>(<span class="bu">iter</span>(loader))</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>mixture <span class="op">=</span> np.array(mixture[<span class="dv">0</span>])  <span class="co"># (T,)</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>stems <span class="op">=</span> np.array(stems[<span class="dv">0</span>])      <span class="co"># (N, T)</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>writer <span class="op">=</span> SummaryWriter(<span class="st">"samples"</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>peak <span class="op">=</span> np.<span class="bu">max</span>(np.<span class="bu">abs</span>(mixture))</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>scale <span class="op">=</span> <span class="fl">0.99</span> <span class="op">/</span> peak <span class="cf">if</span> peak <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="fl">1.0</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>writer.add_audio(</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"mixture"</span>,</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    mixture <span class="op">*</span> scale,</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    sample_rate<span class="op">=</span>dataset.sample_rate)</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> n <span class="kw">in</span> <span class="bu">range</span>(stems.shape[<span class="dv">0</span>]):</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    writer.add_audio(</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        <span class="ss">f"stem/</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss">"</span>,</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        stems[n] <span class="op">*</span> scale,</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>        sample_rate<span class="op">=</span>dataset.sample_rate)</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>writer.close()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<style>
+    .item-container { margin-bottom: 40px; padding: 20px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .item-container img { max-width: 100%; height: auto; display: block; margin-top: 15px; border-radius: 4px; }
+    .item-container h3 { margin-top: 0; color: #1a73e8; font-size: 1.2rem; margin-bottom: 5px; }
+    .item-container .meta { color: #666; font-size: 0.85rem; margin-bottom: 15px; }
+    .scrubber-control { background: #f8f9fa; border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-top: 15px; }
+    .scrubber-label { font-size: 0.9rem; font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .step-slider { width: 100%; margin: 10px 0; cursor: pointer; }
+    .item-container audio { display: block; width: 100%; margin-top: 10px; }
+    .item-container table { width: 100%; border-collapse: collapse; }
+    .item-container td { vertical-align: top; padding: 8px; }
+    .item-container tr { background: none !important; }
+</style>
+<div class="item-container">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>mixture</span><span>step 0</span>
+</div>
+<audio controls="">
+<source src="mixture_assets/audio_mixture_step0.wav" type="audio/wav">
+</audio>
+</div>
+<style>
+    .item-container { margin-bottom: 40px; padding: 20px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .item-container img { max-width: 100%; height: auto; display: block; margin-top: 15px; border-radius: 4px; }
+    .item-container h3 { margin-top: 0; color: #1a73e8; font-size: 1.2rem; margin-bottom: 5px; }
+    .item-container .meta { color: #666; font-size: 0.85rem; margin-bottom: 15px; }
+    .scrubber-control { background: #f8f9fa; border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-top: 15px; }
+    .scrubber-label { font-size: 0.9rem; font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .step-slider { width: 100%; margin: 10px 0; cursor: pointer; }
+    .item-container audio { display: block; width: 100%; margin-top: 10px; }
+    .item-container table { width: 100%; border-collapse: collapse; }
+    .item-container td { vertical-align: top; padding: 8px; }
+    .item-container tr { background: none !important; }
+</style>
+<div class="item-container">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>Audio Summary: stem</span><span>5 components</span>
+</div>
+<table>
+<tbody><tr>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>0</span><span>step 0</span>
+</div>
+<audio controls="">
+<source src="stem_assets/audio_stem_0_step0.wav" type="audio/wav">
+</audio>
+</td>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>1</span><span>step 0</span>
+</div>
+<audio controls="">
+<source src="stem_assets/audio_stem_1_step0.wav" type="audio/wav">
+</audio>
+</td>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>2</span><span>step 0</span>
+</div>
+<audio controls="">
+<source src="stem_assets/audio_stem_2_step0.wav" type="audio/wav">
+</audio>
+</td>
+</tr>
+<tr>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>3</span><span>step 0</span>
+</div>
+<audio controls="">
+<source src="stem_assets/audio_stem_3_step0.wav" type="audio/wav">
+</audio>
+</td>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>4</span><span>step 0</span>
+</div>
+<audio controls="">
+<source src="stem_assets/audio_stem_4_step0.wav" type="audio/wav">
+</audio>
+</td>
+<td>
+</td>
+</tr>
+</tbody></table>
+</div>
+<section id="architecture" class="level2">
+<h2 class="anchored" data-anchor-id="architecture">Architecture</h2>
+<p>At a high level: - The input waveform is encoded to a latent space using convolutional and transformer layers. - The result gets split into separate pieces for each voice part - Each piece is decoded back to a waveform by the same stack of transformer and convolutional layers.</p>
+<p><span class="math display">\[x \xrightarrow{\text{Conv}} h \xrightarrow{\text{Enc blocks}} h \xrightarrow{\text{Split}} \{h_n\} \xrightarrow{\text{Dec blocks (vmapped)}} \xrightarrow{\text{ConvT (vmapped)}} \{\hat{s}_n\}\]</span></p>
+</section>
+<section id="convolutional-layers-waveform-latent-frames-and-back" class="level2">
+<h2 class="anchored" data-anchor-id="convolutional-layers-waveform-latent-frames-and-back">Convolutional Layers: Waveform → Latent Frames and Back</h2>
+<p>A strided 1-D convolution converts the raw waveform into a sequence of latent frames. With kernel <span class="math inline">\(K\)</span> and stride <span class="math inline">\(S\)</span>:</p>
+<p><span class="math display">\[L = \left\lfloor \frac{T - K}{S} \right\rfloor + 1\]</span></p>
+<p>The encoder applies a GELU after the convolution:</p>
+<p><span class="math display">\[h = \text{GELU}(W_\text{enc} * x), \quad h \in \mathbb{R}^{L \times C}\]</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Encoder(eqx.Module):</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    conv: eqx.nn.Conv1d</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, out_channels: <span class="bu">int</span>, key: jax.random.PRNGKey):</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.conv <span class="op">=</span> eqx.nn.Conv1d(<span class="dv">1</span>, out_channels, <span class="dv">16</span>, stride<span class="op">=</span><span class="dv">8</span>, key<span class="op">=</span>key)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__call__</span>(<span class="va">self</span>, x: Float[Array, <span class="st">"T"</span>]) <span class="op">-&gt;</span> Float[Array, <span class="st">"L C"</span>]:</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>        h <span class="op">=</span> <span class="va">self</span>.conv(x[<span class="va">None</span>, :])   <span class="co"># (C, L)</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>        h <span class="op">=</span> jax.nn.gelu(h)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> jnp.transpose(h)     <span class="co"># (L, C)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Decoder(eqx.Module):</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    conv_t: eqx.nn.ConvTranspose1d</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, in_channels, key: jax.random.PRNGKey):</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.conv_t <span class="op">=</span> eqx.nn.ConvTranspose1d(in_channels, <span class="dv">1</span>, <span class="dv">16</span>, stride<span class="op">=</span><span class="dv">8</span>, key<span class="op">=</span>key)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">@jaxtyped</span>(typechecker<span class="op">=</span>beartype)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__call__</span>(<span class="va">self</span>, h: Float[Array, <span class="st">"L C"</span>]) <span class="op">-&gt;</span> Float[Array, <span class="st">"T"</span>]:</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>        h <span class="op">=</span> jnp.transpose(h)  <span class="co"># (C, L)</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> <span class="va">self</span>.conv_t(h)  <span class="co"># (1, T)</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> out[<span class="dv">0</span>]  <span class="co"># (T,)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Default: <span class="math inline">\(K=16\)</span>, <span class="math inline">\(S=8\)</span>, <span class="math inline">\(C=256\)</span>. At 44.1 kHz a 2-second clip becomes <span class="math inline">\(L \approx 11{,}025\)</span> frames.</p>
+</section>
+<section id="snake-activation" class="level2">
+<h2 class="anchored" data-anchor-id="snake-activation">SNAKE Activation</h2>
+<p><strong>SNAKE</strong> (Liu et al., 2022) adds a learnable sinusoidal term that preserves the periodic structure present in harmonic audio:</p>
+<p><span class="math display">\[\text{SNAKE}(x; \alpha) = x + \frac{1}{\alpha}\sin^2(\alpha x)\]</span></p>
+<p><span class="math inline">\(\alpha\)</span> is initialized to <span class="math inline">\(\mathbf{1}\)</span> (small perturbation at startup) and learned per channel. SNAKE is used inside every feed-forward sub-layer in the transformer blocks.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Snake(eqx.Module):</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    alpha: Array   <span class="co"># (F,), one per feature</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, features: <span class="bu">int</span>, <span class="op">*</span>, key: jax.random.PRNGKey):</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.alpha <span class="op">=</span> jnp.ones(features)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__call__</span>(<span class="va">self</span>, x: Float[Array, <span class="st">"... F"</span>], <span class="op">**</span>_) <span class="op">-&gt;</span> Float[Array, <span class="st">"... F"</span>]:</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> x <span class="op">+</span> (<span class="fl">1.0</span> <span class="op">/</span> (<span class="va">self</span>.alpha <span class="op">+</span> <span class="fl">1e-6</span>)) <span class="op">*</span> jnp.sin(<span class="va">self</span>.alpha <span class="op">*</span> x) <span class="op">**</span> <span class="dv">2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> feedforward(dim, ff_dim, key: jax.random.PRNGKey):</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    k1, k2, k3 <span class="op">=</span> jax.random.split(key, <span class="dv">3</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> eqx.nn.Sequential([</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>            eqx.nn.Linear(dim, ff_dim, key<span class="op">=</span>k1),</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>            Snake(ff_dim, key<span class="op">=</span>k2),</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>            eqx.nn.Linear(ff_dim, dim, key<span class="op">=</span>k3)])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> TransformerBlock(eqx.Module):</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    norm1: eqx.nn.LayerNorm</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    norm2: eqx.nn.LayerNorm</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    attn: eqx.nn.MultiheadAttention</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    ff: eqx.nn.Sequential</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    rope: eqx.nn.RotaryPositionalEmbedding</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    scale1: Array</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    scale2: Array</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>, dim: <span class="bu">int</span>, num_heads: <span class="bu">int</span>, ff_dim: <span class="bu">int</span>, <span class="op">*</span>, key: jax.random.PRNGKey</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    ):</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>        k1, k2 <span class="op">=</span> jax.random.split(key)</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.norm1 <span class="op">=</span> eqx.nn.LayerNorm(dim)</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.attn <span class="op">=</span> eqx.nn.MultiheadAttention(</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>            num_heads<span class="op">=</span>num_heads, query_size<span class="op">=</span>dim, key<span class="op">=</span>k1</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.norm2 <span class="op">=</span> eqx.nn.LayerNorm(dim)</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.ff <span class="op">=</span> feedforward(dim, ff_dim, key<span class="op">=</span>k2)</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.rope <span class="op">=</span> eqx.nn.RotaryPositionalEmbedding(dim <span class="op">//</span> num_heads)</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.scale1 <span class="op">=</span> jnp.full(dim, <span class="fl">1e-4</span>)</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.scale2 <span class="op">=</span> jnp.full(dim, <span class="fl">1e-4</span>)</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">@jaxtyped</span>(typechecker<span class="op">=</span>beartype)</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__call__</span>(<span class="va">self</span>, x: Float[Array, <span class="st">"S D"</span>]) <span class="op">-&gt;</span> Float[Array, <span class="st">"S D"</span>]:</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>        normed <span class="op">=</span> jax.vmap(<span class="va">self</span>.norm1)(x)</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>        <span class="kw">def</span> process_heads(q, k, v):</span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>            q <span class="op">=</span> jax.vmap(<span class="va">self</span>.rope, in_axes<span class="op">=</span><span class="dv">1</span>, out_axes<span class="op">=</span><span class="dv">1</span>)(q)</span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>            k <span class="op">=</span> jax.vmap(<span class="va">self</span>.rope, in_axes<span class="op">=</span><span class="dv">1</span>, out_axes<span class="op">=</span><span class="dv">1</span>)(k)</span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> q, k, v</span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>        attn_out <span class="op">=</span> <span class="va">self</span>.attn(normed, normed, normed, process_heads<span class="op">=</span>process_heads)</span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>        x <span class="op">=</span> x <span class="op">+</span> <span class="va">self</span>.scale1 <span class="op">*</span> attn_out</span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>        x <span class="op">=</span> x <span class="op">+</span> <span class="va">self</span>.scale2 <span class="op">*</span> jax.vmap(<span class="va">self</span>.ff)(jax.vmap(<span class="va">self</span>.norm2)(x))</span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> x</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="stacking-transformer-layers-the-dual-path-approach" class="level2">
+<h2 class="anchored" data-anchor-id="stacking-transformer-layers-the-dual-path-approach">Stacking Transformer Layers: The Dual-Path Approach</h2>
+<p>Full self-attention over <span class="math inline">\(L \approx 11{,}000\)</span> frames costs <span class="math inline">\(O(L^2)\)</span>. The dual-path trick (Luo &amp; Mesgarani, 2020) splits this into two <span class="math inline">\(O(L \cdot K)\)</span> passes:</p>
+<ol type="1">
+<li><strong>Intra-chunk</strong> — reshape to <span class="math inline">\((M, K, C)\)</span>; each of the <span class="math inline">\(M\)</span> chunks attends within itself. Captures local patterns. Cost: <span class="math inline">\(O(M \cdot K^2)\)</span>.</li>
+<li><strong>Inter-chunk</strong> — transpose to <span class="math inline">\((K, M, C)\)</span>; each time-slot attends across all <span class="math inline">\(M\)</span> chunks. Propagates global pitch/rhythm. Cost: <span class="math inline">\(O(K \cdot M^2)\)</span>.</li>
+</ol>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DualPathBlock(eqx.Module):</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    intra_block: TransformerBlock</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    inter_block: TransformerBlock</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    chunk_size: <span class="bu">int</span> <span class="op">=</span> eqx.field(static<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>,</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>        dim: <span class="bu">int</span>,</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>        num_heads: <span class="bu">int</span>,</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>        ff_dim: <span class="bu">int</span>,</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>        chunk_size: <span class="bu">int</span> <span class="op">=</span> <span class="dv">64</span>,</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>        <span class="op">*</span>,</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>        key: jax.random.PRNGKey,</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    ):</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>        k1, k2 <span class="op">=</span> jax.random.split(key)</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.intra_block <span class="op">=</span> TransformerBlock(dim, num_heads, ff_dim, key<span class="op">=</span>k1)</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.inter_block <span class="op">=</span> TransformerBlock(dim, num_heads, ff_dim, key<span class="op">=</span>k2)</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.chunk_size <span class="op">=</span> chunk_size</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">@jaxtyped</span>(typechecker<span class="op">=</span>beartype)</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__call__</span>(<span class="va">self</span>, x: Float[Array, <span class="st">"L C"</span>]) <span class="op">-&gt;</span> Float[Array, <span class="st">"L C"</span>]:</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>        L, C <span class="op">=</span> x.shape</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>        K <span class="op">=</span> <span class="va">self</span>.chunk_size</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Pad to multiple of chunk_size</span></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>        pad_len <span class="op">=</span> (K <span class="op">-</span> L <span class="op">%</span> K) <span class="op">%</span> K</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> pad_len <span class="op">&gt;</span> <span class="dv">0</span>:</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>            x <span class="op">=</span> jnp.pad(x, ((<span class="dv">0</span>, pad_len), (<span class="dv">0</span>, <span class="dv">0</span>)))</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>        L_padded <span class="op">=</span> x.shape[<span class="dv">0</span>]</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>        num_chunks <span class="op">=</span> L_padded <span class="op">//</span> K</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Reshape to (num_chunks, chunk_size, C)</span></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>        chunks <span class="op">=</span> x.reshape(num_chunks, K, C)</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Intra-chunk attention: attend within each chunk</span></span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a>        chunks <span class="op">=</span> jax.vmap(<span class="va">self</span>.intra_block)(chunks)  <span class="co"># (num_chunks, K, C)</span></span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Inter-chunk attention: transpose to (K, num_chunks, C), attend across chunks</span></span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>        inter <span class="op">=</span> jnp.transpose(chunks, (<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>))  <span class="co"># (K, num_chunks, C)</span></span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>        inter <span class="op">=</span> jax.vmap(<span class="va">self</span>.inter_block)(inter)  <span class="co"># (K, num_chunks, C)</span></span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a>        chunks <span class="op">=</span> jnp.transpose(inter, (<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>))  <span class="co"># (num_chunks, K, C)</span></span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Reshape back</span></span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> chunks.reshape(L_padded, C)</span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> out[:L]  <span class="co"># remove padding</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="splitting-into-speaker-streams" class="level2">
+<h2 class="anchored" data-anchor-id="splitting-into-speaker-streams">Splitting into Speaker Streams</h2>
+<p>After the shared encoder blocks, a <code>SplitLayer</code> expands <span class="math inline">\((L, C)\)</span> into <span class="math inline">\((N,
+L, C)\)</span>. Splitting here lets each of the <span class="math inline">\(N\)</span> reconstruction stacks specialize on one speaker while sharing parameters (via <code>vmap</code>) to keep the model compact.</p>
+<p>A GLU gate first refines the shared features before expanding:</p>
+<p><span class="math display">\[g, v = \text{split}(W_1 h), \quad h' = \sigma(g) \odot v, \quad \text{streams} = W_2 h' \;\text{reshaped to}\; (N, L, C)\]</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SplitLayer(eqx.Module):</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    linear1: eqx.nn.Linear  <span class="co"># C → 2C</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    linear2: eqx.nn.Linear  <span class="co"># C → N*C</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    num_stems: <span class="bu">int</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, dim: <span class="bu">int</span>, num_stems: <span class="bu">int</span>, <span class="op">*</span>, key: jax.random.PRNGKey):</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>        k1, k2 <span class="op">=</span> jax.random.split(key)</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.linear1 <span class="op">=</span> eqx.nn.Linear(dim, dim <span class="op">*</span> <span class="dv">2</span>, key<span class="op">=</span>k1)</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.linear2 <span class="op">=</span> eqx.nn.Linear(dim, dim <span class="op">*</span> num_stems, key<span class="op">=</span>k2)</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.num_stems <span class="op">=</span> num_stems</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__call__</span>(<span class="va">self</span>, x: Float[Array, <span class="st">"L C"</span>]) <span class="op">-&gt;</span> Float[Array, <span class="st">"N L C"</span>]:</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>        h <span class="op">=</span> jax.vmap(<span class="va">self</span>.linear1)(x)               <span class="co"># (L, 2C)</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>        gate, val <span class="op">=</span> jnp.split(h, <span class="dv">2</span>, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>        h <span class="op">=</span> jax.nn.sigmoid(gate) <span class="op">*</span> val              <span class="co"># (L, C)</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>        h <span class="op">=</span> jax.vmap(<span class="va">self</span>.linear2)(h)               <span class="co"># (L, N*C)</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>        h <span class="op">=</span> h.reshape(x.shape[<span class="dv">0</span>], <span class="va">self</span>.num_stems, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> jnp.transpose(h, (<span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">2</span>))          <span class="co"># (N, L, C)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="full-forward-pass" class="level2">
+<h2 class="anchored" data-anchor-id="full-forward-pass">Full Forward Pass</h2>
+<p>With all the building blocks in place, we can now assemble the complete <code>SepReformer</code> model. The forward pass threads the input waveform through the encoder, a stack of dual-path separation blocks, the split layer, a stack of dual-path reconstruction blocks (applied independently to each stem via <code>vmap</code>), and finally the decoder (also vmapped across stems). The output is trimmed or padded to match the original waveform length.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SepReformer(eqx.Module):</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    encoder: Encoder</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    sep_blocks: <span class="bu">list</span>[DualPathBlock]</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    split: SplitLayer</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    rec_blocks: <span class="bu">list</span>[DualPathBlock]</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    decoder: Decoder</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, key: jax.random.PRNGKey):</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>        num_sep_blocks <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>        num_rec_blocks <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>        dim <span class="op">=</span> <span class="dv">256</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>        num_heads <span class="op">=</span> <span class="dv">8</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>        ff_dim <span class="op">=</span> <span class="dv">1024</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>        chunk_size <span class="op">=</span> <span class="dv">64</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>        num_blocks <span class="op">=</span> num_sep_blocks <span class="op">+</span> num_rec_blocks</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>        keys <span class="op">=</span> jax.random.split(key, <span class="dv">3</span> <span class="op">+</span> num_blocks)</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.encoder <span class="op">=</span> Encoder(dim, keys[<span class="dv">0</span>])</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.decoder <span class="op">=</span> Decoder(dim, keys[<span class="dv">1</span>])</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.split <span class="op">=</span> SplitLayer(dim, <span class="dv">5</span>, key<span class="op">=</span>keys[<span class="dv">2</span>])</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.sep_blocks <span class="op">=</span> [</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>            DualPathBlock(dim, num_heads, ff_dim, chunk_size, key<span class="op">=</span>keys[<span class="dv">3</span> <span class="op">+</span> i])</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(num_sep_blocks)</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.rec_blocks <span class="op">=</span> [</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>            DualPathBlock(dim, num_heads, ff_dim, chunk_size, key<span class="op">=</span>keys[<span class="dv">3</span> <span class="op">+</span> num_sep_blocks <span class="op">+</span> i])</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(num_rec_blocks)</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__call__</span>(<span class="va">self</span>, x: Float[Array, <span class="st">"T"</span>]) <span class="op">-&gt;</span> Float[Array, <span class="st">"N T"</span>]:</span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>        h <span class="op">=</span> <span class="va">self</span>.encoder(x)</span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> block <span class="kw">in</span> <span class="va">self</span>.sep_blocks:</span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>            h <span class="op">=</span> block(h)</span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>        stems <span class="op">=</span> <span class="va">self</span>.split(h)                    <span class="co"># (N, L, C)</span></span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> block <span class="kw">in</span> <span class="va">self</span>.rec_blocks:</span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>            stems <span class="op">=</span> jax.vmap(block)(stems)</span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> jax.vmap(<span class="va">self</span>.decoder)(stems)      <span class="co"># (N, T')</span></span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>        <span class="co"># trim / pad to original length</span></span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>        T <span class="op">=</span> x.shape[<span class="dv">0</span>]</span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> out.shape[<span class="dv">1</span>] <span class="op">&gt;</span> T:</span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>            out <span class="op">=</span> out[:, :T]</span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>        <span class="cf">elif</span> out.shape[<span class="dv">1</span>] <span class="op">&lt;</span> T:</span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>            out <span class="op">=</span> jnp.pad(out, ((<span class="dv">0</span>, <span class="dv">0</span>), (<span class="dv">0</span>, T <span class="op">-</span> out.shape[<span class="dv">1</span>])))</span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> out</span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> SepReformer(jax.random.PRNGKey(<span class="dv">0</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="loss-functions" class="level2">
+<h2 class="anchored" data-anchor-id="loss-functions">Loss Functions</h2>
+<p>Supervising a source separator is not straightforward. A plain mean-squared error (MSE) in the waveform domain penalises tiny timing offsets and global loudness differences equally, so the model spends capacity chasing irrelevant phase shifts rather than learning to separate voices. We instead use two complementary objectives — one waveform-domain and one spectral — that together give stable, perceptually meaningful gradients.</p>
+<section id="si-sdr" class="level3">
+<h3 class="anchored" data-anchor-id="si-sdr">SI-SDR</h3>
+<p>SI-SDR projects the estimate onto the target and reports the energy ratio in dB. It is invariant to global loudness, which matters for a cappella where voices differ widely in level:</p>
+<p><span class="math display">\[\hat{s}_\text{tgt} = \frac{\langle \hat{s}, s \rangle}{\|s\|^2} s, \qquad \text{SI-SDR} = 10\log_{10}\frac{\|\hat{s}_\text{tgt}\|^2}{\|\hat{s} - \hat{s}_\text{tgt}\|^2}\]</span></p>
+<p>The projection step removes any DC offset before computing the ratio, so a perfectly separated signal that is merely scaled up or down still scores the maximum possible value. In practice, SI-SDR values above <span class="math inline">\(+10\ \text{dB}\)</span> indicate clearly separated sources; below <span class="math inline">\(0\ \text{dB}\)</span> the estimate is dominated by leakage from other voices. We negate it to turn maximisation into minimisation.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="at">@jaxtyped</span>(typechecker<span class="op">=</span>beartype)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> si_sdr(estimate: Float[Array, <span class="st">"T"</span>], target: Float[Array, <span class="st">"T"</span>], eps: <span class="bu">float</span> <span class="op">=</span> <span class="fl">1e-8</span>) <span class="op">-&gt;</span> Float[Array, <span class="st">""</span>]:</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    estimate <span class="op">=</span> estimate <span class="op">-</span> jnp.mean(estimate)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    target   <span class="op">=</span> target   <span class="op">-</span> jnp.mean(target)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    dot      <span class="op">=</span> jnp.<span class="bu">sum</span>(estimate <span class="op">*</span> target)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    s_target <span class="op">=</span> (dot <span class="op">/</span> (jnp.<span class="bu">sum</span>(target <span class="op">**</span> <span class="dv">2</span>) <span class="op">+</span> eps)) <span class="op">*</span> target</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    e_noise  <span class="op">=</span> estimate <span class="op">-</span> s_target</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="fl">10.0</span> <span class="op">*</span> jnp.log10(jnp.<span class="bu">sum</span>(s_target <span class="op">**</span> <span class="dv">2</span>) <span class="op">/</span> (jnp.<span class="bu">sum</span>(e_noise <span class="op">**</span> <span class="dv">2</span>) <span class="op">+</span> eps) <span class="op">+</span> eps)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="multi-resolution-stft-loss" class="level3">
+<h3 class="anchored" data-anchor-id="multi-resolution-stft-loss">Multi-Resolution STFT Loss</h3>
+<p>SI-SDR is blind to spectral texture: two signals can have the same SI-SDR yet sound very different if one has unnatural resonances or missing harmonics. Adding a frequency-domain term at three FFT scales <span class="math inline">\(\{512, 1024, 2048\}\)</span> addresses this at multiple time-frequency resolutions simultaneously.</p>
+<p>A small FFT (<span class="math inline">\(512\)</span>) gives sharp time resolution — useful for detecting onset smearing — while a large FFT (<span class="math inline">\(2048\)</span>) gives fine frequency resolution — useful for resolving individual harmonics in a choir. Using all three averages out the inherent time-frequency tradeoff of any single STFT.</p>
+<p>Each scale contributes two terms:</p>
+<ul>
+<li><strong>Spectral convergence</strong> — the Frobenius-norm distance between magnitude spectrograms, normalised by the target energy. This drives the gross shape of the spectrum towards the reference.</li>
+<li><strong>Log-magnitude distance</strong> — the mean absolute difference on a log scale. Because human pitch perception is logarithmic, this term penalises errors in quiet harmonics just as strongly as errors in loud ones.</li>
+</ul>
+<p><span class="math display">\[\mathcal{L}_\text{STFT} = \frac{1}{3}\sum_\text{scale}\left(\underbrace{\frac{\||S| - |\hat{S}|\|_F}{\||S|\|_F}}_{\text{spectral convergence}} + \underbrace{\text{mean}|\log|S| - \log|\hat{S}||}_{\text{log-magnitude}}\right)\]</span></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="at">@jaxtyped</span>(typechecker<span class="op">=</span>beartype)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> stft_mag(x: Float[Array, <span class="st">"T"</span>], fft_size: <span class="bu">int</span>, hop: <span class="bu">int</span>, win_size: <span class="bu">int</span>) <span class="op">-&gt;</span> Float[Array, <span class="st">"F K"</span>]:</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    window <span class="op">=</span> jnp.hanning(win_size)</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    x_pad  <span class="op">=</span> jnp.pad(x, (fft_size <span class="op">//</span> <span class="dv">2</span>, fft_size <span class="op">//</span> <span class="dv">2</span>))</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    n_frames <span class="op">=</span> (<span class="bu">len</span>(x_pad) <span class="op">-</span> win_size) <span class="op">//</span> hop <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    idx    <span class="op">=</span> jnp.arange(win_size)[<span class="va">None</span>, :] <span class="op">+</span> jnp.arange(n_frames)[:, <span class="va">None</span>] <span class="op">*</span> hop</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    frames <span class="op">=</span> x_pad[idx] <span class="op">*</span> window</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> jnp.<span class="bu">abs</span>(jnp.fft.rfft(frames, n<span class="op">=</span>fft_size, axis<span class="op">=-</span><span class="dv">1</span>)).T  <span class="co"># (F, K)</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="at">@jaxtyped</span>(typechecker<span class="op">=</span>beartype)</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> stft_loss_single(est: Float[Array, <span class="st">"T"</span>], tgt: Float[Array, <span class="st">"T"</span>], fft_size: <span class="bu">int</span>, hop: <span class="bu">int</span>, win: <span class="bu">int</span>) <span class="op">-&gt;</span> Float[Array, <span class="st">""</span>]:</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>    em, tm <span class="op">=</span> stft_mag(est, fft_size, hop, win), stft_mag(tgt, fft_size, hop, win)</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>    sc <span class="op">=</span> jnp.linalg.norm(tm <span class="op">-</span> em) <span class="op">/</span> (jnp.linalg.norm(tm) <span class="op">+</span> <span class="fl">1e-8</span>)</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    lm <span class="op">=</span> jnp.mean(jnp.<span class="bu">abs</span>(jnp.log(em <span class="op">+</span> <span class="fl">1e-8</span>) <span class="op">-</span> jnp.log(tm <span class="op">+</span> <span class="fl">1e-8</span>)))</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> sc <span class="op">+</span> lm</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a><span class="at">@jaxtyped</span>(typechecker<span class="op">=</span>beartype)</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> mr_stft_loss(est: Float[Array, <span class="st">"T"</span>], tgt: Float[Array, <span class="st">"T"</span>]) <span class="op">-&gt;</span> Float[Array, <span class="st">""</span>]:</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>    scales <span class="op">=</span> [(<span class="dv">512</span>, <span class="dv">128</span>, <span class="dv">512</span>), (<span class="dv">1024</span>, <span class="dv">256</span>, <span class="dv">1024</span>), (<span class="dv">2048</span>, <span class="dv">512</span>, <span class="dv">2048</span>)]</span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">sum</span>(stft_loss_single(est, tgt, <span class="op">*</span>s) <span class="cf">for</span> s <span class="kw">in</span> scales) <span class="op">/</span> <span class="bu">len</span>(scales)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="composite-loss" class="level3">
+<h3 class="anchored" data-anchor-id="composite-loss">Composite Loss</h3>
+<p>The final objective combines the two terms, with the STFT loss weighted at <span class="math inline">\(0.5\)</span> so that SI-SDR — which operates directly in the waveform domain and carries the strongest perceptual signal — dominates early in training. The STFT term then fills in spectral detail that SI-SDR cannot see. Both terms are averaged across the <span class="math inline">\(N\)</span> stems before being averaged across the batch.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="at">@jaxtyped</span>(typechecker<span class="op">=</span>beartype)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> composite_loss(estimates: Float[Array, <span class="st">"N T"</span>], targets: Float[Array, <span class="st">"N T"</span>]) <span class="op">-&gt;</span> Float[Array, <span class="st">""</span>]:</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> pair(est, tgt):</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="op">-</span>si_sdr(est, tgt) <span class="op">+</span> <span class="fl">0.5</span> <span class="op">*</span> mr_stft_loss(est, tgt)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> jnp.mean(jax.vmap(pair)(estimates, targets))</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="at">@eqx.filter_value_and_grad</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> loss_fn(m, mixture: Float[Array, <span class="st">"B T"</span>], targets: Float[Array, <span class="st">"B N T"</span>]) <span class="op">-&gt;</span> Float[Array, <span class="st">""</span>]:</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> single(mix, tgt):</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> composite_loss(m(mix), tgt)</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> jnp.mean(jax.vmap(single)(mixture, targets))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="overfitting-on-jacappella" class="level2">
+<h2 class="anchored" data-anchor-id="overfitting-on-jacappella">Overfitting on JaCappella</h2>
+<p>Before training on the full corpus, we overfit on a single batch. This is a fast sanity check: if the model cannot memorise even one example, something is wrong with the architecture, the loss, or the data pipeline. It is much cheaper to discover this now than after a multi-hour training run.</p>
+<section id="audio-logging" class="level3">
+<h3 class="anchored" data-anchor-id="audio-logging">Audio Logging</h3>
+<p>The loss curve tells you the model is learning, but it does not tell you <em>what</em> it is learning. Listening to the actual estimates at checkpoints is irreplaceable: you can hear immediately whether the model is separating voices, producing silence, or emitting noise. <code>log_audio_samples</code> writes one batch of audio to TensorBoard — the raw mixture, each ground-truth stem, and the corresponding model estimate — all normalised to a peak of <span class="math inline">\(0.99\)</span> so playback levels are comparable across steps.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> log_audio_samples(model, loader, writer, global_step):</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    mixture, stems <span class="op">=</span> <span class="bu">next</span>(<span class="bu">iter</span>(loader))</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    mix_np <span class="op">=</span> np.array(mixture[<span class="dv">0</span>])</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    stems_np <span class="op">=</span> np.array(stems[<span class="dv">0</span>])</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    est_np <span class="op">=</span> np.array(model(mixture[<span class="dv">0</span>]))</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    scale  <span class="op">=</span> <span class="fl">0.99</span> <span class="op">/</span> (np.<span class="bu">max</span>(np.<span class="bu">abs</span>(mix_np)) <span class="op">+</span> <span class="fl">1e-8</span>)</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    writer.add_audio(<span class="st">"mixture"</span>, mix_np <span class="op">*</span> scale, global_step, sample_rate<span class="op">=</span>SAMPLE_RATE)</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n <span class="kw">in</span> <span class="bu">range</span>(stems_np.shape[<span class="dv">0</span>]):</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>        writer.add_audio(<span class="ss">f"true/</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss">"</span>, stems_np[n] <span class="op">*</span> scale, global_step, sample_rate<span class="op">=</span>SAMPLE_RATE)</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> n <span class="kw">in</span> <span class="bu">range</span>(est_np.shape[<span class="dv">0</span>]):</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>        est_scale  <span class="op">=</span> <span class="fl">0.99</span> <span class="op">/</span> (np.<span class="bu">max</span>(np.<span class="bu">abs</span>(est_np[n])) <span class="op">+</span> <span class="fl">1e-8</span>)</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>        writer.add_audio(<span class="ss">f"estimate/</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss">"</span>, est_np[n] <span class="op">*</span> est_scale, global_step, sample_rate<span class="op">=</span>SAMPLE_RATE)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="optimizer-and-training-loop" class="level3">
+<h3 class="anchored" data-anchor-id="optimizer-and-training-loop">Optimizer and Training Loop</h3>
+<p>We use AdamW with a global gradient-norm clip of <span class="math inline">\(1.0\)</span>. Clipping is important here because early in training the split layer and decoder produce near-random outputs, which can generate very large gradients through the SI-SDR loss. Weight decay of <span class="math inline">\(10^{-2}\)</span> provides mild regularisation to prevent any single stem stream from collapsing to zero.</p>
+<p>While training, you can monitor progress in TensorBoard with <code>tensorboard --logdir runs/overfit</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="at">@eqx.filter_jit</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> step(model, opt_state, mixture, targets):</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    loss, grads <span class="op">=</span> loss_fn(model, mixture, targets)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    updates, opt_state <span class="op">=</span> optimizer.update(grads, opt_state, model)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> eqx.apply_updates(model, updates), opt_state, loss</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> optax</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>optimizer <span class="op">=</span> optax.chain(optax.clip_by_global_norm(<span class="fl">1.0</span>), optax.adamw(<span class="fl">3e-4</span>, weight_decay<span class="op">=</span><span class="fl">1e-2</span>))</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>opt_state <span class="op">=</span> optimizer.init(eqx.<span class="bu">filter</span>(model, eqx.is_array))</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>writer <span class="op">=</span> SummaryWriter(<span class="st">"runs/overfit"</span>)</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> epoch <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">200</span>):</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> mixture, targets <span class="kw">in</span> loader[:<span class="dv">1</span>]:</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>        model, opt_state, loss <span class="op">=</span> step(model, opt_state, mixture, targets)</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>        writer.add_scalar(<span class="st">"loss"</span>, <span class="bu">float</span>(loss), epoch)</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> epoch <span class="op">%</span> <span class="dv">20</span> <span class="op">==</span> <span class="dv">0</span>:</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>            log_audio_samples(model, loader, writer, epoch)</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>writer.close()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The exported Tensorboard results are shown below:</p>
+<style>
+    .item-container { margin-bottom: 40px; padding: 20px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .item-container img { max-width: 100%; height: auto; display: block; margin-top: 15px; border-radius: 4px; }
+    .item-container h3 { margin-top: 0; color: #1a73e8; font-size: 1.2rem; margin-bottom: 5px; }
+    .item-container .meta { color: #666; font-size: 0.85rem; margin-bottom: 15px; }
+    .scrubber-control { background: #f8f9fa; border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-top: 15px; }
+    .scrubber-label { font-size: 0.9rem; font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .step-slider { width: 100%; margin: 10px 0; cursor: pointer; }
+    .item-container audio { display: block; width: 100%; margin-top: 10px; }
+    .item-container table { width: 100%; border-collapse: collapse; }
+    .item-container td { vertical-align: top; padding: 8px; }
+    .item-container tr { background: none !important; }
+</style>
+<div class="item-container">
+<h3 class="anchored">
+Scalar Trend: loss
+</h3>
+<div class="meta">
+Final Value: -14.2998 at Step 199
+</div>
+<img src="loss_assets/scalar_loss.png" alt="loss plot">
+</div>
+<style>
+    .item-container { margin-bottom: 40px; padding: 20px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .item-container img { max-width: 100%; height: auto; display: block; margin-top: 15px; border-radius: 4px; }
+    .item-container h3 { margin-top: 0; color: #1a73e8; font-size: 1.2rem; margin-bottom: 5px; }
+    .item-container .meta { color: #666; font-size: 0.85rem; margin-bottom: 15px; }
+    .scrubber-control { background: #f8f9fa; border: 1px solid #e0e0e0; padding: 15px; border-radius: 6px; margin-top: 15px; }
+    .scrubber-label { font-size: 0.9rem; font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .step-slider { width: 100%; margin: 10px 0; cursor: pointer; }
+    .item-container audio { display: block; width: 100%; margin-top: 10px; }
+    .item-container table { width: 100%; border-collapse: collapse; }
+    .item-container td { vertical-align: top; padding: 8px; }
+    .item-container tr { background: none !important; }
+</style>
+<div class="item-container">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>Audio Summary: estimate</span><span>5 components</span>
+</div>
+<table>
+<tbody><tr>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>0</span><span></span>
+</div>
+<div class="scrubber-control" data-audio-steps="[0, 20, 40, 60, 80, 100, 120, 140, 160, 180]" data-audio-path="estimate_assets/audio_estimate_0_step{step}.wav">
+<div class="scrubber-label">
+<span>Step Scrubber</span><span><strong class="step-display">0</strong></span>
+</div>
+<input type="range" class="step-slider" min="0" max="9" value="0" step="1"><audio controls="" src="estimate_assets/audio_estimate_0_step0.wav" type="audio/wav"></audio>
+</div>
+</td>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>1</span><span></span>
+</div>
+<div class="scrubber-control" data-audio-steps="[0, 20, 40, 60, 80, 100, 120, 140, 160, 180]" data-audio-path="estimate_assets/audio_estimate_1_step{step}.wav">
+<div class="scrubber-label">
+<span>Step Scrubber</span><span><strong class="step-display">0</strong></span>
+</div>
+<input type="range" class="step-slider" min="0" max="9" value="0" step="1"><audio controls="" src="estimate_assets/audio_estimate_1_step0.wav" type="audio/wav"></audio>
+</div>
+</td>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>2</span><span></span>
+</div>
+<div class="scrubber-control" data-audio-steps="[0, 20, 40, 60, 80, 100, 120, 140, 160, 180]" data-audio-path="estimate_assets/audio_estimate_2_step{step}.wav">
+<div class="scrubber-label">
+<span>Step Scrubber</span><span><strong class="step-display">0</strong></span>
+</div>
+<input type="range" class="step-slider" min="0" max="9" value="0" step="1"><audio controls="" src="estimate_assets/audio_estimate_2_step0.wav" type="audio/wav"></audio>
+</div>
+</td>
+</tr>
+<tr>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>3</span><span></span>
+</div>
+<div class="scrubber-control" data-audio-steps="[0, 20, 40, 60, 80, 100, 120, 140, 160, 180]" data-audio-path="estimate_assets/audio_estimate_3_step{step}.wav">
+<div class="scrubber-label">
+<span>Step Scrubber</span><span><strong class="step-display">0</strong></span>
+</div>
+<input type="range" class="step-slider" min="0" max="9" value="0" step="1"><audio controls="" src="estimate_assets/audio_estimate_3_step0.wav" type="audio/wav"></audio>
+</div>
+</td>
+<td style="width:33%">
+<div class="meta" style="display:flex;justify-content:space-between">
+<span>4</span><span></span>
+</div>
+<div class="scrubber-control" data-audio-steps="[0, 20, 40, 60, 80, 100, 120, 140, 160, 180]" data-audio-path="estimate_assets/audio_estimate_4_step{step}.wav">
+<div class="scrubber-label">
+<span>Step Scrubber</span><span><strong class="step-display">0</strong></span>
+</div>
+<input type="range" class="step-slider" min="0" max="9" value="0" step="1"><audio controls="" src="estimate_assets/audio_estimate_4_step0.wav" type="audio/wav"></audio>
+</div>
+</td>
+<td>
+</td>
+</tr>
+</tbody></table>
+</div>
+
+
+</section>
+</section>
+</section></main></div>
+
+
+
+ <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/samanklesaria\.github\.io");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+ <!-- /content -->
+
+
+
+
+</body></html>

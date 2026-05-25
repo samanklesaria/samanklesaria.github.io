@@ -2,8 +2,9 @@
   {
     "listing": "/index.html",
     "items": [
-      "/posts/NestedSurveys.html",
+      "/posts/sepreformer/sepreformer.html",
       "/posts/case control.html",
+      "/posts/NestedSurveys.html",
       "/posts/reputation/reputation.html",
       "/posts/missing_obs/missing_obs.html",
       "/posts/congestion_pricing/Notebook.html",
