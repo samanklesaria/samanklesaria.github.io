@@ -6,9 +6,9 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="dcterms.date" content="2023-08-15">
+<meta name="dcterms.date" content="2026-05-24">
 
-<title>Generative ODE Models are VAEs – Sam’s Blog</title>
+<title>Introducing tbexport – Sam's Blog</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -20,6 +20,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -70,35 +105,6 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
-
-<script type="text/javascript">
-const typesetMath = (el) => {
-  if (window.MathJax) {
-    // MathJax Typeset
-    window.MathJax.typeset([el]);
-  } else if (window.katex) {
-    // KaTeX Render
-    var mathElements = el.getElementsByClassName("math");
-    var macros = [];
-    for (var i = 0; i < mathElements.length; i++) {
-      var texText = mathElements[i].firstChild;
-      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
-        window.katex.render(texText.data, mathElements[i], {
-          displayMode: mathElements[i].classList.contains('display'),
-          throwOnError: false,
-          macros: macros,
-          fleqn: false
-        });
-      }
-    }
-  }
-}
-window.Quarto = {
-  typesetMath
-};
-</script>
 
 <link rel="stylesheet" href="../styles.css">
 </head>
@@ -136,7 +142,7 @@ window.Quarto = {
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Generative ODE Models are VAEs</h1>
+      <h1 class="title">Introducing <em>tbexport</em></h1>
                                 <div class="quarto-categories">
                 <div class="quarto-category">machine learning</div>
               </div>
@@ -150,7 +156,7 @@ window.Quarto = {
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">August 15, 2023</p>
+        <p class="date">May 24, 2026</p>
       </div>
     </div>
     
@@ -169,33 +175,30 @@ window.Quarto = {
 
 
 
-<p>Generative image models based on ordinary differential equations can be seen as forms of variational auto-encoders with a partially deterministic inference network. <span class="math inline">\(\newcommand{\coloneqq}{\mathrel{\vcenter{:}}=}\)</span></p>
-<section id="variational-auto-encoders" class="level1">
-<h1>Variational Auto-encoders</h1>
-<p>Given a dataset of samples <span class="math inline">\(y\)</span> from an unknown distribution <span class="math inline">\(\pi_1\)</span>, generative models attempt to find parameters <span class="math inline">\(\theta\)</span> for a fixed family that maximizes the likelihood <span class="math inline">\(p_\theta(y)\)</span>. When the family implicitly marginalizes over a latent variable <span class="math inline">\(z\)</span> so that <span class="math inline">\(\log p_\theta(y) = \log E_{z \sim p} p_\theta(y \vert  z)\)</span>, maximum likelihood estimation becomes intractable in general. Variational auto-encoders address this problem by maximizing a lower bound on the likelihood: <span class="math display">\[
-\begin{align*}
-\log p_\theta(y) &amp;= \log E_{z \sim p} p_\theta(y \vert  z) \\
-&amp;=\log E_{q(z \vert  y)} \frac{p(y\vert z) p(z)}{q(z\vert y)} &amp;\text{ (importance sampling)}\\
-&amp; \geq E_{q(z \vert  y)} \log \frac{p(y\vert z) p(z)}{q(z)} &amp;\text{ (Jensen's inequality)}
-\end{align*}
-\]</span></p>
-<p>This quantity <span class="math inline">\(\mathcal{L} \coloneqq E_{q(z \vert  y)} \log p(y,z) - \log q(z)\)</span> is known as the <em>evidence lower bound</em> or ELBO. The distribution <span class="math inline">\(q(z\vert y)\)</span> used for importance sampling is usually parameterized by a neural net and is known as the <em>inference network</em>. In what follows, we will implicitly assume that <span class="math inline">\(q\)</span> is a function of neural net parameters <span class="math inline">\(\phi\)</span>.</p>
+<p>I’ve been writing up training results for blog posts and documentation a lot lately, and the workflow always felt clunky. TensorBoard is great for interactive exploration during development, but when it’s time to publish, you either take screenshots or ask readers to run a TensorBoard instance themselves. Neither is ideal.</p>
+<p>So I (or, more honestly, mostly Claude) wrote <a href="https://github.com/samanklesaria/tbexport">tbexport</a>, a small CLI that reads TensorBoard log directories and spits out static HTML files with the summaries you care about — scalar plots, images, and audio — ready to embed wherever you need them.</p>
+<section id="what-it-does" class="level2">
+<h2 class="anchored" data-anchor-id="what-it-does">What it does</h2>
+<p>You point it at a tfevents directory and tell it which tags to extract:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">tbexport</span> <span class="at">--log-dir</span> ./logs <span class="dt">\</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--scalars</span> loss <span class="dt">\</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--images</span> gen_img <span class="dt">\</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--audio</span> gen_audio</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>For each tag, it produces an HTML file and an <code>_assets/</code> directory. Scalars get rendered as matplotlib plots. Images and audio with multiple steps get interactive scrubbers so readers can step through the training progression. The HTML is plain and unstyled enough to fit into most static site setups without fighting your existing CSS.</p>
 </section>
-<section id="from-variational-auto-encoders-to-rectified-flows" class="level1">
-<h1>From Variational Auto-encoders to Rectified Flows</h1>
-<p>Assume that the model’s prior over <span class="math inline">\(z\)</span> factors as <span class="math inline">\(p(z) = p(z_0)\prod_t p(z_{t+\Delta} \vert  z_t)\)</span>, where <span class="math inline">\(t\)</span> ranges from <span class="math inline">\(0\)</span> to <span class="math inline">\(1\)</span> in increments of <span class="math inline">\(\Delta\)</span> and <span class="math inline">\(z_1\)</span> is observed (taking the place of <span class="math inline">\(y\)</span> in the discussion so far). Instead of fixing the model <span class="math inline">\(p\)</span> and learning parameters for a distribution <span class="math inline">\(q\)</span> to approximate its posterior, with diffusion-based approaches, we do the opposite.. Fix the posterior approximation <span class="math inline">\(q(z_t \vert  z_1, z_0)\)</span> to be a Delta distribution at <span class="math inline">\(tz_1 + (1 - t)z_0\)</span> (linearly interpolating between observations). Let <span class="math inline">\(p(z_{t+\Delta} \vert  z_t)\)</span> be distributed as <span class="math inline">\(\mathcal{N}(z_t + \Delta f_\theta(z_t, t), \sigma^2/\Delta^2)\)</span>, where <span class="math inline">\(f_\theta\)</span> is a neural network parameterized by <span class="math inline">\(\theta\)</span>. Under this linear interpolation scheme, <span class="math inline">\(z_{t + \Delta} - z_t = \Delta (z_1 - z_0)\)</span>. This means that <span class="math display">\[
-\begin{align*}
-    &amp;E\left[\log p((z_{t+\Delta} \vert  z_t)\right] \\
-    &amp;= E\left[-\frac{1}{2} \frac{(z_{t + \Delta} - [z_t + \Delta f_\theta (z_t, t)])^2}{\sigma^2 \Delta^2}\right] \\
-    &amp;= E\left[\frac{-1}{2\sigma^2 \Delta} ((z_1 - z_0) - f_\theta (z_t, t))^2\right]
-\end{align*}
-\]</span></p>
-<p>We can plug this simplification into the full ELBO, noting that the sum over time can be written as an expectation.</p>
-<p><span class="math display">\[
-E_{z_0} \left[ \log p(z_0) - \log q(z_0\vert z_1) + \sum_t \log p(z_{t+\Delta} \vert  z_t) \right] = \\
--KL[q(z_0\vert z_1) \vert p(z_0)] + \frac{-1}{2\sigma^2} E_{t, z_0} \left[ ((z_1 - z_0) - f_\theta (z_t, t))^2 \right]
-\]</span></p>
-<p>It breaks into two parts: a KL divergence keeping <span class="math inline">\(q(z_0\vert z_1)\)</span> close to <span class="math inline">\(p(z_0)\)</span>, and a stochastic squared loss in which both time and latent code are sampled. As <span class="math inline">\(\Delta \to 0\)</span>, the distribution over times approaches uniform. This is precisely the loss for the <em>Rectified Flow</em> model for the case of a fixed <span class="math inline">\(q(z_0 \vert  z_1)\)</span>. Originally, the authors interpreted this loss as a way to learn an ODE <span class="math inline">\(\frac{\partial z}{\partial t} = f(z, t)\)</span> which transports samples <span class="math inline">\(z_0\)</span> to observations <span class="math inline">\(z_1\)</span>. By casting the loss in the language of variational auto-encoders, however, we can learn a posterior distribution for <span class="math inline">\(z_0\)</span> at the same time.</p>
+<section id="tag-prefixes" class="level2">
+<h2 class="anchored" data-anchor-id="tag-prefixes">Tag prefixes</h2>
+<p>If your logs have grouped tags like <code>train/loss</code>, <code>train/accuracy</code>, <code>train/lr</code>, you can pass just the prefix:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">tbexport</span> <span class="at">--log-dir</span> ./logs <span class="at">--scalars</span> train</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This matches all sub-tags and groups them into a single page with a table layout, which is handy for showing related metrics together.</p>
+</section>
+<section id="getting-it" class="level2">
+<h2 class="anchored" data-anchor-id="getting-it">Getting it</h2>
+<p>It’s not on PyPI yet — for now you install from source:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/samanklesaria/tbexport.git</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> tbexport</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> tool install .</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The code is straightforward and the scope is intentionally small. If you have ideas or run into issues, feel free to open an issue on GitHub.</p>
 
 
 </section>

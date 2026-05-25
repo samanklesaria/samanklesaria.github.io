@@ -6,9 +6,9 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="dcterms.date" content="2025-02-10">
+<meta name="dcterms.date" content="2026-05-24">
 
-<title>Finding Common Topics – Sam’s Blog</title>
+<title>Introducing tbexport – Sam's Blog</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -142,7 +142,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Finding Common Topics</h1>
+      <h1 class="title">Introducing <em>tbexport</em></h1>
                                 <div class="quarto-categories">
                 <div class="quarto-category">machine learning</div>
               </div>
@@ -156,7 +156,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">February 10, 2025</p>
+        <p class="date">May 24, 2026</p>
       </div>
     </div>
     
@@ -175,154 +175,34 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<p>How do you find thematic clusters in a large corpus of text documents? The techniques baked into <code>sklearn</code> (e.g.&nbsp;nonnegative matrix factorization, LDA) give you some intuition about common themes. But contemporary NLP has largely moved on from bag-of-words representations. We can do better with some transformer models!</p>
-<p>For demonstration purposes, I’ll use a few categories from the standard 20-newsgroups dataset. Ideally, we should be able to recover the four categories in the dataset (atheism, computer graphics, space and religion).</p>
-<div id="02697785" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.datasets <span class="im">import</span> fetch_20newsgroups</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.cluster <span class="im">import</span> KMeans</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pydantic <span class="im">import</span> BaseModel, Field</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> AutoTokenizer, AutoModel</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> langchain_ollama <span class="im">import</span> ChatOllama</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> langchain_core.messages <span class="im">import</span> HumanMessage, SystemMessage</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch.nn.functional <span class="im">as</span> F</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch.utils.data <span class="im">import</span> DataLoader</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> Markdown</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div id="e172ea11" class="cell" data-execution_count="2">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>categories <span class="op">=</span> [</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"alt.atheism"</span>,</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"talk.religion.misc"</span>,</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"comp.graphics"</span>,</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"sci.space"</span>,</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>dataset <span class="op">=</span> fetch_20newsgroups(</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    remove<span class="op">=</span>(<span class="st">"headers"</span>, <span class="st">"footers"</span>, <span class="st">"quotes"</span>),</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    subset<span class="op">=</span><span class="st">"all"</span>,</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    categories<span class="op">=</span>categories,</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    shuffle<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    random_state<span class="op">=</span><span class="dv">42</span>,</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p>Some of the documents in the dataset are only a few words; I only want to deal with documents that are least a couple hundred characters.</p>
-<div id="4f16f6f3" class="cell" data-execution_count="3">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> np.array(<span class="bu">list</span>(<span class="bu">filter</span>(<span class="kw">lambda</span> x: <span class="bu">len</span>(x) <span class="op">&gt;</span> <span class="dv">200</span>, (d.strip() <span class="cf">for</span> d <span class="kw">in</span> dataset.data))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p>First, I’ll map each document to its embedding using the <em>all-MiniLM</em> BERT variant.</p>
-<div id="36f1ff0d" class="cell" data-execution_count="4">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>minilm_tokenizer <span class="op">=</span> AutoTokenizer.from_pretrained(<span class="st">'sentence-transformers/all-MiniLM-L6-v2'</span>)</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>minilm <span class="op">=</span> AutoModel.from_pretrained(<span class="st">'sentence-transformers/all-MiniLM-L6-v2'</span>).to(<span class="st">'mps'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div id="f69999c2" class="cell" data-execution_count="5">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> mean_pooling(model_output, attention_mask):</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    token_embeddings <span class="op">=</span> model_output[<span class="dv">0</span>] <span class="co">#First element contains all embeddings</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    input_mask_expanded <span class="op">=</span> attention_mask.unsqueeze(<span class="op">-</span><span class="dv">1</span>).expand(</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>        token_embeddings.size()).<span class="bu">float</span>()</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> torch.<span class="bu">sum</span>(token_embeddings <span class="op">*</span> input_mask_expanded,</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>                     <span class="dv">1</span>) <span class="op">/</span> torch.clamp(input_mask_expanded.<span class="bu">sum</span>(<span class="dv">1</span>), <span class="bu">min</span><span class="op">=</span><span class="fl">1e-9</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div id="2c15c97b" class="cell" data-execution_count="6">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_embeddings(X):</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    loader <span class="op">=</span> DataLoader(X, batch_size<span class="op">=</span><span class="dv">16</span>)</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    embeddings <span class="op">=</span> []</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> batch <span class="kw">in</span> loader:</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>        toks <span class="op">=</span> minilm_tokenizer(batch, padding<span class="op">=</span><span class="va">True</span>, truncation<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>                                return_tensors<span class="op">=</span><span class="st">'pt'</span>)</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">with</span> torch.no_grad():</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>            model_output <span class="op">=</span> minilm(<span class="op">**</span>toks.to(<span class="st">'mps'</span>))</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>            result <span class="op">=</span> F.normalize(mean_pooling(model_output,</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>                                              toks[<span class="st">'attention_mask'</span>]), p<span class="op">=</span><span class="dv">2</span>, dim<span class="op">=</span><span class="dv">1</span>)</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>            embeddings.append(result.cpu())</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> torch.cat(embeddings)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p>Next, I’ll cluster the embeddings with the standard k-means algorithm. There’s far more sophisticated clustering techniques in <code>sklearn</code>, but this should be sufficient for the toy problem.</p>
-<div id="bb6bc56d" class="cell" data-execution_count="7">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_clusters(embeddings):</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    neural_kmeans <span class="op">=</span> KMeans(n_clusters<span class="op">=</span><span class="dv">4</span>, n_init<span class="op">=</span><span class="dv">25</span>)</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    neural_kmeans.fit(embeddings)</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    docs_per_label <span class="op">=</span> pd.DataFrame({<span class="st">'labels'</span>: neural_kmeans.labels_}).value_counts()</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> neural_kmeans, docs_per_label</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p>Finally, I’ll take a random set of documents closest to the center of each cluster and ask Qwen to find a title for the collection.</p>
-<div id="76ecabe8" class="cell" data-execution_count="8">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> top_per_cluster(X, embeddings, kmeans, k<span class="op">=</span><span class="dv">25</span>, m<span class="op">=</span><span class="dv">8</span>):</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [np.random.choice(</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>        X[kmeans.labels_ <span class="op">==</span> i][np.argsort(((embeddings[kmeans.labels_ <span class="op">==</span> i]</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>                                                <span class="op">-</span> c)<span class="op">**</span><span class="dv">2</span>).<span class="bu">sum</span>(axis<span class="op">=-</span><span class="dv">1</span>))[:k]], m)</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i, c <span class="kw">in</span> <span class="bu">enumerate</span>(kmeans.cluster_centers_)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div id="d6ed759a" class="cell" data-execution_count="9">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>llama <span class="op">=</span> ChatOllama(model<span class="op">=</span><span class="st">"mistral:7b"</span>, temperature<span class="op">=</span><span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p>I’ll let the LLM contemplate common themes to itself before deciding on a title. We can require that the results get packaged together in a structured output format.</p>
-<div id="114845a9" class="cell" data-execution_count="10">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SampleAnalysis(BaseModel):</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    analysis: <span class="bu">str</span> <span class="op">=</span> Field(description<span class="op">=</span><span class="st">'Analysis of the texts.'</span>)</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    category: <span class="bu">str</span> <span class="op">=</span> Field(description<span class="op">=</span><span class="st">'Category of the cluster.'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div id="ca5960f1" class="cell" data-execution_count="11">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> llama_summarize(strs):</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    prompt <span class="op">=</span> [SystemMessage(<span class="st">"""</span></span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="st">Your task is to understand why the given documents were assigned to the same cluster.</span></span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="st">- First analyze the documents in the cluster for common topics.</span></span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="st">- Then, propose a short category name for the cluster containing these documents based on the analysis."""</span>)]</span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    prompt.extend(strs)</span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> llama.with_structured_output(SampleAnalysis).invoke(prompt)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<p>Let’s try it out!</p>
-<div id="3d954608" class="cell" data-execution_count="12">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_topics(X):</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    embeddings <span class="op">=</span> get_embeddings(X)</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    neural_kmeans, docs_per_label <span class="op">=</span> get_clusters(embeddings)</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    top_embeddings <span class="op">=</span> top_per_cluster(X, embeddings, neural_kmeans)</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    results <span class="op">=</span> [llama_summarize([a <span class="cf">for</span> a <span class="kw">in</span> t]) <span class="cf">for</span> t <span class="kw">in</span> top_embeddings]</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> pd.DataFrame({</span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">'category'</span>: [r.category <span class="cf">for</span> r <span class="kw">in</span> results],</span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">'n_docs'</span>: [<span class="bu">int</span>(docs_per_label[a]) <span class="cf">for</span> a <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">len</span>(docs_per_label))]</span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>    }).sort_values(by<span class="op">=</span><span class="st">'n_docs'</span>, ascending<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div id="623c39ab" class="cell" data-execution_count="13">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>Markdown(get_topics(X).to_markdown())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display cell-output-markdown" data-execution_count="40">
-<table class="caption-top table table-sm table-striped small">
-<thead>
-<tr class="header">
-<th style="text-align: right;"></th>
-<th style="text-align: left;">category</th>
-<th style="text-align: right;">n_docs</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">3</td>
-<td style="text-align: left;">Space Industry News</td>
-<td style="text-align: right;">710</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">0</td>
-<td style="text-align: left;">Software Development &amp; Graphics</td>
-<td style="text-align: right;">707</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">2</td>
-<td style="text-align: left;">Atheism and Religion Debate</td>
-<td style="text-align: right;">631</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">1</td>
-<td style="text-align: left;">Social Transformation and Ethics</td>
-<td style="text-align: right;">609</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<p>Sounds about right!</p>
+<p><img src="logo.png" class="img-fluid"></p>
+<p>I’ve been writing up training results for blog posts and documentation a lot lately, and the workflow always felt clunky. TensorBoard is great for interactive exploration during development, but when it’s time to publish, you either take screenshots or ask readers to run a TensorBoard instance themselves. Neither is ideal.</p>
+<p>So I (or, more honestly, mostly Claude) wrote <a href="https://github.com/samanklesaria/tbexport">tbexport</a>, a small CLI that reads TensorBoard log directories and spits out static HTML files with the summaries you care about — scalar plots, images, and audio — ready to embed wherever you need them.</p>
+<section id="what-it-does" class="level2">
+<h2 class="anchored" data-anchor-id="what-it-does">What it does</h2>
+<p>You point it at a tfevents directory and tell it which tags to extract:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">tbexport</span> <span class="at">--log-dir</span> ./logs <span class="dt">\</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--scalars</span> loss <span class="dt">\</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--images</span> gen_img <span class="dt">\</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--audio</span> gen_audio</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>For each tag, it produces an HTML file and an <code>_assets/</code> directory. Scalars get rendered as matplotlib plots. Images and audio with multiple steps get interactive scrubbers so readers can step through the training progression. The HTML is plain and unstyled enough to fit into most static site setups without fighting your existing CSS.</p>
+</section>
+<section id="tag-prefixes" class="level2">
+<h2 class="anchored" data-anchor-id="tag-prefixes">Tag prefixes</h2>
+<p>If your logs have grouped tags like <code>train/loss</code>, <code>train/accuracy</code>, <code>train/lr</code>, you can pass just the prefix:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">tbexport</span> <span class="at">--log-dir</span> ./logs <span class="at">--scalars</span> train</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This matches all sub-tags and groups them into a single page with a table layout, which is handy for showing related metrics together.</p>
+</section>
+<section id="getting-it" class="level2">
+<h2 class="anchored" data-anchor-id="getting-it">Getting it</h2>
+<p>It’s not on PyPI yet — for now you install from source:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/samanklesaria/tbexport.git</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> tbexport</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> tool install .</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The code is straightforward and the scope is intentionally small. If you have ideas or run into issues, feel free to open an issue on GitHub.</p>
 
 
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
