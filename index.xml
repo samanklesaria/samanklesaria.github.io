@@ -2460,7 +2460,7 @@ font-style: inherit;">uv</span> tool install .</span></code></pre></div></div>
 </item>
 <item>
   <title>Case Control Studies</title>
-  <link>https://samanklesaria.github.io/posts/case control.html</link>
+  <link>https://samanklesaria.github.io/posts/case_control/case control.html</link>
   <description><![CDATA[ 
 
 
@@ -2486,8 +2486,9 @@ font-style: inherit;">uv</span> tool install .</span></code></pre></div></div>
 
  ]]></description>
   <category>statistics</category>
-  <guid>https://samanklesaria.github.io/posts/case control.html</guid>
+  <guid>https://samanklesaria.github.io/posts/case_control/case control.html</guid>
   <pubDate>Wed, 20 May 2026 05:00:00 GMT</pubDate>
+  <media:content url="https://samanklesaria.github.io/posts/case_control/img.png" medium="image" type="image/png" height="71" width="144"/>
 </item>
 <item>
   <title>Counting People You Haven’t Met: Design-Based Survey Inference with NestedSurveys.jl</title>
@@ -7839,7 +7840,7 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 </item>
 <item>
   <title>Sizecheck: Making Tensor Code Self-Documenting with Runtime Shape Validation</title>
-  <link>https://samanklesaria.github.io/posts/sizecheck.html</link>
+  <link>https://samanklesaria.github.io/posts/sizecheck/sizecheck.html</link>
   <description><![CDATA[ 
 
 
@@ -7947,8 +7948,9 @@ font-style: inherit;">=</span> attention(q, k, v)</span></code></pre></div></div
 
  ]]></description>
   <category>tools</category>
-  <guid>https://samanklesaria.github.io/posts/sizecheck.html</guid>
+  <guid>https://samanklesaria.github.io/posts/sizecheck/sizecheck.html</guid>
   <pubDate>Sat, 30 Aug 2025 05:00:00 GMT</pubDate>
+  <media:content url="https://samanklesaria.github.io/posts/sizecheck/logo.png" medium="image" type="image/png" height="144" width="144"/>
 </item>
 <item>
   <title>Books and Guides</title>
@@ -8034,6 +8036,7 @@ font-style: inherit;">=</span> attention(q, k, v)</span></code></pre></div></div
   <category>machine learning</category>
   <guid>https://samanklesaria.github.io/posts/books.html</guid>
   <pubDate>Thu, 21 Aug 2025 05:00:00 GMT</pubDate>
+  <media:content url="https://upload.wikimedia.org/wikipedia/commons/3/39/Noto_Emoji_v2.034_1f4da.svg" medium="image" type="image/svg+xml"/>
 </item>
 <item>
   <title>Frequentist Sample Size Estimation</title>
@@ -8844,38 +8847,32 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 
 
 
-<p><strong>Statistics and Data Analysis:</strong> Overall: use R. Its has the largest ecosystem of statistical packages.</p>
+<p><strong>Statistics and Data Analysis:</strong> Overall: use R. It has the largest ecosystem of statistical packages.</p>
 <ul>
 <li>For Bayesian modeling, Stan has bindings for everything, but it’s easiest to use from R, and the rest of the toolkit <em>(brms, loo, bayesplot, etc)</em> doesn’t have an equivalents outside of R. Turing.jl and PyMC3 are substantially slower, and Numpyro is less mature (although it can be faster on a GPU).</li>
+<li>For DiD studies, R has <code>did</code> and Python has <code>diffindiff</code> and <code>moderndid</code>, but Julia doesn’t have anything comparable.</li>
 <li>For visualization, R has ggplot2 and ggpairs, Julia has AlgebraOfGraphics and Python has Seaborn. They’re all about as good as each other.</li>
 <li>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find DataFrames.jl to be the nicest of the bunch (with DataFramesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and the rest of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</li>
-<li>For geographic queries, R’s <em>sf</em>&nbsp;and Julia’s <em>GeoStats</em>&nbsp;are lovely. Python’s <em>GeoPandas</em>,&nbsp;being based on Pandas, is much more annoying to use.</li>
-<li>For frequentist statistics, Python’s <em>statsmodels</em> and Julia’s <em>GLMs, MixedModels</em>, <em>Survey</em> and <em>Survival</em> packages give you much of base R and its <em>lmer</em>, <em>survey</em> and <em>survival</em> packages.</li>
+<li>For geographic queries, R’s <em>sf</em>&nbsp;and Julia’s <em>GeoStats</em>&nbsp;are lovely. Python’s <em>GeoPandas</em>, being based on Pandas, is much more annoying to use.</li>
+<li>For frequentist statistics, Python’s <em>statsmodels</em> and Julia’s <em>GLMs, CovarianceMatrices.jl, MixedModels</em> and <em>Survival</em> packages give you much of base R and the <em>lmer, sandwich</em> and <em>survival</em> packages.</li>
 <li>For Gaussian Process modeling, Python’s <em>GPytorch</em> is far faster and more feature-complete than anything else. Julia’s <em>AbstractGPs</em> has a nicer interface and is easier to extend, but it’s slower and lacks the approximate inference algorithms necessary for large datasets.</li>
 </ul>
 <p><strong>Neural Nets</strong></p>
 <ul>
-<li>There’s a plethora of SAAS companies that promise easier experiment tracking. But in my experience, the easiest option is just to use git worktrees. Each experiment should live in a separate branch with a README documenting exactly what’s being tested. This makes it easy to fork and cherry-pick pieces of different experiments. Use git-lfs for weights and training data.</li>
+<li>There’s a plethora of SAAS companies that promise easier experiment tracking. But in my experience, the easiest option is just to use git worktrees. Each experiment should live in a separate branch with a README documenting exactly what’s being tested. This makes it easy to fork and cherry-pick pieces of different experiments.</li>
 <li>For training, use Jax with equinox.</li>
 <li>For visualization, use Tensorboard.</li>
 </ul>
 <p><strong>Other Programming</strong></p>
 <ul>
-<li>Use Julia for anything numerical</li>
-<li>Use Python for scripting with the <code>uv</code> package manager.</li>
+<li>Use Julia for anything numerical.</li>
+<li>Use Python with the <code>fire</code> package, the <code>pytest-watch</code> test runner and the <code>uv</code> package manager for scripting.</li>
 <li>Use awk for text processing and jq for JSON processing</li>
 <li>Use Rust if efficiency matters.</li>
-<li>Otherwise, use Haskell.</li>
+<li>Otherwise, use Haskell with <code>ghcid</code>.</li>
 </ul>
-<p><strong>Notebooks:</strong> I use Pluto for Julia, Marimo for Python and RStudio for R.</p>
+<p><strong>Notebooks:</strong> I currently use Pluto for Julia, Marimo for Python, and RStudio (with qmd files) for R. LLMs work best on Markdown variants rather than structured notebook formats</p>
 <p><strong>Static Site Generation:</strong> Use Quarto. Compared to Jekyll, niceties like latex math, computational notebooks and bibliography management are built in.</p>
-<p><strong>Databases</strong></p>
-<ul>
-<li>For OLTP, use postgres with pgvector &amp; pgvectorscale for vector search and postGIS for spatial data.</li>
-<li>For analytical workloads, use DuckDB</li>
-<li>For local RAGs, use ChromaDB.</li>
-</ul>
-<p><strong>LLMs:</strong> - It’s hard to beat Claude Code for AI assisted editing. Editor integration doesn’t add anything; just use the CLI. - Ollama makes it easy to manage local LLMs. I tend to use qwen.</p>
 <p><strong>Editors::</strong> - Kakoune is lightweight and but has full lsp support. On linux, it’s my perferred editor. But it assumes that window management functionality will be handled by your window manager, which isn’t really a thing on other platforms. - On a Mac, I use Zed.</p>
 <p><strong>Other</strong></p>
 <ul>
@@ -8893,6 +8890,7 @@ font-style: inherit;">end</span></span></code></pre></div></div>
   <category>tools</category>
   <guid>https://samanklesaria.github.io/posts/tooling_guide.html</guid>
   <pubDate>Sun, 01 Jun 2025 05:00:00 GMT</pubDate>
+  <media:content url="https://upload.wikimedia.org/wikipedia/commons/4/44/Drawing_Tools_Flat_Icon_Vector.svg" medium="image" type="image/svg+xml"/>
 </item>
 <item>
   <title>Finding Common Topics</title>

@@ -6,9 +6,9 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="dcterms.date" content="2025-06-01">
+<meta name="dcterms.date" content="2026-05-20">
 
-<title>An Opinionated Tooling Guide – Sam’s Blog</title>
+<title>Case Control Studies – Sam’s Blog</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -24,24 +24,24 @@ ul.task-list li input[type="checkbox"] {
 </style>
 
 
-<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="../site_libs/quarto-nav/headroom.min.js"></script>
-<script src="../site_libs/clipboard/clipboard.min.js"></script>
-<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="../site_libs/quarto-search/fuse.min.js"></script>
-<script src="../site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="../">
-<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
-<script src="../site_libs/quarto-html/popper.min.js"></script>
-<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="../site_libs/quarto-html/anchor.min.js"></script>
-<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-ff63373b1067ca6f91cf1456aa1f00a2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-ff63373b1067ca6f91cf1456aa1f00a2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -70,8 +70,37 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
 
-<link rel="stylesheet" href="../styles.css">
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
 </head>
 
 <body class="nav-fixed fullcontent quarto-light">
@@ -81,7 +110,7 @@ ul.task-list li input[type="checkbox"] {
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a class="navbar-brand" href="../index.html">
+    <a class="navbar-brand" href="../../index.html">
     <span class="navbar-title">Sam’s Blog</span>
     </a>
   </div>
@@ -107,9 +136,9 @@ ul.task-list li input[type="checkbox"] {
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">An Opinionated Tooling Guide</h1>
+      <h1 class="title">Case Control Studies</h1>
                                 <div class="quarto-categories">
-                <div class="quarto-category">tools</div>
+                <div class="quarto-category">statistics</div>
               </div>
                   </div>
   </div>
@@ -121,7 +150,7 @@ ul.task-list li input[type="checkbox"] {
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">June 1, 2025</p>
+        <p class="date">May 20, 2026</p>
       </div>
     </div>
     
@@ -140,44 +169,30 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<p><strong>Statistics and Data Analysis:</strong> Overall: use R. It has the largest ecosystem of statistical packages.</p>
-<ul>
-<li>For Bayesian modeling, Stan has bindings for everything, but it’s easiest to use from R, and the rest of the toolkit <em>(brms, loo, bayesplot, etc)</em> doesn’t have an equivalents outside of R. Turing.jl and PyMC3 are substantially slower, and Numpyro is less mature (although it can be faster on a GPU).</li>
-<li>For DiD studies, R has <code>did</code> and Python has <code>diffindiff</code> and <code>moderndid</code>, but Julia doesn’t have anything comparable.</li>
-<li>For visualization, R has ggplot2 and ggpairs, Julia has AlgebraOfGraphics and Python has Seaborn. They’re all about as good as each other.</li>
-<li>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find DataFrames.jl to be the nicest of the bunch (with DataFramesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and the rest of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</li>
-<li>For geographic queries, R’s <em>sf</em>&nbsp;and Julia’s <em>GeoStats</em>&nbsp;are lovely. Python’s <em>GeoPandas</em>, being based on Pandas, is much more annoying to use.</li>
-<li>For frequentist statistics, Python’s <em>statsmodels</em> and Julia’s <em>GLMs, CovarianceMatrices.jl, MixedModels</em> and <em>Survival</em> packages give you much of base R and the <em>lmer, sandwich</em> and <em>survival</em> packages.</li>
-<li>For Gaussian Process modeling, Python’s <em>GPytorch</em> is far faster and more feature-complete than anything else. Julia’s <em>AbstractGPs</em> has a nicer interface and is easier to extend, but it’s slower and lacks the approximate inference algorithms necessary for large datasets.</li>
-</ul>
-<p><strong>Neural Nets</strong></p>
-<ul>
-<li>There’s a plethora of SAAS companies that promise easier experiment tracking. But in my experience, the easiest option is just to use git worktrees. Each experiment should live in a separate branch with a README documenting exactly what’s being tested. This makes it easy to fork and cherry-pick pieces of different experiments.</li>
-<li>For training, use Jax with equinox.</li>
-<li>For visualization, use Tensorboard.</li>
-</ul>
-<p><strong>Other Programming</strong></p>
-<ul>
-<li>Use Julia for anything numerical.</li>
-<li>Use Python with the <code>fire</code> package, the <code>pytest-watch</code> test runner and the <code>uv</code> package manager for scripting.</li>
-<li>Use awk for text processing and jq for JSON processing</li>
-<li>Use Rust if efficiency matters.</li>
-<li>Otherwise, use Haskell with <code>ghcid</code>.</li>
-</ul>
-<p><strong>Notebooks:</strong> I currently use Pluto for Julia, Marimo for Python, and RStudio (with qmd files) for R. LLMs work best on Markdown variants rather than structured notebook formats</p>
-<p><strong>Static Site Generation:</strong> Use Quarto. Compared to Jekyll, niceties like latex math, computational notebooks and bibliography management are built in.</p>
-<p><strong>Editors::</strong> - Kakoune is lightweight and but has full lsp support. On linux, it’s my perferred editor. But it assumes that window management functionality will be handled by your window manager, which isn’t really a thing on other platforms. - On a Mac, I use Zed.</p>
-<p><strong>Other</strong></p>
-<ul>
-<li>Use Xmonad on linux.</li>
-<li>Zulip is much nicer than Slack.</li>
-<li>I write down everything I might want to remember later in Anki. It’s effectively a notes app for me.<br>
-</li>
-<li>Zotero has remained fast for me despite adding gigabytes of papers to its library.</li>
-<li>Pixi is essential for package management across languages.</li>
-</ul>
+<p>Say we want to find the odds ratio for how a factor <span class="math inline">\(X\)</span> affects the probability of having a disease <span class="math inline">\(D\)</span>. We can model this with logistic regression: <span class="math display">\[
+\text{logit}(P(D=1| X)) = \alpha + \beta X
+\]</span> But if the disease is sufficiently rare, sampling everyone and waiting for cases is impractical. We need to oversample the population that has the disease. Let <span class="math inline">\(S=1\)</span> for units we sample. Let <span class="math inline">\(\pi_1 = P(S=1 | D = 1)\)</span> and <span class="math inline">\(\pi_0 = P(S=1 | D = 0)\)</span>. How do we change our regression for account for the unequal sampling probabilities?</p>
+<section id="perspective-1" class="level3">
+<h3 class="anchored" data-anchor-id="perspective-1">Perspective 1</h3>
+<p>If we use logistic regression on our oversampled dataset, the coefficient <span class="math inline">\(\beta\)</span> we get actually estimates <span class="math inline">\(\log \frac{\text{odds } D | X = 1, S=1}{\text{odds }D | X=0, S=1}\)</span>. But once you condition on <span class="math inline">\(X\)</span>, the odds of <span class="math inline">\(D\)</span> don’t change with <span class="math inline">\(S\)</span>. By Bayes’ Rule: <span class="math display">\[
+\frac{P(D =1 | X, S=1)}{P(D=0 | X, S=1)} = \frac{\pi_1P(D =1 | X)}{\pi_0P(D=0 | X)}
+\]</span> The <span class="math inline">\(\pi_1/\pi_0\)</span> factor cancels out when we divide the odds for <span class="math inline">\(X=1\)</span> by the odds of <span class="math inline">\(X=0\)</span>. So the <span class="math inline">\(\beta\)</span> coefficient we get from the oversampled dataset represents the true log odds ratio! No adjustment to the estimate or its standard errors are necessary!</p>
+</section>
+<section id="perspective-2" class="level3">
+<h3 class="anchored" data-anchor-id="perspective-2">Perspective 2</h3>
+<p>The standard way to dealt with unequal sampling probabilities is to weigh observations where <span class="math inline">\(D=i\)</span> by <span class="math inline">\(1 / \pi_i\)</span> when doing maximum likelihood estimation. This is equivalent to us fitting the model <span class="math display">\[
+\text{logit}(P(D| X)) = \log \pi_1/\pi_0 + \alpha + \beta X
+\]</span> The <span class="math inline">\(\log \pi_1/\pi_0\)</span> part will get rolled into our estimate of the intercept, but our the coefficient for <span class="math inline">\(\beta\)</span> will stay the same.</p>
+</section>
+<section id="how-many-should-we-sample" class="level3">
+<h3 class="anchored" data-anchor-id="how-many-should-we-sample">How many should we sample?</h3>
+<p>So now we know that it’s fine to sample the <span class="math inline">\(D=1\)</span> and <span class="math inline">\(D=0\)</span> populations separately. How many samples should we take from each population?</p>
+<p>For simplicity, we can work with binary <span class="math inline">\(X \in \{0,1\}\)</span> for a clean closed form. The case-control data form a 2×2 table with cells <span class="math inline">\(n_1 p_1,\, n_1(1-p_1),\, (n - n_1) p_0,\, (n - n_1)(1-p_0)\)</span>, where <span class="math inline">\(p_j = P(X=1 \mid D=j)\)</span>. By the delta method on <span class="math inline">\(\hat\beta = \log\hat{OR}\)</span>: <span class="math display">\[
+\operatorname{Var}(\hat\beta) = \frac{1}{n_1 p_1} + \frac{1}{n_1(1-p_1)} + \frac{1}{n_0 p_0} + \frac{1}{n_0(1-p_0)} = \frac{1}{n_1 V_1} + \frac{1}{n_0 V_0}
+\]</span> where <span class="math inline">\(V_j = p_j(1-p_j) = \operatorname{Var}(X \mid D=j)\)</span>. Deriving the variance wrt <span class="math inline">\(n_1\)</span> for a fixed total sample size gives <span class="math inline">\(\frac{n_1}{n_0} = \sqrt{\frac{V_0}{V_1}}\)</span>. So: we should sample group <span class="math inline">\(i\)</span> in proportion to <span class="math inline">\(\sqrt{V_i}\)</span>.</p>
 
 
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">

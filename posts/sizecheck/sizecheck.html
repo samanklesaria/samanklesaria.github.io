@@ -6,9 +6,9 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="dcterms.date" content="2025-06-01">
+<meta name="dcterms.date" content="2025-08-30">
 
-<title>An Opinionated Tooling Guide – Sam’s Blog</title>
+<title>Sizecheck: Making Tensor Code Self-Documenting with Runtime Shape Validation – Sam’s Blog</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -21,27 +21,62 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
-<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="../site_libs/quarto-nav/headroom.min.js"></script>
-<script src="../site_libs/clipboard/clipboard.min.js"></script>
-<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="../site_libs/quarto-search/fuse.min.js"></script>
-<script src="../site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="../">
-<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
-<script src="../site_libs/quarto-html/popper.min.js"></script>
-<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="../site_libs/quarto-html/anchor.min.js"></script>
-<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-ff63373b1067ca6f91cf1456aa1f00a2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-ff63373b1067ca6f91cf1456aa1f00a2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -71,7 +106,7 @@ ul.task-list li input[type="checkbox"] {
 }</script>
 
 
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../../styles.css">
 </head>
 
 <body class="nav-fixed fullcontent quarto-light">
@@ -81,7 +116,7 @@ ul.task-list li input[type="checkbox"] {
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a class="navbar-brand" href="../index.html">
+    <a class="navbar-brand" href="../../index.html">
     <span class="navbar-title">Sam’s Blog</span>
     </a>
   </div>
@@ -107,7 +142,7 @@ ul.task-list li input[type="checkbox"] {
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">An Opinionated Tooling Guide</h1>
+      <h1 class="title">Sizecheck: Making Tensor Code Self-Documenting with Runtime Shape Validation</h1>
                                 <div class="quarto-categories">
                 <div class="quarto-category">tools</div>
               </div>
@@ -121,7 +156,7 @@ ul.task-list li input[type="checkbox"] {
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">June 1, 2025</p>
+        <p class="date">August 30, 2025</p>
       </div>
     </div>
     
@@ -140,44 +175,44 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<p><strong>Statistics and Data Analysis:</strong> Overall: use R. It has the largest ecosystem of statistical packages.</p>
-<ul>
-<li>For Bayesian modeling, Stan has bindings for everything, but it’s easiest to use from R, and the rest of the toolkit <em>(brms, loo, bayesplot, etc)</em> doesn’t have an equivalents outside of R. Turing.jl and PyMC3 are substantially slower, and Numpyro is less mature (although it can be faster on a GPU).</li>
-<li>For DiD studies, R has <code>did</code> and Python has <code>diffindiff</code> and <code>moderndid</code>, but Julia doesn’t have anything comparable.</li>
-<li>For visualization, R has ggplot2 and ggpairs, Julia has AlgebraOfGraphics and Python has Seaborn. They’re all about as good as each other.</li>
-<li>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find DataFrames.jl to be the nicest of the bunch (with DataFramesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and the rest of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</li>
-<li>For geographic queries, R’s <em>sf</em>&nbsp;and Julia’s <em>GeoStats</em>&nbsp;are lovely. Python’s <em>GeoPandas</em>, being based on Pandas, is much more annoying to use.</li>
-<li>For frequentist statistics, Python’s <em>statsmodels</em> and Julia’s <em>GLMs, CovarianceMatrices.jl, MixedModels</em> and <em>Survival</em> packages give you much of base R and the <em>lmer, sandwich</em> and <em>survival</em> packages.</li>
-<li>For Gaussian Process modeling, Python’s <em>GPytorch</em> is far faster and more feature-complete than anything else. Julia’s <em>AbstractGPs</em> has a nicer interface and is easier to extend, but it’s slower and lacks the approximate inference algorithms necessary for large datasets.</li>
-</ul>
-<p><strong>Neural Nets</strong></p>
-<ul>
-<li>There’s a plethora of SAAS companies that promise easier experiment tracking. But in my experience, the easiest option is just to use git worktrees. Each experiment should live in a separate branch with a README documenting exactly what’s being tested. This makes it easy to fork and cherry-pick pieces of different experiments.</li>
-<li>For training, use Jax with equinox.</li>
-<li>For visualization, use Tensorboard.</li>
-</ul>
-<p><strong>Other Programming</strong></p>
-<ul>
-<li>Use Julia for anything numerical.</li>
-<li>Use Python with the <code>fire</code> package, the <code>pytest-watch</code> test runner and the <code>uv</code> package manager for scripting.</li>
-<li>Use awk for text processing and jq for JSON processing</li>
-<li>Use Rust if efficiency matters.</li>
-<li>Otherwise, use Haskell with <code>ghcid</code>.</li>
-</ul>
-<p><strong>Notebooks:</strong> I currently use Pluto for Julia, Marimo for Python, and RStudio (with qmd files) for R. LLMs work best on Markdown variants rather than structured notebook formats</p>
-<p><strong>Static Site Generation:</strong> Use Quarto. Compared to Jekyll, niceties like latex math, computational notebooks and bibliography management are built in.</p>
-<p><strong>Editors::</strong> - Kakoune is lightweight and but has full lsp support. On linux, it’s my perferred editor. But it assumes that window management functionality will be handled by your window manager, which isn’t really a thing on other platforms. - On a Mac, I use Zed.</p>
-<p><strong>Other</strong></p>
-<ul>
-<li>Use Xmonad on linux.</li>
-<li>Zulip is much nicer than Slack.</li>
-<li>I write down everything I might want to remember later in Anki. It’s effectively a notes app for me.<br>
-</li>
-<li>Zotero has remained fast for me despite adding gigabytes of papers to its library.</li>
-<li>Pixi is essential for package management across languages.</li>
-</ul>
+<p>Writing neural networks often feels like juggling tensors in the dark. You know that <code>attention_weights</code> should be 4-dimensional, but PyTorch won’t tell you until your matrix multiplication explodes at runtime. What if your variable names could automatically validate tensor shapes?</p>
+<p>Meet <a href="https://github.com/samanklesaria/sizecheck"><strong>sizecheck</strong></a> – a Python decorator that for automatic runtime validation.</p>
+<section id="the-shape-suffix-convention" class="level2">
+<h2 class="anchored" data-anchor-id="the-shape-suffix-convention">The Shape Suffix Convention</h2>
+<p>When writing PyTorch or NumPy code, it’s common to use naming conventions that indicate tensor shapes, as Noam Shazeer explains in his <a href="https://medium.com/@NoamShazeer/shape-suffixes-good-coding-style-f836e72e24fd">Medium post</a>:</p>
+<blockquote class="blockquote">
+<p>“When known, the name of a tensor should end in a dimension-suffix composed of those letters, e.g.&nbsp;<code>input_token_id_BL</code> for a two-dimensional tensor with batch and length dimensions.”</p>
+</blockquote>
+<p>This makes code self-documenting. Looking at <code>query_BLHK</code>, you immediately know it’s a 4D tensor with batch, length, heads, and key dimensions.</p>
+</section>
+<section id="from-convention-to-validation" class="level2">
+<h2 class="anchored" data-anchor-id="from-convention-to-validation">From Convention to Validation</h2>
+<p>Sizecheck verifies that your tensors actually have the shapes you expect them to have. By analyzing your function’s syntax tree, it automatically injects shape checks wherever you use suffixed variable names. Just prefix your function with <code>@shapecheck</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> shapecheck <span class="im">import</span> shapecheck</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">@shapecheck</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> attention(query_BLH, key_BLH, value_BLH):</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Automatic validation: all tensors must be 3D with matching B,L dimensions</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    scores_BLL <span class="op">=</span> torch.matmul(query_BLH, key_BLH.transpose(<span class="op">-</span><span class="dv">2</span>, <span class="op">-</span><span class="dv">1</span>))</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    weights_BLL <span class="op">=</span> torch.softmax(scores_BLL, dim<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    output_BLH <span class="op">=</span> torch.matmul(weights_BLL, value_BLH)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> output_BLH</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>When shapes don’t match, ShapeCheck produces a clear error message describing the discrepency. For example:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>q <span class="op">=</span> torch.randn(<span class="dv">2</span>, <span class="dv">10</span>, <span class="dv">64</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>k <span class="op">=</span> torch.randn(<span class="dv">2</span>, <span class="dv">12</span>, <span class="dv">64</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>v <span class="op">=</span> torch.randn(<span class="dv">2</span>, <span class="dv">10</span>, <span class="dv">64</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> attention(q, k, v)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<pre><code>AssertionError: Shape mismatch for key_BLH dimension L: expected 10 (from query_BLH), got 12</code></pre>
+<p>The magic happens through AST transformation. ShapeCheck parses your function, identifies shape-annotated variables, and injects validation code automatically. You write clean, readable code with meaningful names, and get bulletproof shape checking for free.</p>
+<p>Additionally, shape dimensions are stored as local variables within each function. If local variable is named <code>score_BLL</code>,&nbsp;for example, then the variables <code>B</code> and <code>L</code> will automatically be assigned its first and second shape indices.</p>
+</section>
+<section id="available-in-julia-too" class="level2">
+<h2 class="anchored" data-anchor-id="available-in-julia-too">Available in Julia too!</h2>
+<p>The Julia version is called <code>SizeCheck.jl</code>. It’s available on <a href="https://github.com/samanklesaria/SizeCheck">GitHub</a> and can be installed via <code>Pkg.add("SizeCheck")</code>.</p>
 
 
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">

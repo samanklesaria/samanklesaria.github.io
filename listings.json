@@ -4,7 +4,7 @@
     "items": [
       "/posts/sepreformer/sepreformer.html",
       "/posts/tbexport/tbexport.html",
-      "/posts/case control.html",
+      "/posts/case_control/case control.html",
       "/posts/nestedsurveys/NestedSurveys.html",
       "/posts/reputation/reputation.html",
       "/posts/missing_obs/missing_obs.html",
@@ -12,7 +12,7 @@
       "/posts/ankivec/ankivec.html",
       "/posts/ships/ships.html",
       "/posts/coffee/coffee.html",
-      "/posts/sizecheck.html",
+      "/posts/sizecheck/sizecheck.html",
       "/posts/books.html",
       "/posts/Frequentist_Sample_Size_Estimation.html",
       "/posts/bayesian_sample_size/notebook.html",
