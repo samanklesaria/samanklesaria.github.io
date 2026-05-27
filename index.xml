@@ -8851,8 +8851,9 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 <ul>
 <li>For Bayesian modeling, Stan has bindings for everything, but it’s easiest to use from R, and the rest of the toolkit <em>(brms, loo, bayesplot, etc)</em> doesn’t have an equivalents outside of R. Turing.jl and PyMC3 are substantially slower, and Numpyro is less mature (although it can be faster on a GPU).</li>
 <li>For DiD studies, R has <code>did</code> and Python has <code>diffindiff</code> and <code>moderndid</code>, but Julia doesn’t have anything comparable.</li>
-<li>For visualization, R has ggplot2 and ggpairs, Julia has AlgebraOfGraphics and Python has Seaborn. They’re all about as good as each other.</li>
-<li>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find DataFrames.jl to be the nicest of the bunch (with DataFramesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and the rest of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</li>
+<li>For TMLE, R has the <code>tlverse</code> and <code>ltmle</code>. Python and Julia don’t have anything close.</li>
+<li>For visualization, R has ggplot2 and ggpairs, Julia has AlgebraOfGraphics and Python has Seaborn and Plotnine. They’re all about as good as each other.</li>
+<li>The data manipulation, R has the tidyverse, Python has polars and Julia has Dataframes.jl. I actually find DataFrames.jl to be the nicest of the bunch (with DataFramesMeta). Polars makes you learn a whole separate DSL instead of using the base language, and much of the Python ecosystem uses Pandas, so you constantly have to convert back and forth. Pandas itself its a nonstarter - generally slow, verbose, and hard to use.</li>
 <li>For geographic queries, R’s <em>sf</em>&nbsp;and Julia’s <em>GeoStats</em>&nbsp;are lovely. Python’s <em>GeoPandas</em>, being based on Pandas, is much more annoying to use.</li>
 <li>For frequentist statistics, Python’s <em>statsmodels</em> and Julia’s <em>GLMs, CovarianceMatrices.jl, MixedModels</em> and <em>Survival</em> packages give you much of base R and the <em>lmer, sandwich</em> and <em>survival</em> packages.</li>
 <li>For Gaussian Process modeling, Python’s <em>GPytorch</em> is far faster and more feature-complete than anything else. Julia’s <em>AbstractGPs</em> has a nicer interface and is easier to extend, but it’s slower and lacks the approximate inference algorithms necessary for large datasets.</li>
@@ -8871,17 +8872,24 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 <li>Use Rust if efficiency matters.</li>
 <li>Otherwise, use Haskell with <code>ghcid</code>.</li>
 </ul>
-<p><strong>Notebooks:</strong> I currently use Pluto for Julia, Marimo for Python, and RStudio (with qmd files) for R. LLMs work best on Markdown variants rather than structured notebook formats</p>
-<p><strong>Static Site Generation:</strong> Use Quarto. Compared to Jekyll, niceties like latex math, computational notebooks and bibliography management are built in.</p>
-<p><strong>Editors::</strong> - Kakoune is lightweight and but has full lsp support. On linux, it’s my perferred editor. But it assumes that window management functionality will be handled by your window manager, which isn’t really a thing on other platforms. - On a Mac, I use Zed.</p>
+<p><strong>Notebooks:</strong> I currently use Pluto for Julia, Marimo for Python, and RStudio (with qmd files) for R. LLMs work best on Markdown variants rather than structured notebook formats, which is fine for Marimo and R, but makes Pluto ackward. Currently, I use a hacked together version of <code>jupytext</code> for Pluto that syncs an associated qmd file with each Pluto notebook.</p>
+<p><strong>Static Site Generation</strong> Use Quarto. Compared to Jekyll, niceties like latex math, computational notebooks and bibliography management are built in.</p>
+<p><strong>Editors</strong></p>
+<ul>
+<li>Kakoune is lightweight and but has full lsp support. On linux, it’s my perferred editor. But it assumes that window management functionality will be handled by your window manager, which isn’t really a thing on other platforms.</li>
+<li>On a Mac, I use Zed.</li>
+</ul>
+<p><strong>LLMs</strong> Claude Code deserves all the hype it gets. Nothing else comes close.</p>
 <p><strong>Other</strong></p>
 <ul>
-<li>Use Xmonad on linux.</li>
+<li>Fzf makes looking at file trees and ressurecting previous shell commands much easier.</li>
+<li>As much as it pains me to recommend an electron app, Typora is the best word processor I’ve ever used.</li>
+<li>Use Xmonad on linux</li>
 <li>Zulip is much nicer than Slack.</li>
 <li>I write down everything I might want to remember later in Anki. It’s effectively a notes app for me.<br>
 </li>
 <li>Zotero has remained fast for me despite adding gigabytes of papers to its library.</li>
-<li>Pixi is essential for package management across languages.</li>
+<li>Pixi is great for projects with dependencies in more than one language.</li>
 </ul>
 
 
