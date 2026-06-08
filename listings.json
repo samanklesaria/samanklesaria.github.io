@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/targeted learning/targeted_basics.html",
       "/posts/sepreformer/sepreformer.html",
       "/posts/tbexport/tbexport.html",
       "/posts/case_control/case control.html",

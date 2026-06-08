@@ -10,7 +10,38 @@
 <atom:link href="https://samanklesaria.github.io/index.xml" rel="self" type="application/rss+xml"/>
 <description>Dabbling in Data Science</description>
 <generator>quarto-1.8.27</generator>
-<lastBuildDate>Mon, 25 May 2026 05:00:00 GMT</lastBuildDate>
+<lastBuildDate>Fri, 05 Jun 2026 06:00:00 GMT</lastBuildDate>
+<item>
+  <title>Targeted Learning Basics</title>
+  <link>https://samanklesaria.github.io/posts/targeted learning/targeted_basics.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>What follows is a highly informal and simplified introduction to targeted learning. Our goal will be to estimate some functional <img src="https://latex.codecogs.com/png.latex?T"> of a distribution <img src="https://latex.codecogs.com/png.latex?P"> from a collection of its samples. I’ll denote the empirical (discrete) distribution given by the first <img src="https://latex.codecogs.com/png.latex?n"> samples as <img src="https://latex.codecogs.com/png.latex?P_n">,&nbsp;and I’ll write expectations&nbsp;<img src="https://latex.codecogs.com/png.latex?%5Cint%20f%5C,%20dP"> as <img src="https://latex.codecogs.com/png.latex?Pf">. When the distribution in question is clear, I’ll use <img src="https://latex.codecogs.com/png.latex?E%5Bf%5D">&nbsp;for <img src="https://latex.codecogs.com/png.latex?Pf">&nbsp;and <img src="https://latex.codecogs.com/png.latex?E_n%5Bf%5D"> for <img src="https://latex.codecogs.com/png.latex?P_nf">.&nbsp;</p>
+<p>Our first step will be to use some other estimator to guess <img src="https://latex.codecogs.com/png.latex?T(P)">. We can train a machine learning algorithm on the samples in <img src="https://latex.codecogs.com/png.latex?P_n">&nbsp;to get a guess <img src="https://latex.codecogs.com/png.latex?%5Chat%7BP%7D">&nbsp;of the true distribution, and then make the guess <img src="https://latex.codecogs.com/png.latex?T(%5Chat%7BP%7D)">.</p>
+<p>Once we have an initial estimate, the targeted learning framework comes in. Our estimator <img src="https://latex.codecogs.com/png.latex?T(%5Chat%7BP%7D)"> is said to be <em>asymptotically linear</em> if <img src="https://latex.codecogs.com/png.latex?%0A%5Csqrt%7Bn%7D(T(%5Chat%7BP%7D%20-%20T(P)))=%20n%5E%7B-1/2%7DP_nL_%7BT(P)%7D%20+%20o_p(1)%0A"> where the <img src="https://latex.codecogs.com/png.latex?o_p(1)"> converges in probability to zero as <img src="https://latex.codecogs.com/png.latex?n%20%5Cto%20%5Cinfty">. The function <img src="https://latex.codecogs.com/png.latex?L_%7BT(P)%7D"> is the <em>influence function</em> for <img src="https://latex.codecogs.com/png.latex?T(P)">: a kind of distributional-derivative. Specifically: <img src="https://latex.codecogs.com/png.latex?%0AL_%7BT(P)%7D(x)%20=%20%5Cfrac%7B%5Cpartial%20T(%5Cepsilon%20%5Cdelta_x%20+%20(1%20-%20%5Cepsilon)P)%7D%7B%5Cpartial%20%5Cepsilon%7D%0A"> where <img src="https://latex.codecogs.com/png.latex?%5Cdelta_x"> is the delta distribution at <img src="https://latex.codecogs.com/png.latex?x">. If <img src="https://latex.codecogs.com/png.latex?T(%5Chat%7BP%7D)"> is asymptotically linear, the definition above suggests that either:</p>
+<ol type="1">
+<li><p>We can get a better estimator for <img src="https://latex.codecogs.com/png.latex?T(P)"> by using <img src="https://latex.codecogs.com/png.latex?T(%5Chat%7BP%7D)%20-%20P_n%20L_%7BT(P)%7D"> instead. This is known as the <em>one step</em>&nbsp;estimator.</p></li>
+<li><p>We should should refine our guess <img src="https://latex.codecogs.com/png.latex?%5Chat%7BP%7D"> to some <img src="https://latex.codecogs.com/png.latex?%5Chat%7BP%7D%5E*"> so that <img src="https://latex.codecogs.com/png.latex?P_n%20L_%7BT(%5Chat%7BP%7D%5E*)%7D=0">. This is known as <em>targeted maximum likelihood estimation</em> or TMLE.</p></li>
+</ol>
+<p><strong>Example 1: Mean Estimates</strong></p>
+<p>If you’re estimating <img src="https://latex.codecogs.com/png.latex?T(P)%20=%20E%5BY%5D">, the influence function <img src="https://latex.codecogs.com/png.latex?L(y)"> is <img src="https://latex.codecogs.com/png.latex?y%20-%20PY">. We approximate <img src="https://latex.codecogs.com/png.latex?PY%20%5Capprox%20P_nY">. But this means that <img src="https://latex.codecogs.com/png.latex?P_n%20L%20=%200"> already. The targeting step doesn’t change anything. We just get the plug in estimator.</p>
+<p><strong>Example 2: Conditional Means</strong></p>
+<p>If you’re estimating <img src="https://latex.codecogs.com/png.latex?T(P)%20=%20E%5BY%20%7C%20A=1%5D"> without confounders, the influence function <img src="https://latex.codecogs.com/png.latex?L(a,y)%20=%20%5Cfrac%7B1_%7Ba=1%7D%7D%7BP(A=1)%7D(y%20-%20E%5BY%20%7C%20A=1%5D)">. If we approximate <img src="https://latex.codecogs.com/png.latex?P(A=1)%20%5Capprox%20P_n(A=1)"> and <img src="https://latex.codecogs.com/png.latex?E%5BY%20%7C%20A=1%5D%20%5Capprox%20E_n%5BY%20%7C%20A=1%5D">, we once again see <img src="https://latex.codecogs.com/png.latex?E_n%5BL%5D%20=%200">.</p>
+<p><strong>So when do things get interesting?</strong></p>
+<p>Targeted estimation only starts having an effect when our estimators for nuisance parameters start telling us something different from what we get by looking at sample means. Consider when we’re estimating <img src="https://latex.codecogs.com/png.latex?E%5BY%20%7C%20A=1%5D"> with confounders <img src="https://latex.codecogs.com/png.latex?W">. Then <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0AL(y,a,w)&amp;=%20%5Cfrac%7Ba%7D%7BP(A=1%20%7C%20W=w)%7D(Y%20-%20E%5BY%20%7C%20W=w,%20A=1%5D)%20+%20%5C%5C%0A&amp;E%5BY%20%7C%20W=w,%20A=1%5D%20-%20E%5BY%20%7C%20A=1%5D%0A%5Cend%7Balign*%7D%0A"> If our approximations <img src="https://latex.codecogs.com/png.latex?Q(w)"> of <img src="https://latex.codecogs.com/png.latex?E%5BY%20%7C%20W=w,%20A=1%5D"> and <img src="https://latex.codecogs.com/png.latex?g(w)%20=%20P(A=1%7CW=w)"> are complicated machine learning estimators rather than empirical means, the cancellation we’ve seen so far doesn’t occur.</p>
+
+
+
+ ]]></description>
+  <category>statistics</category>
+  <guid>https://samanklesaria.github.io/posts/targeted learning/targeted_basics.html</guid>
+  <pubDate>Fri, 05 Jun 2026 06:00:00 GMT</pubDate>
+  <media:content url="https://tlverse.org/tlverse-handbook/img/logos/vdl-logo-transparent.svg" medium="image" type="image/svg+xml"/>
+</item>
 <item>
   <title>Building a Choral Source Separator with SepReformer in JAX</title>
   <link>https://samanklesaria.github.io/posts/sepreformer/sepreformer.html</link>
@@ -2385,7 +2416,7 @@ Final Value: -14.2998 at Step 199
 </section> ]]></description>
   <category>machine learning</category>
   <guid>https://samanklesaria.github.io/posts/sepreformer/sepreformer.html</guid>
-  <pubDate>Mon, 25 May 2026 05:00:00 GMT</pubDate>
+  <pubDate>Mon, 25 May 2026 06:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Introducing tbexport</title>
@@ -2456,7 +2487,7 @@ font-style: inherit;">uv</span> tool install .</span></code></pre></div></div>
  ]]></description>
   <category>machine learning</category>
   <guid>https://samanklesaria.github.io/posts/tbexport/tbexport.html</guid>
-  <pubDate>Sun, 24 May 2026 05:00:00 GMT</pubDate>
+  <pubDate>Sun, 24 May 2026 06:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Case Control Studies</title>
@@ -2487,7 +2518,7 @@ font-style: inherit;">uv</span> tool install .</span></code></pre></div></div>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/case_control/case control.html</guid>
-  <pubDate>Wed, 20 May 2026 05:00:00 GMT</pubDate>
+  <pubDate>Wed, 20 May 2026 06:00:00 GMT</pubDate>
   <media:content url="https://samanklesaria.github.io/posts/case_control/img.png" medium="image" type="image/png" height="71" width="144"/>
 </item>
 <item>
@@ -2726,7 +2757,7 @@ font-style: inherit;">SI</span>(N))</span></code></pre></div></div>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/nestedsurveys/NestedSurveys.html</guid>
-  <pubDate>Thu, 30 Apr 2026 05:00:00 GMT</pubDate>
+  <pubDate>Thu, 30 Apr 2026 06:00:00 GMT</pubDate>
 </item>
 <item>
   <title>A Recursive Bayesian Model of Reputation</title>
@@ -4245,7 +4276,7 @@ font-style: inherit;">end</span>;</span></code></pre></div></div>
  ]]></description>
   <category>machine learning</category>
   <guid>https://samanklesaria.github.io/posts/reputation/reputation.html</guid>
-  <pubDate>Tue, 31 Mar 2026 05:00:00 GMT</pubDate>
+  <pubDate>Tue, 31 Mar 2026 06:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Fitting Gaussians with Missing Observations</title>
@@ -4870,7 +4901,7 @@ font-style: inherit;">end</span></span></code></pre></div></div>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/missing_obs/missing_obs.html</guid>
-  <pubDate>Thu, 05 Feb 2026 06:00:00 GMT</pubDate>
+  <pubDate>Thu, 05 Feb 2026 07:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Air Quality and Congestion Pricing</title>
@@ -5621,7 +5652,7 @@ Fraser, Timothy, Yeonkyeong Gina Park, Danni Lu, Mohammad Tayarani, Haiyan Deng,
 </div></section></div> ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/congestion_pricing/Notebook.html</guid>
-  <pubDate>Fri, 19 Dec 2025 06:00:00 GMT</pubDate>
+  <pubDate>Fri, 19 Dec 2025 07:00:00 GMT</pubDate>
 </item>
 <item>
   <title>AnkiVec: Vector Search for Anki</title>
@@ -5671,7 +5702,7 @@ Fraser, Timothy, Yeonkyeong Gina Park, Danni Lu, Mohammad Tayarani, Haiyan Deng,
  ]]></description>
   <category>tools</category>
   <guid>https://samanklesaria.github.io/posts/ankivec/ankivec.html</guid>
-  <pubDate>Thu, 20 Nov 2025 06:00:00 GMT</pubDate>
+  <pubDate>Thu, 20 Nov 2025 07:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Classifying Ships with Gaussian Process Mixtures</title>
@@ -7136,7 +7167,7 @@ font-style: inherit;">plot_example</span>(o, kern, c_U, true_f)</span></code></p
  ]]></description>
   <category>machine learning</category>
   <guid>https://samanklesaria.github.io/posts/ships/ships.html</guid>
-  <pubDate>Wed, 19 Nov 2025 06:00:00 GMT</pubDate>
+  <pubDate>Wed, 19 Nov 2025 07:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Analyzing Coffee Yields</title>
@@ -7836,7 +7867,7 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/coffee/coffee.html</guid>
-  <pubDate>Sun, 19 Oct 2025 05:00:00 GMT</pubDate>
+  <pubDate>Sun, 19 Oct 2025 06:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Sizecheck: Making Tensor Code Self-Documenting with Runtime Shape Validation</title>
@@ -7949,7 +7980,7 @@ font-style: inherit;">=</span> attention(q, k, v)</span></code></pre></div></div
  ]]></description>
   <category>tools</category>
   <guid>https://samanklesaria.github.io/posts/sizecheck/sizecheck.html</guid>
-  <pubDate>Sat, 30 Aug 2025 05:00:00 GMT</pubDate>
+  <pubDate>Sat, 30 Aug 2025 06:00:00 GMT</pubDate>
   <media:content url="https://samanklesaria.github.io/posts/sizecheck/logo.png" medium="image" type="image/png" height="144" width="144"/>
 </item>
 <item>
@@ -8035,7 +8066,7 @@ font-style: inherit;">=</span> attention(q, k, v)</span></code></pre></div></div
   <category>statistics</category>
   <category>machine learning</category>
   <guid>https://samanklesaria.github.io/posts/books.html</guid>
-  <pubDate>Thu, 21 Aug 2025 05:00:00 GMT</pubDate>
+  <pubDate>Thu, 21 Aug 2025 06:00:00 GMT</pubDate>
   <media:content url="https://upload.wikimedia.org/wikipedia/commons/3/39/Noto_Emoji_v2.034_1f4da.svg" medium="image" type="image/svg+xml"/>
 </item>
 <item>
@@ -8542,7 +8573,7 @@ font-style: inherit;">list</span>(ks))</span></code></pre></div></div>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/Frequentist_Sample_Size_Estimation.html</guid>
-  <pubDate>Fri, 15 Aug 2025 05:00:00 GMT</pubDate>
+  <pubDate>Fri, 15 Aug 2025 06:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Sample Size Estimation in Bayesian A/B/n Testing</title>
@@ -8836,7 +8867,7 @@ font-style: inherit;">end</span></span></code></pre></div></div>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/bayesian_sample_size/notebook.html</guid>
-  <pubDate>Fri, 15 Aug 2025 05:00:00 GMT</pubDate>
+  <pubDate>Fri, 15 Aug 2025 06:00:00 GMT</pubDate>
 </item>
 <item>
   <title>An Opinionated Tooling Guide</title>
@@ -8897,7 +8928,7 @@ font-style: inherit;">end</span></span></code></pre></div></div>
  ]]></description>
   <category>tools</category>
   <guid>https://samanklesaria.github.io/posts/tooling_guide.html</guid>
-  <pubDate>Sun, 01 Jun 2025 05:00:00 GMT</pubDate>
+  <pubDate>Sun, 01 Jun 2025 06:00:00 GMT</pubDate>
   <media:content url="https://upload.wikimedia.org/wikipedia/commons/4/44/Drawing_Tools_Flat_Icon_Vector.svg" medium="image" type="image/svg+xml"/>
 </item>
 <item>
@@ -9424,7 +9455,7 @@ font-style: inherit;">False</span>)</span></code></pre></div></div>
  ]]></description>
   <category>machine learning</category>
   <guid>https://samanklesaria.github.io/posts/clustering/Clustering.html</guid>
-  <pubDate>Mon, 10 Feb 2025 06:00:00 GMT</pubDate>
+  <pubDate>Mon, 10 Feb 2025 07:00:00 GMT</pubDate>
   <media:content url="https://upload.wikimedia.org/wikipedia/commons/0/05/Scikit_learn_logo_small.svg" medium="image" type="image/svg+xml"/>
 </item>
 <item>
@@ -10255,7 +10286,7 @@ font-style: inherit;">1</span>)</span>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/synth_control/SyntheticControl.html</guid>
-  <pubDate>Sat, 25 Jan 2025 06:00:00 GMT</pubDate>
+  <pubDate>Sat, 25 Jan 2025 07:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Hop Lists</title>
@@ -10822,7 +10853,7 @@ font-style: inherit;">end</span></span></code></pre></div></div>
  ]]></description>
   <category>algorithms</category>
   <guid>https://samanklesaria.github.io/posts/hoplists/HopLists.html</guid>
-  <pubDate>Sat, 05 Oct 2024 05:00:00 GMT</pubDate>
+  <pubDate>Sat, 05 Oct 2024 06:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Graph SLAM</title>
@@ -12812,54 +12843,7 @@ font-style: inherit;">end</span></span></code></pre></div></div>
  ]]></description>
   <category>SLAM</category>
   <guid>https://samanklesaria.github.io/posts/graphslam/graphslam.html</guid>
-  <pubDate>Mon, 22 Jul 2024 05:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Diagnosing Lack of Independence in Exogenous Variables</title>
-  <link>https://samanklesaria.github.io/posts/regression_diagnostics.html</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<p>While performing linear regression with <code>statsmodels</code>, you might occasionally find that your exogenous variables aren’t independent, giving you a error about a singular matrix.</p>
-<p>To figure out exactly which variables are colinear, I tend to use the following recipe:</p>
-<ol type="1">
-<li>Take the SVD of the design matrix <img src="https://latex.codecogs.com/png.latex?X%20=%20QSV%5ET">.</li>
-<li>Find a column of <img src="https://latex.codecogs.com/png.latex?V"> that corresponds to a zero singular value.</li>
-<li>Check which terms in our original formula correspond to the nonzero elements of <img src="https://latex.codecogs.com/png.latex?V">. Usually there’s only a couple nonzero terms.</li>
-</ol>
-<p>For posterity, I’ve reproduced the workflow below.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1">m <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> dmatrix(formula, df)</span>
-<span id="cb1-2">u, s, vh <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> np.linalg.svd(m)</span>
-<span id="cb1-3">misfits <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> (np.<span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">abs</span>(vh[s <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&lt;</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1e-8</span>]) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1e-5</span>)</span>
-<span id="cb1-4">np.array(m.design_info.column_names)[misfits[<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>]]</span></code></pre></div></div>
-
-
-
- ]]></description>
-  <category>statistics</category>
-  <guid>https://samanklesaria.github.io/posts/regression_diagnostics.html</guid>
-  <pubDate>Mon, 06 May 2024 05:00:00 GMT</pubDate>
+  <pubDate>Mon, 22 Jul 2024 06:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
