@@ -2,6 +2,7 @@
 categories: ["math"]
 date: 2024-02-13
 title: Krylov Methods
+image: img.png
 excerpt: >
   The $i$th *Krylov subspace* $\mathcal{K}_i$ for a symmetric matrix $A$
   is the subspace spanned by repeatedly multiplying $A$ by an initial vector $b$.
@@ -70,4 +71,3 @@ $$
 \sum_i (\alpha_i)^2 v_i^TAv_i - 2\alpha_iv_i^Tb
 $$
 The derivative is zero when $\alpha_i = \frac{v_i^Tb}{v_i^TAv_i}$. This lets us solve $A^{-1}b$ in a linear number of matrix vector multiplications. If  multiplication by $A$ is $O(n^2)$, then this isn’t any better than $O(n^3)$ Gaussian elimination. But it’s often the case that multiplication by $A$ is much faster than that, especially if it’s sparse or Toeplitz or comes from a Kronecker product.
-

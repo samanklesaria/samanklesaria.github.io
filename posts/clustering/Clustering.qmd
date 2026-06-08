@@ -3,6 +3,7 @@ title: Finding Common Topics
 date: 02/10/25
 categories: [machine learning]
 jupyter: python3
+image: https://upload.wikimedia.org/wikipedia/commons/0/05/Scikit_learn_logo_small.svg
 ---
 
 
@@ -96,7 +97,7 @@ def get_clusters(embeddings):
     return neural_kmeans, docs_per_label
 ```
 
-Finally, I'll take a random set of documents closest to the center of each cluster and ask Qwen to find a title for the collection.
+Finally, I'll take a random set of documents closest to the center of each cluster and ask Mistral to find a title for the collection.
 
 
 ```{python}
