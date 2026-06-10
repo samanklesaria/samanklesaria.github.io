@@ -1,5 +1,5 @@
 ---
-title: "pytest-random: Controlling false positives in randomized test suites"
+title: "pytest-familywise: Controlling false positives in randomized test suites"
 date: 6/09/2026
 categories: [tools]
 ---
@@ -7,20 +7,21 @@ categories: [tools]
 ![](./logo.png)
 
 Randomized algorithms are convenient to test statistically: run the algorithm
-many times, compute a p-value for some property you expect to hold, and fail the
-test if the p-value is too large.  The problem arises when you have several such
-tests in the same suite.
+many times, compute a p-value, and assert that the null hypothesis is not
+rejected.  The problem arises when you have several such tests in the same
+suite.
 
 ## The multiple comparisons problem
 
-Each individual test has a false positive rate of α under the null hypothesis.
-When you run *m* independent tests, the probability that *at least one* produces
-a false positive is
+Each individual test has a false rejection rate of α under the null hypothesis.
+When you run *m* independent tests, the probability that *at least one* spuriously
+rejects is
 
 $$\text{FWER} = 1 - (1 - \alpha)^m$$
 
 With $\alpha = 0.05$ and $m = 10$ tests this is about 40%.  A CI system running such a
-suite would fail spuriously on almost every other build.
+suite would see a spurious rejection — and therefore a spurious test failure —
+on almost every other build.
 
 The standard fix is to adjust the per-test threshold so that FWER stays at $\alpha$.
 Plain Bonferroni does this by testing each hypothesis at $\alpha/m$ — simple, but
@@ -41,9 +42,11 @@ finish, collect all p-values, and only then decide which tests passed.
 
 ## What the plugin does
 
-[pytest-random](https://github.com/samanklesaria/pytest-random) adds a `pvalue`
-fixture.  Tests call it with their computed p-value; the plugin stores the value
-but defers pass/fail entirely.  After the session ends, the plugin:
+[pytest-familywise](https://github.com/samanklesaria/pytest-familywise) adds an
+`assertNotReject` fixture.  Tests call it with their computed p-value; the
+plugin stores the value but defers pass/fail entirely.  A test passes when the
+null hypothesis is *not* rejected after correction, and fails when it is.  After
+the session ends, the plugin:
 
 1. Sorts all registered p-values ascending.
 2. Applies the step-down procedure, marking each test passed or failed.
@@ -66,22 +69,22 @@ three properties jointly, with FWER controlled at 5%.
 import numpy as np
 import scipy.stats
 
-def test_uniform_marginals(ks_sample_size, pvalue):
+def test_uniform_marginals(ks_sample_size, assertNotReject):
     n = ks_sample_size(effect_size=0.05)   # one-sample KS, ||F−G||∞ ≥ 0.05
     samples = np.random.rand(n)
-    pvalue(scipy.stats.kstest(samples, "uniform").pvalue)
+    assertNotReject(scipy.stats.kstest(samples, "uniform").pvalue)
 
-def test_normal_mean_zero(ztest_sample_size, pvalue):
+def test_normal_mean_zero(ztest_sample_size, assertNotReject):
     n = ztest_sample_size(effect_size=0.3)  # Cohen's d = 0.3
     samples = np.random.randn(n)
     _, p = scipy.stats.ttest_1samp(samples, 0.0)
-    pvalue(p)
+    assertNotReject(p)
 
-def test_discrete_distribution(chisquare_sample_size, pvalue):
+def test_discrete_distribution(chisquare_sample_size, assertNotReject):
     n = chisquare_sample_size(effect_size=0.2, df=4)  # Cohen's w = 0.2
     observed = np.random.multinomial(n, [0.2] * 5)
     _, p = scipy.stats.chisquare(observed)
-    pvalue(p)
+    assertNotReject(p)
 ```
 
 ```
@@ -99,10 +102,12 @@ Output after all three tests complete:
   3 passed, 0 failed after Holm-Bonferroni correction
 ```
 
-The thresholds tighten for the lowest-ranked p-values (0.017 for rank 1,
-relaxing to 0.050 for rank 3).  If the rank-2 test had returned p = 0.03, it
-and rank 3 would both fail — the step-down procedure stops rejecting at the
-first exceedance and carries the failure forward.
+All three p-values are large (data consistent with H0), so none are rejected
+and all tests pass.  The thresholds tighten for the lowest-ranked p-values
+(0.017 for rank 1, relaxing to 0.050 for rank 3).  If the rank-1 test had
+returned p = 0.01, it would be rejected (0.01 < 0.017) and that test would
+fail — but the remaining tests would still pass as long as the step-down
+procedure stops rejecting before reaching them.
 
 ## Sample-size fixtures
 
@@ -148,15 +153,9 @@ The package registers itself via a `pytest11` entry point, so installing it is
 sufficient:
 
 ```
-uv add --dev pytest-random
+uv add --dev pytest-familywise
 ```
 
-No `conftest.py` import is needed.  If you are working from an uninstalled
-source checkout, add this to your project's `conftest.py`:
-
-```python
-pytest_plugins = ["pytest_random"]
-```
 
 ## Limitations
 
@@ -165,6 +164,6 @@ FWER under arbitrary dependence (it is valid beyond independence), but the power
 analysis for the sample-size fixtures assumes independence.  If tests share
 data, the sizing estimates may be off.
 
-Tests that raise an exception before calling `pvalue` fail normally and are
-excluded from the Holm-Bonferroni set — the correction applies only to tests
-that complete and register a p-value.
+Tests that raise an exception before calling `assertNotReject` fail normally and
+are excluded from the Holm-Bonferroni set — the correction applies only to
+tests that complete and register a p-value.
