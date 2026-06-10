@@ -12,15 +12,15 @@
 <generator>quarto-1.8.27</generator>
 <lastBuildDate>Tue, 09 Jun 2026 06:00:00 GMT</lastBuildDate>
 <item>
-  <title>pytest-random: Controlling false positives in randomized test suites</title>
-  <link>https://samanklesaria.github.io/posts/pytest_random/pytest_random.html</link>
+  <title>pytest-familywise: Controlling false positives in randomized test suites</title>
+  <link>https://samanklesaria.github.io/posts/pytest_familywise/holm.html</link>
   <description><![CDATA[ 
 
 
 
 
 
-<p><img src="https://samanklesaria.github.io/posts/pytest_random/logo.png" class="img-fluid"></p>
+<p><img src="https://samanklesaria.github.io/posts/pytest_familywise/logo.png" class="img-fluid"></p>
 <p>Randomized algorithms are convenient to test statistically: run the algorithm many times, compute a p-value, and assert that the null hypothesis is not rejected. The problem arises when you have several such tests in the same suite.</p>
 <section id="the-multiple-comparisons-problem" class="level2">
 <h2 class="anchored" data-anchor-id="the-multiple-comparisons-problem">The multiple comparisons problem</h2>
@@ -36,7 +36,7 @@
 </section>
 <section id="what-the-plugin-does" class="level2">
 <h2 class="anchored" data-anchor-id="what-the-plugin-does">What the plugin does</h2>
-<p><a href="https://github.com/samanklesaria/pytest-random">pytest-random</a> adds an <code>assertNotReject</code> fixture. Tests call it with their computed p-value; the plugin stores the value but defers pass/fail entirely. A test passes when the null hypothesis is <em>not</em> rejected after correction, and fails when it is. After the session ends, the plugin:</p>
+<p><a href="https://github.com/samanklesaria/pytest-familywise">pytest-familywise</a> adds an <code>assertNotReject</code> fixture. Tests call it with their computed p-value; the plugin stores the value but defers pass/fail entirely. A test passes when the null hypothesis is <em>not</em> rejected after correction, and fails when it is. After the session ends, the plugin:</p>
 <ol type="1">
 <li>Sorts all registered p-values ascending.</li>
 <li>Applies the step-down procedure, marking each test passed or failed.</li>
@@ -159,13 +159,7 @@ font-style: inherit;">=</span> scipy.stats.chisquare(observed)</span>
 <section id="loading-the-plugin" class="level2">
 <h2 class="anchored" data-anchor-id="loading-the-plugin">Loading the plugin</h2>
 <p>The package registers itself via a <code>pytest11</code> entry point, so installing it is sufficient:</p>
-<pre><code>uv add --dev pytest-random</code></pre>
-<p>No <code>conftest.py</code> import is needed. If you are working from an uninstalled source checkout, add this to your project’s <code>conftest.py</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1">pytest_plugins <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> [<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"pytest_random"</span>]</span></code></pre></div></div>
+<pre><code>uv add --dev pytest-familywise</code></pre>
 </section>
 <section id="limitations" class="level2">
 <h2 class="anchored" data-anchor-id="limitations">Limitations</h2>
@@ -177,7 +171,7 @@ font-style: inherit;">"pytest_random"</span>]</span></code></pre></div></div>
 
  ]]></description>
   <category>tools</category>
-  <guid>https://samanklesaria.github.io/posts/pytest_random/pytest_random.html</guid>
+  <guid>https://samanklesaria.github.io/posts/pytest_familywise/holm.html</guid>
   <pubDate>Tue, 09 Jun 2026 06:00:00 GMT</pubDate>
 </item>
 <item>
