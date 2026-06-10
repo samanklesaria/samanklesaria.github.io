@@ -205,12 +205,12 @@ window.Quarto = {
 
 
 <p><img src="./logo.png" class="img-fluid"></p>
-<p>Randomized algorithms are convenient to test statistically: run the algorithm many times, compute a p-value for some property you expect to hold, and fail the test if the p-value is too large. The problem arises when you have several such tests in the same suite.</p>
+<p>Randomized algorithms are convenient to test statistically: run the algorithm many times, compute a p-value, and assert that the null hypothesis is not rejected. The problem arises when you have several such tests in the same suite.</p>
 <section id="the-multiple-comparisons-problem" class="level2">
 <h2 class="anchored" data-anchor-id="the-multiple-comparisons-problem">The multiple comparisons problem</h2>
-<p>Each individual test has a false positive rate of α under the null hypothesis. When you run <em>m</em> independent tests, the probability that <em>at least one</em> produces a false positive is</p>
+<p>Each individual test has a false rejection rate of α under the null hypothesis. When you run <em>m</em> independent tests, the probability that <em>at least one</em> spuriously rejects is</p>
 <p><span class="math display">\[\text{FWER} = 1 - (1 - \alpha)^m\]</span></p>
-<p>With <span class="math inline">\(\alpha = 0.05\)</span> and <span class="math inline">\(m = 10\)</span> tests this is about 40%. A CI system running such a suite would fail spuriously on almost every other build.</p>
+<p>With <span class="math inline">\(\alpha = 0.05\)</span> and <span class="math inline">\(m = 10\)</span> tests this is about 40%. A CI system running such a suite would see a spurious rejection — and therefore a spurious test failure — on almost every other build.</p>
 <p>The standard fix is to adjust the per-test threshold so that FWER stays at <span class="math inline">\(\alpha\)</span>. Plain Bonferroni does this by testing each hypothesis at <span class="math inline">\(\alpha/m\)</span> — simple, but wasteful. The Holm-Bonferroni step-down procedure (Holm, 1979) is uniformly more powerful: it uses the same FWER guarantee but applies a less stringent threshold to hypotheses that are ranked further down the sorted list of p-values.</p>
 </section>
 <section id="why-this-is-awkward-in-pytest" class="level2">
@@ -220,7 +220,7 @@ window.Quarto = {
 </section>
 <section id="what-the-plugin-does" class="level2">
 <h2 class="anchored" data-anchor-id="what-the-plugin-does">What the plugin does</h2>
-<p><a href="https://github.com/samanklesaria/pytest-random">pytest-random</a> adds a <code>pvalue</code> fixture. Tests call it with their computed p-value; the plugin stores the value but defers pass/fail entirely. After the session ends, the plugin:</p>
+<p><a href="https://github.com/samanklesaria/pytest-random">pytest-random</a> adds an <code>assertNotReject</code> fixture. Tests call it with their computed p-value; the plugin stores the value but defers pass/fail entirely. A test passes when the null hypothesis is <em>not</em> rejected after correction, and fails when it is. After the session ends, the plugin:</p>
 <ol type="1">
 <li>Sorts all registered p-values ascending.</li>
 <li>Applies the step-down procedure, marking each test passed or failed.</li>
@@ -236,22 +236,22 @@ window.Quarto = {
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> scipy.stats</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_uniform_marginals(ks_sample_size, pvalue):</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_uniform_marginals(ks_sample_size, assertNotReject):</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> ks_sample_size(effect_size<span class="op">=</span><span class="fl">0.05</span>)   <span class="co"># one-sample KS, ||F−G||∞ ≥ 0.05</span></span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    samples <span class="op">=</span> np.random.rand(n)</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    pvalue(scipy.stats.kstest(samples, <span class="st">"uniform"</span>).pvalue)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    assertNotReject(scipy.stats.kstest(samples, <span class="st">"uniform"</span>).pvalue)</span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_normal_mean_zero(ztest_sample_size, pvalue):</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_normal_mean_zero(ztest_sample_size, assertNotReject):</span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> ztest_sample_size(effect_size<span class="op">=</span><span class="fl">0.3</span>)  <span class="co"># Cohen's d = 0.3</span></span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    samples <span class="op">=</span> np.random.randn(n)</span>
 <span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    _, p <span class="op">=</span> scipy.stats.ttest_1samp(samples, <span class="fl">0.0</span>)</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    pvalue(p)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    assertNotReject(p)</span>
 <span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_discrete_distribution(chisquare_sample_size, pvalue):</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_discrete_distribution(chisquare_sample_size, assertNotReject):</span>
 <span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> chisquare_sample_size(effect_size<span class="op">=</span><span class="fl">0.2</span>, df<span class="op">=</span><span class="dv">4</span>)  <span class="co"># Cohen's w = 0.2</span></span>
 <span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    observed <span class="op">=</span> np.random.multinomial(n, [<span class="fl">0.2</span>] <span class="op">*</span> <span class="dv">5</span>)</span>
 <span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    _, p <span class="op">=</span> scipy.stats.chisquare(observed)</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    pvalue(p)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    assertNotReject(p)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <pre><code>pytest --holm-alpha=0.05 --power=0.8</code></pre>
 <p>Output after all three tests complete:</p>
 <pre><code>============ Holm-Bonferroni correction  α=0.05  n=3 =============
@@ -260,7 +260,7 @@ window.Quarto = {
   PASSED  p=0.621088  threshold=0.050000  test_rng.py::test_discrete_distribution
 
   3 passed, 0 failed after Holm-Bonferroni correction</code></pre>
-<p>The thresholds tighten for the lowest-ranked p-values (0.017 for rank 1, relaxing to 0.050 for rank 3). If the rank-2 test had returned p = 0.03, it and rank 3 would both fail — the step-down procedure stops rejecting at the first exceedance and carries the failure forward.</p>
+<p>All three p-values are large (data consistent with H0), so none are rejected and all tests pass. The thresholds tighten for the lowest-ranked p-values (0.017 for rank 1, relaxing to 0.050 for rank 3). If the rank-1 test had returned p = 0.01, it would be rejected (0.01 &lt; 0.017) and that test would fail — but the remaining tests would still pass as long as the step-down procedure stops rejecting before reaching them.</p>
 </section>
 <section id="sample-size-fixtures" class="level2">
 <h2 class="anchored" data-anchor-id="sample-size-fixtures">Sample-size fixtures</h2>
@@ -285,7 +285,7 @@ window.Quarto = {
 <section id="limitations" class="level2">
 <h2 class="anchored" data-anchor-id="limitations">Limitations</h2>
 <p>The plugin does not model within-suite dependence. Holm-Bonferroni controls FWER under arbitrary dependence (it is valid beyond independence), but the power analysis for the sample-size fixtures assumes independence. If tests share data, the sizing estimates may be off.</p>
-<p>Tests that raise an exception before calling <code>pvalue</code> fail normally and are excluded from the Holm-Bonferroni set — the correction applies only to tests that complete and register a p-value.</p>
+<p>Tests that raise an exception before calling <code>assertNotReject</code> fail normally and are excluded from the Holm-Bonferroni set — the correction applies only to tests that complete and register a p-value.</p>
 
 
 </section>
