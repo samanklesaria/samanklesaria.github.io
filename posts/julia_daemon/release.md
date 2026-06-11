@@ -1,5 +1,5 @@
 ---
-title: "Fast Julia Testing with Claude Code Using julia-daemon"
+title: "Fast Julia testing with julia-daemon"
 date: "2026-06-11"
 categories: "tools"
 ---

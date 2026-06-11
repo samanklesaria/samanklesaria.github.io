@@ -3,7 +3,7 @@ title: Finding Common Topics
 date: 02/10/25
 categories: [machine learning]
 jupyter: python3
-image: https://upload.wikimedia.org/wikipedia/commons/0/05/Scikit_learn_logo_small.svg
+image: https://ollama.com/public/ollama.png
 ---
 
 
