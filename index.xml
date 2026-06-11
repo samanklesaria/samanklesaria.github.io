@@ -10,7 +10,372 @@
 <atom:link href="https://samanklesaria.github.io/index.xml" rel="self" type="application/rss+xml"/>
 <description>Dabbling in Data Science</description>
 <generator>quarto-1.8.27</generator>
-<lastBuildDate>Tue, 09 Jun 2026 06:00:00 GMT</lastBuildDate>
+<lastBuildDate>Thu, 11 Jun 2026 06:00:00 GMT</lastBuildDate>
+<item>
+  <title>Fast Julia testing with julia-daemon</title>
+  <link>https://samanklesaria.github.io/posts/julia_daemon/release.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p><img src="https://samanklesaria.github.io/posts/julia_daemon/logo.png" class="img-fluid"></p>
+<p>I’ve been using Claude Code with Julia, and the main pain point was startup time. Every test run pays Julia’s compilation tax — a simple <code>include("runtests.jl")</code> can take 30+ seconds before any code actually runs. Over dozens of iterations in a session, that adds up.</p>
+<p>I wrote <a href="https://github.com/samuelcolvin/julia-daemon">julia-daemon</a> to deal with this. It keeps a Julia process running in the background so that subsequent calls skip startup entirely. State, loaded packages, and compiled code all persist between calls. The code is based on <a href="https://github.com/aplavin/julia-mcp">julia-mcp</a>, which is a similar approach using an MCP server. But as CLIs are generally replacing MCP use nowadays, I figured I’d make a simple daemon instead.</p>
+<section id="how-it-works" class="level2">
+<h2 class="anchored" data-anchor-id="how-it-works">How it works</h2>
+<p>julia-daemon has two components:</p>
+<ul>
+<li><strong>julia-server</strong> — a background daemon that manages persistent Julia sessions</li>
+<li><strong>julia-eval</strong> — a CLI client that sends code to the daemon for evaluation</li>
+</ul>
+<p>Each project directory gets its own isolated Julia process. The daemon communicates over a Unix socket, starts sessions on demand, and recovers from crashes. If <a href="https://github.com/timholy/Revise.jl">Revise.jl</a> is installed, code changes are picked up without restarting the session.</p>
+</section>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<section id="install-julia-daemon" class="level3">
+<h3 class="anchored" data-anchor-id="install-julia-daemon">Install julia-daemon</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">uv</span> tool install julia-daemon</span></code></pre></div></div>
+<p>I also have Revise.jl in my global Julia environment so code changes get picked up automatically.</p>
+</section>
+<section id="run-the-server-in-the-background" class="level3">
+<h3 class="anchored" data-anchor-id="run-the-server-in-the-background">Run the server in the background</h3>
+<p>The server needs to be running before calling <code>julia-eval</code>. I run it as a system service so it starts on boot and stays out of the way.</p>
+<p><strong>macOS (launchctl):</strong></p>
+<p>Create <code>~/Library/LaunchAgents/com.julia-daemon.plist</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb2-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">&lt;?xml</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;"> version=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"1.0"</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;"> encoding=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"UTF-8"</span><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">?&gt;</span></span>
+<span id="cb2-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">&lt;!DOCTYPE</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">plist</span> PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"<span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">&gt;</span></span>
+<span id="cb2-3">&lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">plist</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;"> version=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"1.0"</span>&gt;</span>
+<span id="cb2-4">&lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">dict</span>&gt;</span>
+<span id="cb2-5">    &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span>&gt;Label&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span>&gt;</span>
+<span id="cb2-6">    &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">string</span>&gt;com.julia-daemon&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">string</span>&gt;</span>
+<span id="cb2-7">    &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span>&gt;ProgramArguments&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span>&gt;</span>
+<span id="cb2-8">    &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">array</span>&gt;</span>
+<span id="cb2-9">        &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">string</span>&gt;/path/to/julia-server&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">string</span>&gt;</span>
+<span id="cb2-10">    &lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">array</span>&gt;</span>
+<span id="cb2-11">    &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span>&gt;RunAtLoad&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span>&gt;</span>
+<span id="cb2-12">    &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">true</span>/&gt;</span>
+<span id="cb2-13">    &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span>&gt;KeepAlive&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span>&gt;</span>
+<span id="cb2-14">    &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">true</span>/&gt;</span>
+<span id="cb2-15">    &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span>&gt;StandardOutPath&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span>&gt;</span>
+<span id="cb2-16">    &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">string</span>&gt;/tmp/julia-daemon.stdout.log&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">string</span>&gt;</span>
+<span id="cb2-17">    &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span>&gt;StandardErrorPath&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">key</span>&gt;</span>
+<span id="cb2-18">    &lt;<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">string</span>&gt;/tmp/julia-daemon.stderr.log&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">string</span>&gt;</span>
+<span id="cb2-19">&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">dict</span>&gt;</span>
+<span id="cb2-20">&lt;/<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">plist</span>&gt;</span></code></pre></div></div>
+<p>Then load it:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">launchctl</span> load ~/Library/LaunchAgents/com.julia-daemon.plist</span></code></pre></div></div>
+<p>(Replace <code>/path/to/julia-server</code> with the actual path — <code>which julia-server</code> will show it.)</p>
+<p><strong>Linux (systemd):</strong></p>
+<p>Create <code>~/.config/systemd/user/julia-daemon.service</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode ini code-with-copy"><code class="sourceCode ini"><span id="cb4-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">[Unit]</span></span>
+<span id="cb4-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Description</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">Julia Daemon</span></span>
+<span id="cb4-3"></span>
+<span id="cb4-4"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">[Service]</span></span>
+<span id="cb4-5"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">ExecStart</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">/path/to/julia-server</span></span>
+<span id="cb4-6"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">Restart</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">always</span></span>
+<span id="cb4-7"></span>
+<span id="cb4-8"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">[Install]</span></span>
+<span id="cb4-9"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">WantedBy</span><span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">default.target</span></span></code></pre></div></div>
+<p>Then enable and start it:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">systemctl</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--user</span> enable julia-daemon</span>
+<span id="cb5-2"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">systemctl</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--user</span> start julia-daemon</span></code></pre></div></div>
+</section>
+</section>
+<section id="using-it-with-claude-code" class="level2">
+<h2 class="anchored" data-anchor-id="using-it-with-claude-code">Using it with Claude Code</h2>
+<p>The pattern I’ve settled on: write test logic as a Julia module in the project’s <code>test/</code> directory, then tell Claude Code to run it via <code>julia-eval</code>.</p>
+<section id="create-a-test-module" class="level3">
+<h3 class="anchored" data-anchor-id="create-a-test-module">1. Create a test module</h3>
+<p>For example, <code>test/TestRunner.jl</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">module</span> TestRunner</span>
+<span id="cb6-2"></span>
+<span id="cb6-3"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">using</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">Test</span></span>
+<span id="cb6-4"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">using</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">MyPackage</span></span>
+<span id="cb6-5"></span>
+<span id="cb6-6"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">main</span>()</span>
+<span id="cb6-7">    <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@testset</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"MyPackage tests"</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">begin</span></span>
+<span id="cb6-8">        <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@testset</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"basics"</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">begin</span></span>
+<span id="cb6-9">            <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@test</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">my_function</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span></span>
+<span id="cb6-10">            <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@test</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">my_function</span>(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span></span>
+<span id="cb6-11">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb6-12"></span>
+<span id="cb6-13">        <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@testset</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"edge cases"</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">begin</span></span>
+<span id="cb6-14">            <span class="pp" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@test_throws</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">ArgumentError</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">my_function</span>(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb6-15">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb6-16">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb6-17"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span>
+<span id="cb6-18"></span>
+<span id="cb6-19"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">end</span></span></code></pre></div></div>
+<p>The module structure matters here. Revise.jl tracks modules, so changes to <code>TestRunner.jl</code> or to <code>MyPackage</code> itself get picked up automatically on the next call — no restart needed.</p>
+</section>
+<section id="configure-claude.md" class="level3">
+<h3 class="anchored" data-anchor-id="configure-claude.md">2. Configure CLAUDE.md</h3>
+<p>I add this to my project’s <code>CLAUDE.md</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb7-1">To run tests, use:</span>
+<span id="cb7-2">julia-eval --env-path test 'using TestRunner; TestRunner.main()'</span></code></pre></div></div>
+<p>The first run activates the environment and compiles everything. Every run after that is nearly instant.</p>
+</section>
+<section id="notes" class="level3">
+<h3 class="anchored" data-anchor-id="notes">Notes</h3>
+<ul>
+<li>I keep <code>main()</code> as the default entry point, but I also add more specific functions to the module (e.g., <code>test_parsing()</code>, <code>test_io()</code>) when I want Claude to run a subset.</li>
+<li><code>--env-path test</code> points at the <code>test/</code> directory. julia-daemon activates the parent project and loads test dependencies automatically.</li>
+<li>If something gets into a bad state, <code>julia-eval --restart --env-path test</code> gives a fresh session.</li>
+<li>The default timeout is 60 seconds. For longer test suites, <code>--timeout 120</code> or whatever is appropriate.</li>
+</ul>
+</section>
+</section>
+<section id="debugging-with-infiltrator.jl" class="level2">
+<h2 class="anchored" data-anchor-id="debugging-with-infiltrator.jl">Debugging with Infiltrator.jl</h2>
+<p>Because the session is persistent, I can also use <a href="https://github.com/JuliaDebug/Infiltrator.jl">Infiltrator.jl</a> for interactive debugging. If I place a <code>Main.@infiltrate</code> breakpoint in my code, the <code>julia-eval</code> call will complete as normal, but will inform me that a debugging session has started. Other <code>julia-eval</code> calls can query items in the problematic stack frame. Finally, a call to <code>julia-eval --interrupt</code> will exit the infiltration context and let execution continue.</p>
+</section>
+<section id="why-this-matters" class="level2">
+<h2 class="anchored" data-anchor-id="why-this-matters">Why this matters</h2>
+<p>The reason I built this is that fast feedback loops are what make Claude Code effective with languages like Python and JavaScript. Without something like julia-daemon, Julia projects hit a wall — Claude has to wait 30+ seconds per test run, which makes the iterative style of development that works so well elsewhere impractical. With the daemon running, Claude can make a change, test it, and adjust in a tight loop, same as with any other language. The persistent session is also useful for interactive exploration. Claude can evaluate expressions and inspect state without paying startup costs each time.</p>
+
+
+</section>
+
+ ]]></description>
+  <category>tools</category>
+  <guid>https://samanklesaria.github.io/posts/julia_daemon/release.html</guid>
+  <pubDate>Thu, 11 Jun 2026 06:00:00 GMT</pubDate>
+</item>
 <item>
   <title>pytest-familywise: Controlling false positives in randomized test suites</title>
   <link>https://samanklesaria.github.io/posts/pytest_familywise/holm.html</link>
@@ -10450,573 +10815,6 @@ font-style: inherit;">1</span>)</span>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/synth_control/SyntheticControl.html</guid>
   <pubDate>Sat, 25 Jan 2025 07:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Hop Lists</title>
-  <link>https://samanklesaria.github.io/posts/hoplists/HopLists.html</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<section id="introduction" class="level3">
-<h3 class="anchored" data-anchor-id="introduction">Introduction</h3>
-<p><em>Hop Lists</em> are a novel retroactive set data-structure that allow for a branching timeline. Each hop list node <img src="https://latex.codecogs.com/png.latex?h_t"> is associated with a specific time <img src="https://latex.codecogs.com/png.latex?t"> and a randomly chosen height <img src="https://latex.codecogs.com/png.latex?L_t">. The interface consists of three methods:</p>
-<ul>
-<li><img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bcurrent%7D(h_t)"> gets the set of elements we would see at time <img src="https://latex.codecogs.com/png.latex?t">.</li>
-<li><img src="https://latex.codecogs.com/png.latex?%5Ctext%7Badvance%7D(h_t)"> creates a new node <img src="https://latex.codecogs.com/png.latex?h_%7Bt+1%7D"> allowing queries about the set at time <img src="https://latex.codecogs.com/png.latex?t+1">.</li>
-<li><img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bpush%7D(h_t,%20v)"> pushes the value <img src="https://latex.codecogs.com/png.latex?v"> into the set at time <img src="https://latex.codecogs.com/png.latex?t">. This value will now appear in the sets associated with all future times <img src="https://latex.codecogs.com/png.latex?t'%20%3Et">.</li>
-</ul>
-<p>Hop lists nodes store four fields: a set of underlying type <img src="https://latex.codecogs.com/png.latex?S">, a pointer to a predecessor node with heigh at least <img src="https://latex.codecogs.com/png.latex?L_t">, a list of the most recent nodes at each height, and a list of pointers to specific future nodes.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><span class="pp" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">@kwdef</span> <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">struct</span> HopNode{S}</span>
-<span id="cb1-2">    <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"The new elements since `pred`."</span></span>
-<span id="cb1-3">    set<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">S </span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">S</span>()</span>
-<span id="cb1-4">    <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"The most recent node at the same height as this one or higher"</span></span>
-<span id="cb1-5">    pred<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Union{Nothing,HopNode{S}} </span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">nothing</span></span>
-<span id="cb1-6">    <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"(Node, height) pairs sorted by height giving the most recent node at that height"</span></span>
-<span id="cb1-7">    levels<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">LinkedList{Pair{HopNode{S}, Int}} </span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">nil</span>(<span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Pair</span>{HopNode{S}, <span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Int</span>})</span>
-<span id="cb1-8">    <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"Nodes to update when this node gets updated"</span></span>
-<span id="cb1-9">    succs<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Vector{HopNode{S}} </span><span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> HopNode{S}[]</span>
-<span id="cb1-10"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<p>Hop lists maintain the <strong>Predecessor Property</strong>: <em>If hop node <img src="https://latex.codecogs.com/png.latex?h_t"> has predecessor <img src="https://latex.codecogs.com/png.latex?h_s">, then <img src="https://latex.codecogs.com/png.latex?h_t">’s set must store all the elements pushed at times in the interval <img src="https://latex.codecogs.com/png.latex?(s,%20t%5D"></em>.</p>
-<p>This means we can find <img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bcurrent%7D(h_t)"> by taking the union of <img src="https://latex.codecogs.com/png.latex?h_t">’s ancestors.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Iteration jumps back through `pred` edges</span></span>
-<span id="cb2-2"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">Base</span>.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">iterate</span>(h<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">HopNode</span>, s<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">HopNode</span>=h) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> (s, s.pred)</span>
-<span id="cb2-3"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">Base</span>.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">iterate</span>(h<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">HopNode</span>, <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Nothing</span>) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">nothing</span></span>
-<span id="cb2-4"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">Base</span>.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">IteratorSize</span>(<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Type{HopNode{S}}</span>) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">where</span> {S} <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">Base</span>.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">SizeUnknown</span>()</span>
-<span id="cb2-5"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">Base</span>.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">eltype</span>(<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Type{HopNode{S}}</span>) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">where</span> {S} <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> HopNode{S}</span>
-<span id="cb2-6"></span>
-<span id="cb2-7"><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">current</span>(h<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">HopNode</span>) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mapreduce</span>(a <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-&gt;</span> a.set, union, h)</span></code></pre></div></div>
-<p>When we create a new hop node <img src="https://latex.codecogs.com/png.latex?h_%7Bt'%7D%20=%20%5Ctext%7Badvance%7D(h_t)">, we will set the predecessor to be <code>h_t.levels[l]</code> where <img src="https://latex.codecogs.com/png.latex?l%20=%20L_%7Bt'%7D%20%5Csim%20%5Ctext%7BGeom%7D(0.5)">. To ensure that we maintain the <em>predecessor property</em>, we must take the the union of all the predecessor sets we find this way and store them in the new node’s set. The new <code>levels</code> list should remove all entries below <img src="https://latex.codecogs.com/png.latex?L_t"> and add <img src="https://latex.codecogs.com/png.latex?h_t">.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">advance</span>(h<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">HopNode</span>)</span>
-<span id="cb3-2">    n <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rand</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Geometric</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.5</span>))</span>
-<span id="cb3-3">    pred <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">getpred</span>(h.levels, n)</span>
-<span id="cb3-4">    itr <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">takewhile</span>(x<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-&gt;</span>x<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">!=</span>pred, h)</span>
-<span id="cb3-5">    result <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">HopNode</span>(;pred, set<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mapreduce</span>(a<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-&gt;</span>a.set, union, itr))</span>
-<span id="cb3-6">    result.levels <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cons</span>(result<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=&gt;</span>n, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">listdrop</span>(h.levels, n))</span>
-<span id="cb3-7">    result</span>
-<span id="cb3-8"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<p>This uses the utility functions <code>listdrop</code> and <code>getpred</code></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb4-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">listdrop</span>(l<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">LinkedList{Pair{A,Int}}</span>, k<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Int</span>) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">where</span> {A}</span>
-<span id="cb4-2">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">while</span> !<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">isempty</span>(l)</span>
-<span id="cb4-3">        (_,a) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> l.head</span>
-<span id="cb4-4">        a <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> k <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&amp;&amp;</span> <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> l</span>
-<span id="cb4-5">        l <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> l.tail</span>
-<span id="cb4-6">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb4-7">    l</span>
-<span id="cb4-8"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb4-9"></span>
-<span id="cb4-10"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">getpred</span>(l<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">LinkedList{Pair{A,Int}}</span>, n<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">Int</span>) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">where</span> {A}</span>
-<span id="cb4-11">    pred <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">nothing</span></span>
-<span id="cb4-12">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> (p, height) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> l</span>
-<span id="cb4-13">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> height <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;=</span> n</span>
-<span id="cb4-14">            pred <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> p</span>
-<span id="cb4-15">            <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">break</span></span>
-<span id="cb4-16">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb4-17">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb4-18">    pred</span>
-<span id="cb4-19"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<p>For example, if we inserted 1 at time 1, 2 at time 2, and so on up to 6, we might get a HopNode structure that looks like this The black arrows here correspond to <code>pred</code> pointers, the x axis corresponds to time, and the <img src="https://latex.codecogs.com/png.latex?y"> axis gives the height <img src="https://latex.codecogs.com/png.latex?L_t"> of each node <img src="https://latex.codecogs.com/png.latex?h_t">.</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/hoplists/hoplist_example.png" class="img-fluid figure-img"></p>
-<figcaption>example</figcaption>
-</figure>
-</div>
-<p>The tricky part is handling <img src="https://latex.codecogs.com/png.latex?%5Ctext%7Bpush%7D">. We need to give each node <img src="https://latex.codecogs.com/png.latex?h_s"> pointers to all future nodes <img src="https://latex.codecogs.com/png.latex?h_t"> for which <code>h_s.set</code> <img src="https://latex.codecogs.com/png.latex?%5Csubseteq"> <code>h_t.set</code> That way, when we push into <img src="https://latex.codecogs.com/png.latex?h_s">, we know to push into <img src="https://latex.codecogs.com/png.latex?h_t"> as well. This list of pointers will be our <code>succs</code> vector. The idea results in the following code.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb5-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">Base</span>.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">push!</span>(t<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">HopNode{S}</span>, v) <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">where</span> {S}</span>
-<span id="cb5-2">    q <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> HopNode{S}[t]</span>
-<span id="cb5-3">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">while</span> !<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">isempty</span>(q)</span>
-<span id="cb5-4">        t <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">pop!</span>(q)</span>
-<span id="cb5-5">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">push!</span>(t.set, v)</span>
-<span id="cb5-6">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">append!</span>(q, t.succs)</span>
-<span id="cb5-7">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb5-8"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<p>We still need to create these <code>succs</code> pointers in the first place. Each node should have an element of <code>succs</code> pointing to the closest future node with a higher height if one exists.</p>
-<p>To fit these requirements, we can modify the <code>advance</code> method as follows:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb6-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">advance</span>(h<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">HopNode</span>)</span>
-<span id="cb6-2">    n <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rand</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Geometric</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.5</span>))</span>
-<span id="cb6-3">    pred <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">getpred</span>(h.levels, n)</span>
-<span id="cb6-4">    itr <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">takewhile</span>(x<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-&gt;</span>x<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">!=</span>pred, h)</span>
-<span id="cb6-5">    result <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">HopNode</span>(set<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">mapreduce</span>(a<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-&gt;</span>a.set, union, itr))</span>
-<span id="cb6-6">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> t <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> itr</span>
-<span id="cb6-7">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">push!</span>(t.succs, result)</span>
-<span id="cb6-8">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb6-9">    result.levels <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">cons</span>(result<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=&gt;</span>n, <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">listdrop</span>(h.levels, n))</span>
-<span id="cb6-10">    result</span>
-<span id="cb6-11"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<p>With the <code>succs</code> pointers visualized in red, the previous example looks as follows:</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://samanklesaria.github.io/posts/hoplists/hoplist_example_2.png" class="img-fluid figure-img"></p>
-<figcaption>example2</figcaption>
-</figure>
-</div>
-<p>Note that <code>advance</code> can be called twice on the same node <img src="https://latex.codecogs.com/png.latex?h_t">, producing a branching timeline. Updates to <img src="https://latex.codecogs.com/png.latex?h_t"> will be propagated to both possible futures. This is why we need <code>succs</code> to be a vector rather than simply an optional pointer.</p>
-</section>
-<section id="average-time-and-space-complexity" class="level3">
-<h3 class="anchored" data-anchor-id="average-time-and-space-complexity">Average Time and Space Complexity</h3>
-<p>If the size of our timeline is <img src="https://latex.codecogs.com/png.latex?n">, we’ll have on average <img src="https://latex.codecogs.com/png.latex?n"> nodes with height <img src="https://latex.codecogs.com/png.latex?%5Cgeq%201">, <img src="https://latex.codecogs.com/png.latex?n/2"> nodes with height <img src="https://latex.codecogs.com/png.latex?%5Cgeq%202">, and so on up to <img src="https://latex.codecogs.com/png.latex?1"> node with height <img src="https://latex.codecogs.com/png.latex?%5Clog%20n">. If we perform a <code>current</code> query from a node at height <img src="https://latex.codecogs.com/png.latex?1">, it takes on average <img src="https://latex.codecogs.com/png.latex?2"> hops through predecessor nodes to get to a node with height <img src="https://latex.codecogs.com/png.latex?%5Cgeq%202">. This means that after at most <img src="https://latex.codecogs.com/png.latex?2%20%5Clog%20n"> hops on average we should be at the node with height <img src="https://latex.codecogs.com/png.latex?%5Clog%20n"> which has no predecessors. Therefore, the average number of sets we must union to answer a <code>current</code> query is <img src="https://latex.codecogs.com/png.latex?O(%5Clog%20n)"> in expectation.</p>
-<p>The average time complexity for <code>push</code> can be found analogously. The <code>push</code> operation follows <code>succ</code> pointers, where the successor to a node is the closest future node with a higher height, if one exists. As traversing each <code>succ</code> pointer takes us to a higher height, the time complexity of <code>push</code> is just the largest height of any node in our timeline, which on average is also <img src="https://latex.codecogs.com/png.latex?O(%5Clog%20n)">.</p>
-<p>The same logic allows us to find space complexity. Say we store at most <img src="https://latex.codecogs.com/png.latex?c"> elements in each time-slot. We know that the set associated with any time <img src="https://latex.codecogs.com/png.latex?t"> will be replicated at most <img src="https://latex.codecogs.com/png.latex?%5Clog%20n"> times. So we use at most <img src="https://latex.codecogs.com/png.latex?cn%20%5Clog%20n%20=%20O(n%20%5Clog%20n)"> space for the <code>set</code> fields. For the <code>levels</code> field, each HopNode creates a single linked list node for its <code>levels</code> list, so this contributes <img src="https://latex.codecogs.com/png.latex?O(n)"> space. Each node’s <code>succs</code> field will contain at most one element if the timeline does not branch, so once again we get a linear space contribution. This gives total space complexity <img src="https://latex.codecogs.com/png.latex?O(n%20%5Clog%20n)">.</p>
-</section>
-<section id="concentration-bounds" class="level3">
-<h3 class="anchored" data-anchor-id="concentration-bounds">Concentration Bounds</h3>
-<p>We know from the previous section that the time it takes to insert an element is at most the maximum height of any node in the timeline. The probability that the maximum height of any node in a timeline is above <img src="https://latex.codecogs.com/png.latex?k"> is <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0A&amp;1%20-%20%5Cprod_%7Bi=1%7D%5En%20P(h_i%20%5Ctext%7B%20has%20height%20below%20$k$%7D)%20%5C%5C%0A&amp;=%201%20-%20(1%20-%202%5E%7B-k%7D)%5En%0A%5Cend%7Balign*%7D%0A"> For <img src="https://latex.codecogs.com/png.latex?k=2%5Clog_2%20n">, we get <img src="https://latex.codecogs.com/png.latex?%0A1%20-%20%5Cleft(1%20-%20%5Cfrac%7B1%7D%7Bn%5E2%7D%5Cright)%5En%0A"> But <img src="https://latex.codecogs.com/png.latex?%5Clim_%7Bn%20%5Cto%20%5Cinfty%7D%20%5Cleft(1%20-%20%5Cfrac%7B1%7D%7Bn%5E2%7D%5Cright)%5En%20=%201">. So the probability of insertion being any worse than <img src="https://latex.codecogs.com/png.latex?2%5Clog_2%20n"> goes to zero.</p>
-<p>To bound the number of backward hops taken by <code>current</code> queries, we can find the probability it takes <img src="https://latex.codecogs.com/png.latex?%5Cleq%20k"> hops to iterate backwards from a node <img src="https://latex.codecogs.com/png.latex?h_n"> with height <img src="https://latex.codecogs.com/png.latex?1">. We can lower bound this by the probability that it takes <img src="https://latex.codecogs.com/png.latex?%5Cleq%20k/L"> hops to get to a node with height 2, times the probability it takes <img src="https://latex.codecogs.com/png.latex?%5Cleq%20k/L"> hops to get to a node with height 3, and so on up to the maximum height <img src="https://latex.codecogs.com/png.latex?L">. This is <img src="https://latex.codecogs.com/png.latex?%0A(1%20-%202%5E%7B-k/L%7D)%5EL%0A"> For <img src="https://latex.codecogs.com/png.latex?k%20=%202L%5Clog_2%20L">, we get the probability <img src="https://latex.codecogs.com/png.latex?%0A%5Cleft(1%20-%20%5Cfrac%7B1%7D%7BL%5E2%7D%5Cright)%5EL%0A"> As <img src="https://latex.codecogs.com/png.latex?L%20%5Cto%20%5Cinfty"> this converges to <img src="https://latex.codecogs.com/png.latex?1">, meaning that the probability a <code>current</code> query takes more than <img src="https://latex.codecogs.com/png.latex?2%20L%20%5Clog_2L"> time falls to zero.</p>
-</section>
-<section id="height-free-variant" class="level3">
-<h3 class="anchored" data-anchor-id="height-free-variant">Height-Free Variant</h3>
-<p>We can construct a variant of the data structure described that does not use a <code>levels</code> list. Instead, when we create a new hop node <img src="https://latex.codecogs.com/png.latex?h_%7Bt'%7D%20=%20%5Ctext%7Badvance%7D(h_t)">, we will set the predecessor by sampling <img src="https://latex.codecogs.com/png.latex?n%20%5Csim%20%5Ctext%7BGeom%7D(0.5)"> and then taking <img src="https://latex.codecogs.com/png.latex?n"> predecessor hops back from <img src="https://latex.codecogs.com/png.latex?h_t">. Specifically, we would have</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb7-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">function</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">advance</span>(t<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">::</span><span class="dt" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">HopList2</span>)</span>
-<span id="cb7-2">    n <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">rand</span>(<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">Geometric</span>(<span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.5</span>))</span>
-<span id="cb7-3">    itr <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">Iterators</span>.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">drop</span>(<span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">Iterators</span>.<span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">take</span>(t, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> n), <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>)</span>
-<span id="cb7-4">    result <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">HopList2</span>()</span>
-<span id="cb7-5">    set, pred <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">reduce</span>(itr; init<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>(<span class="cn" style="color: #8f5902;
-background-color: null;
-font-style: inherit;">nothing</span>, t)) <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">do</span> (s, p), a</span>
-<span id="cb7-6">        <span class="fu" style="color: #4758AB;
-background-color: null;
-font-style: inherit;">push!</span>(p.succs, result)</span>
-<span id="cb7-7">        (s <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">∪</span> p.set, a)</span>
-<span id="cb7-8">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span>
-<span id="cb7-9">    result.set <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> set</span>
-<span id="cb7-10">    result.pred <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pred</span>
-<span id="cb7-11">    result</span>
-<span id="cb7-12"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">end</span></span></code></pre></div></div>
-<p>Analysis of this variant is more difficult. Let the number of hops back to the start of time from node <img src="https://latex.codecogs.com/png.latex?h_t"> be given by <img src="https://latex.codecogs.com/png.latex?X_t">. It’s easy to see that <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Balign*%7D%0AX_0%20&amp;=%200%20%5C%5C%0AX_t%20&amp;=%20%5Cmax(0,%20X_%7Bt-1%7D%20+%201%20-%20G_t)%0A%5Cend%7Balign*%7D%0A"> where <img src="https://latex.codecogs.com/png.latex?G_t%20%5Csim%20%5Ctext%7BGeom%7D(0.5)">. Simulating samples from this stochastic process seems to indicate that <img src="https://latex.codecogs.com/png.latex?X_t"> scales as <img src="https://latex.codecogs.com/png.latex?%5Csqrt%7Bt%7D"> rather than <img src="https://latex.codecogs.com/png.latex?%5Clog%20t"> as in the original structure. But insertions into the height-free variant seem to be much faster than those into the original structure in practice. Thorough analysis of why this is the case remains to be done.</p>
-</section>
-<section id="extensions" class="level3">
-<h3 class="anchored" data-anchor-id="extensions">Extensions</h3>
-<p>While I have introduced these datastructures as retroactive set, they can compute partial sums of arbitrary monoids. For example, you can use them to compute prefix sums of a changing list of numbers.</p>
-
-
-</section>
-
- ]]></description>
-  <category>algorithms</category>
-  <guid>https://samanklesaria.github.io/posts/hoplists/HopLists.html</guid>
-  <pubDate>Sat, 05 Oct 2024 06:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>
