@@ -143,9 +143,15 @@ size, then solves for $n$.  For a two-sample test with equal group sizes the
 effective $n$ is $n_\text{each}/2$, so the returned per-group count is doubled.
 
 All three fixtures treat `--power` as a per-test rate, not a family-wise one.
-They use the nominal `--holm-alpha` directly rather than a Bonferroni-adjusted
-per-test level.  This is slightly anticonservative for the first tests in the
-ordering, but it is consistent with the intent of specifying per-test power.
+Rather than using the nominal `--holm-alpha` directly, the fixtures use
+Holm-Bonferroni corrected significance levels.  At collection time the plugin
+counts the number of `assertNotReject` tests (*m*) and assigns
+$\alpha / (m - k + 1)$ to the *k*-th test that requests a sample size, in
+execution order.  The first test receives the most stringent threshold
+($\alpha / m$) and therefore the largest sample size; later tests receive
+progressively relaxed thresholds and smaller samples.  Because of this, it is
+worth ordering your test suite so that more computationally expensive tests run
+later, where the required sample sizes are smaller.
 
 ## Loading the plugin
 
