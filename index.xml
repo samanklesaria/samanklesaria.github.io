@@ -10,57 +10,934 @@
 <atom:link href="https://samanklesaria.github.io/index.xml" rel="self" type="application/rss+xml"/>
 <description>Dabbling in Data Science</description>
 <generator>quarto-1.8.27</generator>
-<lastBuildDate>Thu, 11 Jun 2026 06:00:00 GMT</lastBuildDate>
+<lastBuildDate>Mon, 20 Jul 2026 06:00:00 GMT</lastBuildDate>
 <item>
-  <title>Delete your local branches</title>
-  <link>https://samanklesaria.github.io/posts/git_branch_proliferation/rant.html</link>
+  <title>Interesting Bits from a Hackathon Kudos Bot</title>
+  <link>https://samanklesaria.github.io/posts/kudos/kudos_post.html</link>
   <description><![CDATA[ 
 
 
 
 
 
-<p>I create a branch every time I open a PR, and I end up with dozens of stale local branches. It’s a slow accumulation — each one feels harmless, but eventually <code>git branch</code> scrolls off the screen and I can’t find anything.</p>
-<section id="the-usual-fix" class="level2">
-<h2 class="anchored" data-anchor-id="the-usual-fix">The usual fix</h2>
-<p>I can periodically purge merged branches with <a href="https://github.com/tj/git-extras/blob/main/Commands.md#git-delete-merged-branches"><code>git delete-merged-branches</code></a>. It works, but it’s a chore I have to remember to do, and by the time I think of it, the clutter is already bad.</p>
+<p>At a recent work hackathon I built a Slack bot where people give each other kudos – short public messages like “<span class="citation" data-cites="kudos">@kudos</span> <span class="citation" data-cites="jane">@jane</span> Great job leading the incident retro” – and those kudos convert to small dollar payouts. The whole thing is a Slack bot, a Postgres database, and a dashboard. Nothing groundbreaking, but I ran into a few design problems that were more interesting than I expected.</p>
+<div style="text-align: center;">
+<p><img src="https://samanklesaria.github.io/posts/kudos/basic_message.png" width="400"></p>
+</div>
+<section id="reciprocity-pairing-in-sql" class="level2">
+<h2 class="anchored" data-anchor-id="reciprocity-pairing-in-sql">Reciprocity pairing in SQL</h2>
+<p>The first question was: how do you get people to participate? If people don’t get rewarded for giving kudos but only for receiving them, there’s no reason for anyone to recognize anyone else. The mechanism I landed on was a <strong>give-to-earn</strong> model: your nth give redeems your nth received kudos, paired 1:1, oldest first. You only get paid when you recognize others. It turns receiving kudos into a prompt to go give some — and that keeps the whole thing circulating.</p>
+<p>This turned out to be surprisingly clean to express as a SQL view. Two CTEs number each person’s gives and receives independently, then a join on <code>giver_id = recipient_id AND gives.rn = receives.rn</code> pairs them up:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb1-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">VIEW</span> to_redeem <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span></span>
+<span id="cb1-2"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">WITH</span> gives <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> (</span>
+<span id="cb1-3">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">id</span>, giver_id,</span>
+<span id="cb1-4">           <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ROW_NUMBER</span>() <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">OVER</span> (<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">PARTITION</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BY</span> giver_id <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">ORDER</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BY</span> created_at, <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">id</span>) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> rn</span>
+<span id="cb1-5">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span> kudos <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">WHERE</span> redeems <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">IS</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span>),</span>
+<span id="cb1-6">receives <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> (</span>
+<span id="cb1-7">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">id</span>, recipient_id,</span>
+<span id="cb1-8">           <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ROW_NUMBER</span>() <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">OVER</span> (<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">PARTITION</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BY</span> recipient_id <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">ORDER</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BY</span> created_at, <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">id</span>) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> rn</span>
+<span id="cb1-9">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span> kudos <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">WHERE</span> redeemed_at <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">IS</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NULL</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AND</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">NOT</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">overflow</span>)</span>
+<span id="cb1-10"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> gives.<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">id</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> give_id, receives.<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">id</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> receive_id,</span>
+<span id="cb1-11">       <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ROW_NUMBER</span>() <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">OVER</span> (<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">ORDER</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BY</span> gives.<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">id</span>) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> rn</span>
+<span id="cb1-12"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span> gives <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">JOIN</span> receives</span>
+<span id="cb1-13">  <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">ON</span> gives.giver_id <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> receives.recipient_id <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AND</span> gives.rn <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> receives.rn;</span></code></pre></div></div>
+<p>The outer <code>rn</code> matters because there’s a monthly budget — accounting sets how many kudos can actually be paid out. Once the budget is exhausted, any remaining pairs get marked as overflow: they’re still recorded, but no money changes hands. The redemption function does both in a single UPDATE:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode sql code-with-copy"><code class="sourceCode sql"><span id="cb2-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">CREATE</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FUNCTION</span> try_redeem(p_as_of TIMESTAMPTZ <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">DEFAULT</span> NOW())</span>
+<span id="cb2-2">RETURNS <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">TABLE</span>(redeemed_user_ids <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">VARCHAR</span>[], notify_budget_exhausted <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">BOOLEAN</span>) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> $fn$</span>
+<span id="cb2-3"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">DECLARE</span> v_remaining <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">INTEGER</span>;</span>
+<span id="cb2-4"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BEGIN</span></span>
+<span id="cb2-5">    PERFORM pg_advisory_xact_lock(hashtext(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'try_redeem'</span>));</span>
+<span id="cb2-6">    v_remaining <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:=</span> remaining_budget(p_as_of:<span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">:date</span>);</span>
+<span id="cb2-7">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> array_agg(give_id <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">ORDER</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BY</span> rn),</span>
+<span id="cb2-8">           array_agg(receive_id <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">ORDER</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BY</span> rn),</span>
+<span id="cb2-9">           array_agg(rn <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">ORDER</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">BY</span> rn)</span>
+<span id="cb2-10">      <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">INTO</span> v_give, v_recv, v_rn</span>
+<span id="cb2-11">      <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span> to_redeem;</span>
+<span id="cb2-12"></span>
+<span id="cb2-13">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">UPDATE</span> kudos k <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SET</span> redeems <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> p.receive_id</span>
+<span id="cb2-14">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span> unnest(v_give, v_recv) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> p(give_id, receive_id)</span>
+<span id="cb2-15">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">WHERE</span> k.<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">id</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> p.give_id;</span>
+<span id="cb2-16"></span>
+<span id="cb2-17">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">RETURN</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">QUERY</span></span>
+<span id="cb2-18">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">WITH</span> redeemed <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> (</span>
+<span id="cb2-19">        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">UPDATE</span> kudos k <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SET</span> redeemed_at <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> p_as_of, <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">overflow</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> p.rn <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> v_remaining</span>
+<span id="cb2-20">        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span> unnest(v_recv, v_rn) <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AS</span> p(receive_id, rn)</span>
+<span id="cb2-21">        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">WHERE</span> k.<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">id</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> p.receive_id</span>
+<span id="cb2-22">        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">RETURNING</span> k.recipient_id</span>
+<span id="cb2-23">    )</span>
+<span id="cb2-24">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">SELECT</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">COALESCE</span>(array_agg(<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">DISTINCT</span> recipient_id), <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'{}'</span>),</span>
+<span id="cb2-25">           <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">count</span>(<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;=</span> v_remaining <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">AND</span> v_remaining <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span></span>
+<span id="cb2-26">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">FROM</span> redeemed;</span>
+<span id="cb2-27"><span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">END</span>;</span>
+<span id="cb2-28">$fn$ LANGUAGE plpgsql;</span></code></pre></div></div>
+<p>The line that does the work is <code>overflow = pairs.rn &gt; v_remaining</code>: pairs past the budget cap get flagged in the same statement that stamps their <code>redeemed_at</code>. An advisory lock serializes concurrent calls so two simultaneous gives can’t both sneak under a budget of 1.</p>
+<p>I liked how this came together. The Python app is just a thin event router; all the invariants — pairing, budget caps, overflow, concurrency — live in Postgres. There’s no application-level state to get out of sync.</p>
 </section>
-<section id="deleting-immediately-after-pushing" class="level2">
-<h2 class="anchored" data-anchor-id="deleting-immediately-after-pushing">Deleting immediately after pushing</h2>
-<p>Once I’ve pushed a branch to the remote for a PR, why keep it locally? It’s saved up there. I just delete it and switch back to <code>main</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="fu" style="color: #4758AB;
+<section id="the-small-count-poisson-ci-problem" class="level2">
+<h2 class="anchored" data-anchor-id="the-small-count-poisson-ci-problem">The small-count Poisson CI problem</h2>
+<p>This was the part that nerd-sniped me. The dashboard has a panel that estimates whether changing the conversion rate (dollars per kudos point) actually changes behavior. It’s a textbook interrupted time-series setup: weekly counts, a Poisson GLM with an exposure offset for team size and holidays, successive-difference contrasts on the period indicator. Each coefficient is a log-IRR for one period vs.&nbsp;the previous.</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AY_w%20%5Csim%20%5Coperatorname%7BPoisson%7D(%5Cmu_w),%20%5Cqquad%0A%5Clog%20%5Cmu_w%20=%20%5Clog%20e_w%20+%20%5Cmathbf%7Bx%7D_w%5E%5Ctop%20%5Cboldsymbol%7B%5Cbeta%7D%0A"></p>
+<p>The problem is that the counts are small. A team of 20–30 people generates maybe 5–15 kudos per week. And the default confidence intervals from <code>statsmodels</code> (or any GLM package) use the <strong>Wald test</strong> — <img src="https://latex.codecogs.com/png.latex?%5Chat%5Cbeta%20%5Cpm%20z_%7B%5Calpha/2%7D%20%5Ccdot%20%5Ctext%7BSE%7D(%5Chat%5Cbeta)"> — which assumes the MLE is approximately normal. At counts this low, was this reasonable?</p>
+<p>I compared the confidence intervals from Wald tests to the <strong>exact conditional binomial</strong> interval. You condition on the total count <img src="https://latex.codecogs.com/png.latex?n%20=%20Y_1%20+%20Y_2">; under the Poisson model, <img src="https://latex.codecogs.com/png.latex?Y_2%20%5Cmid%20n%20%5Csim%20%5Ctext%7BBinomial%7D(n,%20p)"> where <img src="https://latex.codecogs.com/png.latex?p%20=%20%5Crho%20%5Ccdot%20e_2%20/%20(e_1%20+%20%5Crho%20%5Ccdot%20e_2)">. The beta distribution gives you exact bounds on <img src="https://latex.codecogs.com/png.latex?p">, and you transform back to <img src="https://latex.codecogs.com/png.latex?%5Crho">:</p>
+<div id="7fdfc389" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><span class="kw" style="color: #003B4F;
 background-color: null;
-font-style: inherit;">git</span> push origin my-feature</span>
-<span id="cb1-2"><span class="fu" style="color: #4758AB;
+font-weight: bold;
+font-style: inherit;">def</span> irr_ci_exact(count2, exposure2, count1, exposure1, alpha<span class="op" style="color: #5E5E5E;
 background-color: null;
-font-style: inherit;">git</span> switch main</span>
-<span id="cb1-3"><span class="fu" style="color: #4758AB;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">git</span> branch <span class="at" style="color: #657422;
+font-style: inherit;">0.05</span>):</span>
+<span id="cb3-2">    n, k <span class="op" style="color: #5E5E5E;
 background-color: null;
-font-style: inherit;">-D</span> my-feature</span></code></pre></div></div>
-<p>This keeps my local repo clean at all times, with zero periodic maintenance. I’ve saved this in a script called <code>git-shove</code>, so this is all as easy as a push.</p>
-</section>
-<section id="what-about-review-iterations" class="level2">
-<h2 class="anchored" data-anchor-id="what-about-review-iterations">What about review iterations?</h2>
-<p>The obvious problem: someone reviews my PR and requests changes. I need the branch back to push fixes.</p>
-<p>But review can take days. In the meantime, I’m working on other things with a cleaner branch list. When I do need to revisit the PR, I pull it down with <a href="https://github.com/tj/git-extras/blob/main/Commands.md#git-pr"><code>git pr</code></a>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><span class="fu" style="color: #4758AB;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
 background-color: null;
-font-style: inherit;">git</span> pr 42</span></code></pre></div></div>
-<p>This checks out the PR branch directly from the remote. I make my changes, push, and delete the local branch again.</p>
-</section>
-<section id="the-feeling" class="level2">
-<h2 class="anchored" data-anchor-id="the-feeling">The feeling</h2>
-<p>There’s something deeply satisfying about running <code>git branch</code> and seeing just <code>main</code>. It’s the git equivalent of a clean desk. I know it doesn’t actually matter. I know I could just ignore the clutter. But every time I see that single line of output, a small, irrational part of my brain thinks: yes. Order. I am in control of at least this one thing.</p>
+font-style: inherit;">int</span>(count1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> count2), <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>(count2)</span>
+<span id="cb3-3">    p_lo <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stats.beta.ppf(alpha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, k, n <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> k <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> k <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span></span>
+<span id="cb3-4">    p_hi <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stats.beta.ppf(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> alpha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>, k <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, n <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> k) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> k <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> n <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span></span>
+<span id="cb3-5">    to_rho <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">lambda</span> p: p <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> exposure1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> ((<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> p) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> exposure2) <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> p <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&lt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">else</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"inf"</span>)</span>
+<span id="cb3-6">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> to_rho(p_lo), to_rho(p_hi)</span>
+<span id="cb3-7"></span>
+<span id="cb3-8"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> irr_ci_wald(count2, exposure2, count1, exposure1, alpha<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.05</span>):</span>
+<span id="cb3-9">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">if</span> count1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span> <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">or</span> count2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>:</span>
+<span id="cb3-10">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> (<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span>, <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"inf"</span>))</span>
+<span id="cb3-11">    log_irr <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.log((count2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> exposure2) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (count1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> exposure1))</span>
+<span id="cb3-12">    se <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.sqrt(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> count1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> count2)</span>
+<span id="cb3-13">    z <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> stats.norm.ppf(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> alpha <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span>)</span>
+<span id="cb3-14">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> np.exp(log_irr <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> z <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> se), np.exp(log_irr <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> z <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> se)</span></code></pre></div></div>
+</div>
+<p>Here’s what the two methods look like on the actual data, comparing each consecutive conversion-rate change:</p>
+<div id="cell-fig-wald-vs-exact" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1">weekly <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> query(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"SELECT * FROM weekly_kudos"</span>)</span>
+<span id="cb4-2">covs <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> query(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"SELECT * FROM covariates ORDER BY label, week"</span>)</span>
+<span id="cb4-3">pivoted <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> covs.pivot(index<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"week"</span>, columns<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"label"</span>, values<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"value"</span>)</span>
+<span id="cb4-4">weekly[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"exposure"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> weekly[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"yw"</span>].<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">map</span>(</span>
+<span id="cb4-5">    (pivoted[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"workday_frac"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">*</span> pivoted[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"num_users"</span>]).astype(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">float</span>))</span>
+<span id="cb4-6">df <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> weekly.reset_index(drop<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb4-7"></span>
+<span id="cb4-8"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> seaborn.objects <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> so</span>
+<span id="cb4-9"></span>
+<span id="cb4-10">agg <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> df.groupby(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"conversion_rate"</span>, as_index<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">False</span>).agg(</span>
+<span id="cb4-11">    count<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"redeemed"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"sum"</span>), exposure<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"exposure"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"sum"</span>)).sort_values(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"conversion_rate"</span>)</span>
+<span id="cb4-12">t <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> pd.DataFrame({</span>
+<span id="cb4-13">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"count1"</span>: agg[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"count"</span>].values[:<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"exposure1"</span>: agg[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"exposure"</span>].values[:<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>],</span>
+<span id="cb4-14">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"count2"</span>: agg[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"count"</span>].values[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>:], <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"exposure2"</span>: agg[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"exposure"</span>].values[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>:],</span>
+<span id="cb4-15">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"transition"</span>: [<span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">f"</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>r1<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">\u2192</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span>r2<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"</span> <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> r1, r2 <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span></span>
+<span id="cb4-16">                   <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">zip</span>(agg[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"conversion_rate"</span>].values[:<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>], agg[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"conversion_rate"</span>].values[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>:])],</span>
+<span id="cb4-17">})</span>
+<span id="cb4-18">t <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> t[(t.exposure1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;</span> (t.exposure2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&amp;</span> (t.count1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>)]</span>
+<span id="cb4-19">t[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"irr"</span>] <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> (t.count2 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> t.exposure2) <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> (t.count1 <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> t.exposure1)</span>
+<span id="cb4-20"></span>
+<span id="cb4-21"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> ci_cols(fn):</span>
+<span id="cb4-22">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> t.<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">apply</span>(<span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">lambda</span> r: fn(r.count2, r.exposure2, r.count1, r.exposure1),</span>
+<span id="cb4-23">                   axis<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>, result_type<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"expand"</span>)</span>
+<span id="cb4-24"></span>
+<span id="cb4-25"><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">long</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> pd.concat([</span>
+<span id="cb4-26">    t.assign(method<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Wald"</span>, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">dict</span>(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">zip</span>([<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"lo"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"hi"</span>], ci_cols(irr_ci_wald).values.T))),</span>
+<span id="cb4-27">    t.assign(method<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Exact"</span>, <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">**</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">dict</span>(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">zip</span>([<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"lo"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"hi"</span>], ci_cols(irr_ci_exact).values.T))),</span>
+<span id="cb4-28">])</span>
+<span id="cb4-29"></span>
+<span id="cb4-30">fig, ax <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> plt.subplots(figsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">8</span>, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>))</span>
+<span id="cb4-31">ax.axhline(<span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1.0</span>, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"grey"</span>, linestyle<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"--"</span>, linewidth<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.8</span>)</span>
+<span id="cb4-32">(</span>
+<span id="cb4-33">    so.Plot(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">long</span>, x<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"transition"</span>, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"method"</span>)</span>
+<span id="cb4-34">    .add(so.Range(linewidth<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">3</span>), so.Dodge(), ymin<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"lo"</span>, ymax<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"hi"</span>)</span>
+<span id="cb4-35">    .add(so.Dot(color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"black"</span>, pointsize<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>), so.Dodge(), y<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"irr"</span>)</span>
+<span id="cb4-36">    .label(x<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Conversion rate change"</span>, y<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"IRR (95% CI)"</span>, color<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>,</span>
+<span id="cb4-37">           title<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"Wald vs. exact binomial CI for each period transition"</span>)</span>
+<span id="cb4-38">    .on(ax).plot()</span>
+<span id="cb4-39">)</span>
+<span id="cb4-40">leg <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> fig.legends.pop()</span>
+<span id="cb4-41">ax.legend(leg.legend_handles, [txt.get_text() <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">for</span> txt <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">in</span> leg.texts])</span>
+<span id="cb4-42">plt.show()</span></code></pre></div></div>
+<div class="cell-output cell-output-display">
+<div id="fig-wald-vs-exact" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-wald-vs-exact-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://samanklesaria.github.io/posts/kudos/kudos_post_files/figure-html/fig-wald-vs-exact-output-1.png" width="663" height="449" class="figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-wald-vs-exact-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Wald vs.&nbsp;exact (Clopper-Pearson) 95% confidence intervals for each consecutive conversion-rate change observed in the data.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>It seems like the low counts don’t matter much after all! A Wald test is just fine.</p>
 
 
 </section>
 
  ]]></description>
-  <category>tools</category>
-  <guid>https://samanklesaria.github.io/posts/git_branch_proliferation/rant.html</guid>
-  <pubDate>Thu, 11 Jun 2026 06:00:00 GMT</pubDate>
+  <category>statistics</category>
+  <guid>https://samanklesaria.github.io/posts/kudos/kudos_post.html</guid>
+  <pubDate>Mon, 20 Jul 2026 06:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Fast Julia testing with julia-daemon</title>
