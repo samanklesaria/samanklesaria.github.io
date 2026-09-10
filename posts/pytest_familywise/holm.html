@@ -205,22 +205,30 @@ window.Quarto = {
 
 
 <p><img src="./logo.png" class="img-fluid"></p>
-<p>Randomized algorithms are convenient to test statistically: run the algorithm many times, compute a p-value, and assert that the null hypothesis is not rejected. The problem arises when you have several such tests in the same suite.</p>
+<p>Randomized algorithms are convenient to test statistically: run the algorithm many times, compute a p-value, and assert that the null hypothesis is not rejected. The problem arises when there are several such tests in the same suite.</p>
 <section id="the-multiple-comparisons-problem" class="level2">
 <h2 class="anchored" data-anchor-id="the-multiple-comparisons-problem">The multiple comparisons problem</h2>
-<p>Each individual test has a false rejection rate of α under the null hypothesis. When you run <em>m</em> independent tests, the probability that <em>at least one</em> spuriously rejects is</p>
+<p>Each individual test has a false rejection rate of α under the null hypothesis. Across <em>m</em> independent tests, the probability that <em>at least one</em> spuriously rejects is</p>
 <p><span class="math display">\[\text{FWER} = 1 - (1 - \alpha)^m\]</span></p>
 <p>With <span class="math inline">\(\alpha = 0.05\)</span> and <span class="math inline">\(m = 10\)</span> tests this is about 40%. A CI system running such a suite would see a spurious rejection — and therefore a spurious test failure — on almost every other build.</p>
-<p>The standard fix is to adjust the per-test threshold so that FWER stays at <span class="math inline">\(\alpha\)</span>. Plain Bonferroni does this by testing each hypothesis at <span class="math inline">\(\alpha/m\)</span> — simple, but wasteful. The Holm-Bonferroni step-down procedure (Holm, 1979) is uniformly more powerful: it uses the same FWER guarantee but applies a less stringent threshold to hypotheses that are ranked further down the sorted list of p-values.</p>
+<p>The fix is to adjust the per-test threshold so that the family-wise error rate stays at <span class="math inline">\(\alpha\)</span>. Plain Bonferroni does this by testing each hypothesis at <span class="math inline">\(\alpha/m\)</span>: simple, but wasteful. The interesting corrections are all <em>step-down</em> procedures, and they are easier to understand as variations on a single scheme than as separate recipes.</p>
+</section>
+<section id="step-down-procedures" class="level2">
+<h2 class="anchored" data-anchor-id="step-down-procedures">Step-down procedures</h2>
+<p>Each raw p-value <span class="math inline">\(p_k\)</span> is mapped to an adjusted value <span class="math inline">\(\tilde{p}_k\)</span>, and null hypothesis <span class="math inline">\(k\)</span> is rejected when <span class="math inline">\(\tilde{p}_k \le \alpha\)</span>. The p-values are adjusted to be monotonically increasing, so the first time we fail to reject a null hypothesis, we’ll fail to reject the rest of the null hypotheses as well. To be specific, say we have <span class="math inline">\(K\)</span> tests with p-values sorted ascending as <span class="math inline">\(p_1 \le p_2 \le \cdots \le p_K\)</span>. We set <span class="math inline">\(\tilde{p}_k = \max\left(\tilde{p}_{k-1},P( c(S_k) &lt; p_k) \right)\)</span> where <span class="math inline">\(S_k = \{k, k+1, \dotsc, K\}\)</span>, the random variable <span class="math inline">\(c(S) = \min_{j \in S} P_j\)</span> , and <span class="math inline">\(P\)</span> is distributed according to the joint null distribution.</p>
+<p>Let <span class="math inline">\(I_0\)</span> be the set of true null hypotheses. Say <span class="math inline">\(L\)</span> is the first true null hypothesis in our ordering. That is, <span class="math inline">\(p_L\)</span> is an observation of <span class="math inline">\(c(I_0)\)</span>. By monotonicity, the event that we reject a true null hypothesis is the same as the event that we reject hypothesis <span class="math inline">\(L\)</span>. We reject at <span class="math inline">\(L\)</span> when <span class="math inline">\(P( c(S_L) \leq p_L) \leq \alpha\)</span>. Because <span class="math inline">\(L\)</span> is the first true null, <span class="math inline">\(I_0 \subseteq S_L\)</span>. So <span class="math inline">\(c(S_L) \leq c(I_0)\)</span> and <span class="math inline">\(P(c(S_L) \leq p_L ) \geq P(c(I_0) \leq p_L)\)</span>. Let <span class="math inline">\(F\)</span> be the CDF of <span class="math inline">\(c(I_0)\)</span>. This means that <span class="math inline">\(F(p_L) \leq \alpha\)</span> or <span class="math inline">\(p_L \leq F^{-1}(\alpha)\)</span> when we reject. As <span class="math inline">\(p_L\)</span> has CDF <span class="math inline">\(F\)</span>, this occurs with probability <span class="math inline">\(\alpha\)</span>.</p>
+<p>Where the procedures differ is how they estimate <span class="math inline">\(P(c(S_k) \leq p_k)\)</span>. For Westfall-Young, we can simulate samples of <span class="math inline">\(c(S_k)\)</span> and count the number of samples below <span class="math inline">\(p_k\)</span>. This means the number of samples must exceed <span class="math inline">\(1/\alpha\)</span> for any rejection to be possible.</p>
+<p>For Holm Bonferroni, we use a union bound: the probability the smallest <span class="math inline">\(p\)</span> value is below a threshold is at most the probability that <em>any</em> of the p-values are below the threshold: <span class="math inline">\(P(c(S_k) \leq p_k) \leq |S_k|p_k\)</span>.</p>
+<p>For the Sidak correction, we assume independence: <span class="math inline">\(P(c(S_k) \leq p_k) = 1 - (1 - p_k)^{|S_k|}\)</span>.</p>
+<p>So the choice is really a choice about how much I claim to know about the joint null. A union bound assumes nothing and pays for it in power. Šidák assumes independence. Westfall-Young assumes I can simulate the joint null, which is true whenever I can say concretely what “nothing is going on” would look like for my data.</p>
 </section>
 <section id="why-this-is-awkward-in-pytest" class="level2">
 <h2 class="anchored" data-anchor-id="why-this-is-awkward-in-pytest">Why this is awkward in pytest</h2>
-<p>Holm-Bonferroni is inherently a post-hoc procedure. Given p-values <span class="math inline">\(p_1 \le p_2 \le \cdots \le p_m\)</span>, the threshold at rank <span class="math inline">\(k\)</span> is <span class="math inline">\(\alpha / (m - k + 1)\)</span>. You cannot evaluate rank <span class="math inline">\(k\)</span> until you have all <span class="math inline">\(m\)</span> p-values in hand.</p>
-<p>pytest determines pass/fail for each test as it runs, before the rest of the suite has completed. To apply Holm-Bonferroni you need to let every test finish, collect all p-values, and only then decide which tests passed.</p>
+<p>Any of these is inherently a post-hoc procedure: <span class="math inline">\(\tilde{p}_k\)</span> depends on every p-value ranked at or below <span class="math inline">\(k\)</span>, so rank <span class="math inline">\(k\)</span> cannot be evaluated until all <span class="math inline">\(K\)</span> p-values are in hand. pytest, meanwhile, determines pass/fail for each test as it runs, long before the rest of the suite has completed.</p>
 </section>
 <section id="what-the-plugin-does" class="level2">
 <h2 class="anchored" data-anchor-id="what-the-plugin-does">What the plugin does</h2>
-<p><a href="https://github.com/samanklesaria/pytest-familywise">pytest-familywise</a> adds an <code>assertNotReject</code> fixture. Tests call it with their computed p-value; the plugin stores the value but defers pass/fail entirely. A test passes when the null hypothesis is <em>not</em> rejected after correction, and fails when it is. After the session ends, the plugin:</p>
+<p><a href="https://github.com/samanklesaria/pytest-familywise">pytest-familywise</a> adds an <code>assertNotReject</code> fixture. Tests call it with a <em>sampler</em>: a callable handed a random generator, which draws a group of data and returns the p-value for it. The plugin owns the generator, which keeps draws reproducible and lets the same machinery draw from the null distribution when the correction needs it. The fixture stores the p-value but defers pass/fail entirely. After the session ends, the plugin:</p>
 <ol type="1">
 <li>Sorts all registered p-values ascending.</li>
 <li>Applies the step-down procedure, marking each test passed or failed.</li>
@@ -229,30 +237,27 @@ window.Quarto = {
 </ol>
 <p>The implementation hooks into <code>pytest_runtest_logreport</code> to capture reports, <code>pytest_sessionfinish</code> to run the correction and update <code>session.exitstatus</code>, and <code>pytest_terminal_summary</code> to rewrite the stat buckets and print the correction table before pytest prints its own <code>N passed, M failed</code> line.</p>
 </section>
-<section id="a-concrete-example" class="level2">
-<h2 class="anchored" data-anchor-id="a-concrete-example">A concrete example</h2>
-<p>Suppose you are testing a custom random number generator and want to verify three properties jointly, with FWER controlled at 5%.</p>
+<section id="holm-bonferroni-independent-draws" class="level2">
+<h2 class="anchored" data-anchor-id="holm-bonferroni-independent-draws">Holm-Bonferroni: independent draws</h2>
+<p>Suppose I am testing a custom random number generator and want to verify three properties jointly, with FWER controlled at 5%. Each test draws its own fresh data, so there is nothing to exploit about their joint distribution and the union bound is the honest choice.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># tests/test_rng.py</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> scipy.stats</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_uniform_marginals(ks_sample_size, assertNotReject):</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> ks_sample_size(effect_size<span class="op">=</span><span class="fl">0.05</span>)   <span class="co"># one-sample KS, ||F−G||∞ ≥ 0.05</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    samples <span class="op">=</span> np.random.rand(n)</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    assertNotReject(scipy.stats.kstest(samples, <span class="st">"uniform"</span>).pvalue)</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_normal_mean_zero(ztest_sample_size, assertNotReject):</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> ztest_sample_size(effect_size<span class="op">=</span><span class="fl">0.3</span>)  <span class="co"># Cohen's d = 0.3</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    samples <span class="op">=</span> np.random.randn(n)</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    _, p <span class="op">=</span> scipy.stats.ttest_1samp(samples, <span class="fl">0.0</span>)</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    assertNotReject(p)</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_discrete_distribution(chisquare_sample_size, assertNotReject):</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> chisquare_sample_size(effect_size<span class="op">=</span><span class="fl">0.2</span>, df<span class="op">=</span><span class="dv">4</span>)  <span class="co"># Cohen's w = 0.2</span></span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    observed <span class="op">=</span> np.random.multinomial(n, [<span class="fl">0.2</span>] <span class="op">*</span> <span class="dv">5</span>)</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    _, p <span class="op">=</span> scipy.stats.chisquare(observed)</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    assertNotReject(p)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<pre><code>pytest --holm-alpha=0.05 --power=0.8</code></pre>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> scipy.stats</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_uniform_marginals(ks_sample_size, assertNotReject):</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> ks_sample_size(effect_size<span class="op">=</span><span class="fl">0.05</span>)   <span class="co"># one-sample KS, ||F−G||∞ ≥ 0.05</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    assertNotReject(</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>        <span class="kw">lambda</span> rng: scipy.stats.kstest(rng.random(n), <span class="st">"uniform"</span>).pvalue)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_normal_mean_zero(ztest_sample_size, assertNotReject):</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> ztest_sample_size(effect_size<span class="op">=</span><span class="fl">0.3</span>)  <span class="co"># Cohen's d = 0.3</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    assertNotReject(</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>        <span class="kw">lambda</span> rng: scipy.stats.ttest_1samp(rng.standard_normal(n), <span class="fl">0.0</span>).pvalue)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_discrete_distribution(chisquare_sample_size, assertNotReject):</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> chisquare_sample_size(effect_size<span class="op">=</span><span class="fl">0.2</span>, df<span class="op">=</span><span class="dv">4</span>)  <span class="co"># Cohen's w = 0.2</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    assertNotReject(</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>        <span class="kw">lambda</span> rng: scipy.stats.chisquare(rng.multinomial(n, [<span class="fl">0.2</span>] <span class="op">*</span> <span class="dv">5</span>)).pvalue)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<pre><code>pytest --correction=holm --alpha=0.05 --power=0.8</code></pre>
 <p>Output after all three tests complete:</p>
 <pre><code>============ Holm-Bonferroni correction  α=0.05  n=3 =============
   PASSED  p=0.312541  threshold=0.016667  test_rng.py::test_uniform_marginals
@@ -260,12 +265,58 @@ window.Quarto = {
   PASSED  p=0.621088  threshold=0.050000  test_rng.py::test_discrete_distribution
 
   3 passed, 0 failed after Holm-Bonferroni correction</code></pre>
-<p>All three p-values are large (data consistent with H0), so none are rejected and all tests pass. The thresholds tighten for the lowest-ranked p-values (0.017 for rank 1, relaxing to 0.050 for rank 3). If the rank-1 test had returned p = 0.01, it would be rejected (0.01 &lt; 0.017) and that test would fail — but the remaining tests would still pass as long as the step-down procedure stops rejecting before reaching them.</p>
+<p>All three p-values are large (data consistent with H0), so none are rejected and all tests pass. The thresholds tighten for the lowest-ranked p-values (0.017 for rank 1, relaxing to 0.050 for rank 3). If the rank-1 test had returned p = 0.01, it would be rejected (0.01 &lt; 0.017) and that test would fail — but the remaining tests would still pass, since the step-down procedure stops rejecting once it fails to reject.</p>
+</section>
+<section id="westfall-young-one-dataset-several-angles" class="level2">
+<h2 class="anchored" data-anchor-id="westfall-young-one-dataset-several-angles">Westfall-Young: one dataset, several angles</h2>
+<p>The union bound is needlessly pessimistic when several tests chew on the <em>same</em> dataset from different angles. Their p-values move together, and treating them as three independent chances to be wrong throws away power we already paid for. Simulating the joint null recovers it. Each test supplies a <code>null_sample</code> callable alongside its statistic: something that recomputes the same p-value with <span class="math inline">\(H_0\)</span> forced onto the observed data.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pytest</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> scipy.stats</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="at">@pytest.fixture</span>(scope<span class="op">=</span><span class="st">"module"</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> samples():</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""One dataset, several tests — so their p-values are correlated."""</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.random.default_rng(<span class="dv">0</span>).standard_normal(<span class="dv">2000</span>)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> under_h0(rng, data):</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Impose H0 (mean zero) on the observed data, then bootstrap."""</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    centered <span class="op">=</span> data <span class="op">-</span> data.mean()</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> rng.choice(centered, size<span class="op">=</span><span class="bu">len</span>(data), replace<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_mean_zero(assertNotReject, samples):</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    assertNotReject(</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>        <span class="kw">lambda</span> rng: scipy.stats.ttest_1samp(samples, <span class="fl">0.0</span>).pvalue,</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        null_sample<span class="op">=</span><span class="kw">lambda</span> rng:</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>            scipy.stats.ttest_1samp(under_h0(rng, samples), <span class="fl">0.0</span>).pvalue)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_median_zero(assertNotReject, samples):</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""A different statistic on the same data — strongly correlated."""</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> pvalue(data):</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> scipy.stats.binomtest(<span class="bu">int</span>((data <span class="op">&gt;</span> <span class="dv">0</span>).<span class="bu">sum</span>()), <span class="bu">len</span>(data), <span class="fl">0.5</span>).pvalue</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    assertNotReject(</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>        <span class="kw">lambda</span> rng: pvalue(samples),</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>        null_sample<span class="op">=</span><span class="kw">lambda</span> rng: pvalue(under_h0(rng, samples)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<pre><code>pytest --correction=westfall-young --resamples=1000</code></pre>
+<p>The resample count is not a free knob: as above, it has to exceed <span class="math inline">\(1/\alpha\)</span> before any rejection is even representable. A thousand at <span class="math inline">\(\alpha = 0.05\)</span> is comfortable.</p>
+<p>Bootstrapping a centered copy is only one way to impose a null. When <span class="math inline">\(H_0\)</span> says two groups are exchangeable, the transform is a shuffle of the pooled data:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_groups_are_identical(assertNotReject, group_a, group_b):</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    pooled <span class="op">=</span> np.concatenate([group_a, group_b])</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> <span class="bu">len</span>(group_a)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> pvalue(x):</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> scipy.stats.ks_2samp(x[:n], x[n:]).pvalue</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    assertNotReject(</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>        <span class="kw">lambda</span> rng: pvalue(pooled),</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>        null_sample<span class="op">=</span><span class="kw">lambda</span> rng: pvalue(rng.permutation(pooled)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Sign-flipping (<code>data * rng.choice([-1, 1], size=len(data))</code>) is the third common idiom, for <span class="math inline">\(H_0\)</span>s that assert symmetry about zero. Each is a different way of saying “here is what this dataset would have looked like if nothing were going on,” and the plugin does not care which one I pick.</p>
 </section>
 <section id="sample-size-fixtures" class="level2">
 <h2 class="anchored" data-anchor-id="sample-size-fixtures">Sample-size fixtures</h2>
 <p>Each test above starts by asking the plugin how many samples are needed to achieve the requested power. This is worth doing explicitly rather than picking a number by hand: a test with insufficient power will produce false negatives silently, and a test with excess samples wastes time.</p>
-<p>The plugin provides three fixtures, one per test family. They all read <code>--holm-alpha</code> and <code>--power</code> from the command line, so you set the targets once and the sizing follows automatically.</p>
+<p>The plugin provides three fixtures, one per test family. They all read <code>--alpha</code> and <code>--power</code> from the command line, so the targets are set once and the sizing follows automatically.</p>
 <p><strong>z-test</strong> (<code>ztest_sample_size</code>): closed-form solution</p>
 <p><span class="math display">\[n = \left\lceil \left(\frac{z_\alpha + z_\beta}{d}\right)^2 \right\rceil\]</span></p>
 <p>where <span class="math inline">\(d\)</span> is Cohen’s <span class="math inline">\(d\)</span> and <span class="math inline">\(z_\alpha\)</span>, <span class="math inline">\(z_\beta\)</span> are the appropriate normal quantiles. At <span class="math inline">\(\alpha = 0.05\)</span>, power <span class="math inline">\(= 0.8\)</span>, <span class="math inline">\(d = 0.5\)</span> this gives <span class="math inline">\(n = 32\)</span>.</p>
@@ -273,17 +324,12 @@ window.Quarto = {
 <p><strong>Kolmogorov-Smirnov</strong> (<code>ks_sample_size</code>): closed form derived from the Dvoretzky-Kiefer-Wolfowitz inequality. Given the maximum CDF discrepancy <span class="math inline">\(\Delta\)</span> and setting <span class="math inline">\(\beta = 1 - \text{power}\)</span>, the bound is:</p>
 <p><span class="math display">\[n \ge \frac{\left(\sqrt{\ln(2/\alpha)} + \sqrt{\ln(2/\beta)}\right)^2}{2\Delta^2}\]</span></p>
 <p>The derivation equates the Type-I and Type-II DKW boundaries at the effect size, then solves for <span class="math inline">\(n\)</span>. For a two-sample test with equal group sizes the effective <span class="math inline">\(n\)</span> is <span class="math inline">\(n_\text{each}/2\)</span>, so the returned per-group count is doubled.</p>
-<p>All three fixtures treat <code>--power</code> as a per-test rate, not a family-wise one. Rather than using the nominal <code>--holm-alpha</code> directly, the fixtures use Holm-Bonferroni corrected significance levels. At collection time the plugin counts the number of <code>assertNotReject</code> tests (<em>m</em>) and assigns <span class="math inline">\(\alpha / (m - k + 1)\)</span> to the <em>k</em>-th test that requests a sample size, in execution order. The first test receives the most stringent threshold (<span class="math inline">\(\alpha / m\)</span>) and therefore the largest sample size; later tests receive progressively relaxed thresholds and smaller samples. Because of this, it is worth ordering your test suite so that more computationally expensive tests run later, where the required sample sizes are smaller.</p>
+<p>All three fixtures treat <code>--power</code> as a per-test rate, not a family-wise one. The sizing itself uses the conservative bound <span class="math inline">\(\alpha/m\)</span>, where <span class="math inline">\(m\)</span> is the number of collected tests that use <code>assertNotReject</code>; a test that uses a sample-size fixture without <code>assertNotReject</code> is not in the family, sizes against the raw alpha, and does not raise <span class="math inline">\(m\)</span> for anyone else.</p>
 </section>
 <section id="loading-the-plugin" class="level2">
 <h2 class="anchored" data-anchor-id="loading-the-plugin">Loading the plugin</h2>
 <p>The package registers itself via a <code>pytest11</code> entry point, so installing it is sufficient:</p>
 <pre><code>uv add --dev pytest-familywise</code></pre>
-</section>
-<section id="limitations" class="level2">
-<h2 class="anchored" data-anchor-id="limitations">Limitations</h2>
-<p>The plugin does not model within-suite dependence. Holm-Bonferroni controls FWER under arbitrary dependence (it is valid beyond independence), but the power analysis for the sample-size fixtures assumes independence. If tests share data, the sizing estimates may be off.</p>
-<p>Tests that raise an exception before calling <code>assertNotReject</code> fail normally and are excluded from the Holm-Bonferroni set — the correction applies only to tests that complete and register a p-value.</p>
 
 
 </section>

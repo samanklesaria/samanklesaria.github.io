@@ -10,7 +10,7 @@
 <atom:link href="https://samanklesaria.github.io/index.xml" rel="self" type="application/rss+xml"/>
 <description>Dabbling in Data Science</description>
 <generator>quarto-1.8.27</generator>
-<lastBuildDate>Mon, 20 Jul 2026 06:00:00 GMT</lastBuildDate>
+<lastBuildDate>Mon, 20 Jul 2026 05:00:00 GMT</lastBuildDate>
 <item>
   <title>Interesting Bits from a Hackathon Kudos Bot</title>
   <link>https://samanklesaria.github.io/posts/kudos/kudos_post.html</link>
@@ -937,7 +937,7 @@ Figure&nbsp;1: Wald vs.&nbsp;exact (Clopper-Pearson) 95% confidence intervals fo
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/kudos/kudos_post.html</guid>
-  <pubDate>Mon, 20 Jul 2026 06:00:00 GMT</pubDate>
+  <pubDate>Mon, 20 Jul 2026 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Fast Julia testing with julia-daemon</title>
@@ -1302,7 +1302,7 @@ font-style: inherit;">end</span></span></code></pre></div></div>
  ]]></description>
   <category>tools</category>
   <guid>https://samanklesaria.github.io/posts/julia_daemon/release.html</guid>
-  <pubDate>Thu, 11 Jun 2026 06:00:00 GMT</pubDate>
+  <pubDate>Thu, 11 Jun 2026 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>pytest-familywise: Controlling false positives in randomized test suites</title>
@@ -1314,22 +1314,30 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 
 
 <p><img src="https://samanklesaria.github.io/posts/pytest_familywise/logo.png" class="img-fluid"></p>
-<p>Randomized algorithms are convenient to test statistically: run the algorithm many times, compute a p-value, and assert that the null hypothesis is not rejected. The problem arises when you have several such tests in the same suite.</p>
+<p>Randomized algorithms are convenient to test statistically: run the algorithm many times, compute a p-value, and assert that the null hypothesis is not rejected. The problem arises when there are several such tests in the same suite.</p>
 <section id="the-multiple-comparisons-problem" class="level2">
 <h2 class="anchored" data-anchor-id="the-multiple-comparisons-problem">The multiple comparisons problem</h2>
-<p>Each individual test has a false rejection rate of α under the null hypothesis. When you run <em>m</em> independent tests, the probability that <em>at least one</em> spuriously rejects is</p>
+<p>Each individual test has a false rejection rate of α under the null hypothesis. Across <em>m</em> independent tests, the probability that <em>at least one</em> spuriously rejects is</p>
 <p><img src="https://latex.codecogs.com/png.latex?%5Ctext%7BFWER%7D%20=%201%20-%20(1%20-%20%5Calpha)%5Em"></p>
 <p>With <img src="https://latex.codecogs.com/png.latex?%5Calpha%20=%200.05"> and <img src="https://latex.codecogs.com/png.latex?m%20=%2010"> tests this is about 40%. A CI system running such a suite would see a spurious rejection — and therefore a spurious test failure — on almost every other build.</p>
-<p>The standard fix is to adjust the per-test threshold so that FWER stays at <img src="https://latex.codecogs.com/png.latex?%5Calpha">. Plain Bonferroni does this by testing each hypothesis at <img src="https://latex.codecogs.com/png.latex?%5Calpha/m"> — simple, but wasteful. The Holm-Bonferroni step-down procedure (Holm, 1979) is uniformly more powerful: it uses the same FWER guarantee but applies a less stringent threshold to hypotheses that are ranked further down the sorted list of p-values.</p>
+<p>The fix is to adjust the per-test threshold so that the family-wise error rate stays at <img src="https://latex.codecogs.com/png.latex?%5Calpha">. Plain Bonferroni does this by testing each hypothesis at <img src="https://latex.codecogs.com/png.latex?%5Calpha/m">: simple, but wasteful. The interesting corrections are all <em>step-down</em> procedures, and they are easier to understand as variations on a single scheme than as separate recipes.</p>
+</section>
+<section id="step-down-procedures" class="level2">
+<h2 class="anchored" data-anchor-id="step-down-procedures">Step-down procedures</h2>
+<p>Each raw p-value <img src="https://latex.codecogs.com/png.latex?p_k"> is mapped to an adjusted value <img src="https://latex.codecogs.com/png.latex?%5Ctilde%7Bp%7D_k">, and null hypothesis <img src="https://latex.codecogs.com/png.latex?k"> is rejected when <img src="https://latex.codecogs.com/png.latex?%5Ctilde%7Bp%7D_k%20%5Cle%20%5Calpha">. The p-values are adjusted to be monotonically increasing, so the first time we fail to reject a null hypothesis, we’ll fail to reject the rest of the null hypotheses as well. To be specific, say we have <img src="https://latex.codecogs.com/png.latex?K"> tests with p-values sorted ascending as <img src="https://latex.codecogs.com/png.latex?p_1%20%5Cle%20p_2%20%5Cle%20%5Ccdots%20%5Cle%20p_K">. We set <img src="https://latex.codecogs.com/png.latex?%5Ctilde%7Bp%7D_k%20=%20%5Cmax%5Cleft(%5Ctilde%7Bp%7D_%7Bk-1%7D,P(%20c(S_k)%20%3C%20p_k)%20%5Cright)"> where <img src="https://latex.codecogs.com/png.latex?S_k%20=%20%5C%7Bk,%20k+1,%20%5Cdotsc,%20K%5C%7D">, the random variable <img src="https://latex.codecogs.com/png.latex?c(S)%20=%20%5Cmin_%7Bj%20%5Cin%20S%7D%20P_j"> , and <img src="https://latex.codecogs.com/png.latex?P"> is distributed according to the joint null distribution.</p>
+<p>Let <img src="https://latex.codecogs.com/png.latex?I_0"> be the set of true null hypotheses. Say <img src="https://latex.codecogs.com/png.latex?L"> is the first true null hypothesis in our ordering. That is, <img src="https://latex.codecogs.com/png.latex?p_L"> is an observation of <img src="https://latex.codecogs.com/png.latex?c(I_0)">. By monotonicity, the event that we reject a true null hypothesis is the same as the event that we reject hypothesis <img src="https://latex.codecogs.com/png.latex?L">. We reject at <img src="https://latex.codecogs.com/png.latex?L"> when <img src="https://latex.codecogs.com/png.latex?P(%20c(S_L)%20%5Cleq%20p_L)%20%5Cleq%20%5Calpha">. Because <img src="https://latex.codecogs.com/png.latex?L"> is the first true null, <img src="https://latex.codecogs.com/png.latex?I_0%20%5Csubseteq%20S_L">. So <img src="https://latex.codecogs.com/png.latex?c(S_L)%20%5Cleq%20c(I_0)"> and <img src="https://latex.codecogs.com/png.latex?P(c(S_L)%20%5Cleq%20p_L%20)%20%5Cgeq%20P(c(I_0)%20%5Cleq%20p_L)">. Let <img src="https://latex.codecogs.com/png.latex?F"> be the CDF of <img src="https://latex.codecogs.com/png.latex?c(I_0)">. This means that <img src="https://latex.codecogs.com/png.latex?F(p_L)%20%5Cleq%20%5Calpha"> or <img src="https://latex.codecogs.com/png.latex?p_L%20%5Cleq%20F%5E%7B-1%7D(%5Calpha)"> when we reject. As <img src="https://latex.codecogs.com/png.latex?p_L"> has CDF <img src="https://latex.codecogs.com/png.latex?F">, this occurs with probability <img src="https://latex.codecogs.com/png.latex?%5Calpha">.</p>
+<p>Where the procedures differ is how they estimate <img src="https://latex.codecogs.com/png.latex?P(c(S_k)%20%5Cleq%20p_k)">. For Westfall-Young, we can simulate samples of <img src="https://latex.codecogs.com/png.latex?c(S_k)"> and count the number of samples below <img src="https://latex.codecogs.com/png.latex?p_k">. This means the number of samples must exceed <img src="https://latex.codecogs.com/png.latex?1/%5Calpha"> for any rejection to be possible.</p>
+<p>For Holm Bonferroni, we use a union bound: the probability the smallest <img src="https://latex.codecogs.com/png.latex?p"> value is below a threshold is at most the probability that <em>any</em> of the p-values are below the threshold: <img src="https://latex.codecogs.com/png.latex?P(c(S_k)%20%5Cleq%20p_k)%20%5Cleq%20%7CS_k%7Cp_k">.</p>
+<p>For the Sidak correction, we assume independence: <img src="https://latex.codecogs.com/png.latex?P(c(S_k)%20%5Cleq%20p_k)%20=%201%20-%20(1%20-%20p_k)%5E%7B%7CS_k%7C%7D">.</p>
+<p>So the choice is really a choice about how much I claim to know about the joint null. A union bound assumes nothing and pays for it in power. Šidák assumes independence. Westfall-Young assumes I can simulate the joint null, which is true whenever I can say concretely what “nothing is going on” would look like for my data.</p>
 </section>
 <section id="why-this-is-awkward-in-pytest" class="level2">
 <h2 class="anchored" data-anchor-id="why-this-is-awkward-in-pytest">Why this is awkward in pytest</h2>
-<p>Holm-Bonferroni is inherently a post-hoc procedure. Given p-values <img src="https://latex.codecogs.com/png.latex?p_1%20%5Cle%20p_2%20%5Cle%20%5Ccdots%20%5Cle%20p_m">, the threshold at rank <img src="https://latex.codecogs.com/png.latex?k"> is <img src="https://latex.codecogs.com/png.latex?%5Calpha%20/%20(m%20-%20k%20+%201)">. You cannot evaluate rank <img src="https://latex.codecogs.com/png.latex?k"> until you have all <img src="https://latex.codecogs.com/png.latex?m"> p-values in hand.</p>
-<p>pytest determines pass/fail for each test as it runs, before the rest of the suite has completed. To apply Holm-Bonferroni you need to let every test finish, collect all p-values, and only then decide which tests passed.</p>
+<p>Any of these is inherently a post-hoc procedure: <img src="https://latex.codecogs.com/png.latex?%5Ctilde%7Bp%7D_k"> depends on every p-value ranked at or below <img src="https://latex.codecogs.com/png.latex?k">, so rank <img src="https://latex.codecogs.com/png.latex?k"> cannot be evaluated until all <img src="https://latex.codecogs.com/png.latex?K"> p-values are in hand. pytest, meanwhile, determines pass/fail for each test as it runs, long before the rest of the suite has completed.</p>
 </section>
 <section id="what-the-plugin-does" class="level2">
 <h2 class="anchored" data-anchor-id="what-the-plugin-does">What the plugin does</h2>
-<p><a href="https://github.com/samanklesaria/pytest-familywise">pytest-familywise</a> adds an <code>assertNotReject</code> fixture. Tests call it with their computed p-value; the plugin stores the value but defers pass/fail entirely. A test passes when the null hypothesis is <em>not</em> rejected after correction, and fails when it is. After the session ends, the plugin:</p>
+<p><a href="https://github.com/samanklesaria/pytest-familywise">pytest-familywise</a> adds an <code>assertNotReject</code> fixture. Tests call it with a <em>sampler</em>: a callable handed a random generator, which draws a group of data and returns the p-value for it. The plugin owns the generator, which keeps draws reproducible and lets the same machinery draw from the null distribution when the correction needs it. The fixture stores the p-value but defers pass/fail entirely. After the session ends, the plugin:</p>
 <ol type="1">
 <li>Sorts all registered p-values ascending.</li>
 <li>Applies the step-down procedure, marking each test passed or failed.</li>
@@ -1338,26 +1346,21 @@ font-style: inherit;">end</span></span></code></pre></div></div>
 </ol>
 <p>The implementation hooks into <code>pytest_runtest_logreport</code> to capture reports, <code>pytest_sessionfinish</code> to run the correction and update <code>session.exitstatus</code>, and <code>pytest_terminal_summary</code> to rewrite the stat buckets and print the correction table before pytest prints its own <code>N passed, M failed</code> line.</p>
 </section>
-<section id="a-concrete-example" class="level2">
-<h2 class="anchored" data-anchor-id="a-concrete-example">A concrete example</h2>
-<p>Suppose you are testing a custom random number generator and want to verify three properties jointly, with FWER controlled at 5%.</p>
+<section id="holm-bonferroni-independent-draws" class="level2">
+<h2 class="anchored" data-anchor-id="holm-bonferroni-independent-draws">Holm-Bonferroni: independent draws</h2>
+<p>Suppose I am testing a custom random number generator and want to verify three properties jointly, with FWER controlled at 5%. Each test draws its own fresh data, so there is nothing to exploit about their joint distribution and the union bound is the honest choice.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># tests/test_rng.py</span></span>
 <span id="cb1-2"><span class="im" style="color: #00769E;
 background-color: null;
-font-style: inherit;">import</span> numpy <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">as</span> np</span>
-<span id="cb1-3"><span class="im" style="color: #00769E;
-background-color: null;
 font-style: inherit;">import</span> scipy.stats</span>
-<span id="cb1-4"></span>
-<span id="cb1-5"><span class="kw" style="color: #003B4F;
+<span id="cb1-3"></span>
+<span id="cb1-4"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> test_uniform_marginals(ks_sample_size, assertNotReject):</span>
-<span id="cb1-6">    n <span class="op" style="color: #5E5E5E;
+<span id="cb1-5">    n <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> ks_sample_size(effect_size<span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -1366,18 +1369,19 @@ background-color: null;
 font-style: inherit;">0.05</span>)   <span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># one-sample KS, ||F−G||∞ ≥ 0.05</span></span>
-<span id="cb1-7">    samples <span class="op" style="color: #5E5E5E;
+<span id="cb1-6">    assertNotReject(</span>
+<span id="cb1-7">        <span class="kw" style="color: #003B4F;
 background-color: null;
-font-style: inherit;">=</span> np.random.rand(n)</span>
-<span id="cb1-8">    assertNotReject(scipy.stats.kstest(samples, <span class="st" style="color: #20794D;
+font-weight: bold;
+font-style: inherit;">lambda</span> rng: scipy.stats.kstest(rng.random(n), <span class="st" style="color: #20794D;
 background-color: null;
 font-style: inherit;">"uniform"</span>).pvalue)</span>
-<span id="cb1-9"></span>
-<span id="cb1-10"><span class="kw" style="color: #003B4F;
+<span id="cb1-8"></span>
+<span id="cb1-9"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> test_normal_mean_zero(ztest_sample_size, assertNotReject):</span>
-<span id="cb1-11">    n <span class="op" style="color: #5E5E5E;
+<span id="cb1-10">    n <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> ztest_sample_size(effect_size<span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -1386,21 +1390,19 @@ background-color: null;
 font-style: inherit;">0.3</span>)  <span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># Cohen's d = 0.3</span></span>
-<span id="cb1-12">    samples <span class="op" style="color: #5E5E5E;
+<span id="cb1-11">    assertNotReject(</span>
+<span id="cb1-12">        <span class="kw" style="color: #003B4F;
 background-color: null;
-font-style: inherit;">=</span> np.random.randn(n)</span>
-<span id="cb1-13">    _, p <span class="op" style="color: #5E5E5E;
+font-weight: bold;
+font-style: inherit;">lambda</span> rng: scipy.stats.ttest_1samp(rng.standard_normal(n), <span class="fl" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">=</span> scipy.stats.ttest_1samp(samples, <span class="fl" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0.0</span>)</span>
-<span id="cb1-14">    assertNotReject(p)</span>
-<span id="cb1-15"></span>
-<span id="cb1-16"><span class="kw" style="color: #003B4F;
+font-style: inherit;">0.0</span>).pvalue)</span>
+<span id="cb1-13"></span>
+<span id="cb1-14"><span class="kw" style="color: #003B4F;
 background-color: null;
 font-weight: bold;
 font-style: inherit;">def</span> test_discrete_distribution(chisquare_sample_size, assertNotReject):</span>
-<span id="cb1-17">    n <span class="op" style="color: #5E5E5E;
+<span id="cb1-15">    n <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">=</span> chisquare_sample_size(effect_size<span class="op" style="color: #5E5E5E;
 background-color: null;
@@ -1413,20 +1415,18 @@ background-color: null;
 font-style: inherit;">4</span>)  <span class="co" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;"># Cohen's w = 0.2</span></span>
-<span id="cb1-18">    observed <span class="op" style="color: #5E5E5E;
+<span id="cb1-16">    assertNotReject(</span>
+<span id="cb1-17">        <span class="kw" style="color: #003B4F;
 background-color: null;
-font-style: inherit;">=</span> np.random.multinomial(n, [<span class="fl" style="color: #AD0000;
+font-weight: bold;
+font-style: inherit;">lambda</span> rng: scipy.stats.chisquare(rng.multinomial(n, [<span class="fl" style="color: #AD0000;
 background-color: null;
 font-style: inherit;">0.2</span>] <span class="op" style="color: #5E5E5E;
 background-color: null;
 font-style: inherit;">*</span> <span class="dv" style="color: #AD0000;
 background-color: null;
-font-style: inherit;">5</span>)</span>
-<span id="cb1-19">    _, p <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> scipy.stats.chisquare(observed)</span>
-<span id="cb1-20">    assertNotReject(p)</span></code></pre></div></div>
-<pre><code>pytest --holm-alpha=0.05 --power=0.8</code></pre>
+font-style: inherit;">5</span>)).pvalue)</span></code></pre></div></div>
+<pre><code>pytest --correction=holm --alpha=0.05 --power=0.8</code></pre>
 <p>Output after all three tests complete:</p>
 <pre><code>============ Holm-Bonferroni correction  α=0.05  n=3 =============
   PASSED  p=0.312541  threshold=0.016667  test_rng.py::test_uniform_marginals
@@ -1434,12 +1434,173 @@ font-style: inherit;">=</span> scipy.stats.chisquare(observed)</span>
   PASSED  p=0.621088  threshold=0.050000  test_rng.py::test_discrete_distribution
 
   3 passed, 0 failed after Holm-Bonferroni correction</code></pre>
-<p>All three p-values are large (data consistent with H0), so none are rejected and all tests pass. The thresholds tighten for the lowest-ranked p-values (0.017 for rank 1, relaxing to 0.050 for rank 3). If the rank-1 test had returned p = 0.01, it would be rejected (0.01 &lt; 0.017) and that test would fail — but the remaining tests would still pass as long as the step-down procedure stops rejecting before reaching them.</p>
+<p>All three p-values are large (data consistent with H0), so none are rejected and all tests pass. The thresholds tighten for the lowest-ranked p-values (0.017 for rank 1, relaxing to 0.050 for rank 3). If the rank-1 test had returned p = 0.01, it would be rejected (0.01 &lt; 0.017) and that test would fail — but the remaining tests would still pass, since the step-down procedure stops rejecting once it fails to reject.</p>
+</section>
+<section id="westfall-young-one-dataset-several-angles" class="level2">
+<h2 class="anchored" data-anchor-id="westfall-young-one-dataset-several-angles">Westfall-Young: one dataset, several angles</h2>
+<p>The union bound is needlessly pessimistic when several tests chew on the <em>same</em> dataset from different angles. Their p-values move together, and treating them as three independent chances to be wrong throws away power we already paid for. Simulating the joint null recovers it. Each test supplies a <code>null_sample</code> callable alongside its statistic: something that recomputes the same p-value with <img src="https://latex.codecogs.com/png.latex?H_0"> forced onto the observed data.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> numpy <span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">as</span> np</span>
+<span id="cb4-2"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> pytest</span>
+<span id="cb4-3"><span class="im" style="color: #00769E;
+background-color: null;
+font-style: inherit;">import</span> scipy.stats</span>
+<span id="cb4-4"></span>
+<span id="cb4-5"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">@pytest.fixture</span>(scope<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"module"</span>)</span>
+<span id="cb4-6"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> samples():</span>
+<span id="cb4-7">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""One dataset, several tests — so their p-values are correlated."""</span></span>
+<span id="cb4-8">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> np.random.default_rng(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>).standard_normal(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2000</span>)</span>
+<span id="cb4-9"></span>
+<span id="cb4-10"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> under_h0(rng, data):</span>
+<span id="cb4-11">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""Impose H0 (mean zero) on the observed data, then bootstrap."""</span></span>
+<span id="cb4-12">    centered <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> data <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span> data.mean()</span>
+<span id="cb4-13">    <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> rng.choice(centered, size<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(data), replace<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">True</span>)</span>
+<span id="cb4-14"></span>
+<span id="cb4-15"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> test_mean_zero(assertNotReject, samples):</span>
+<span id="cb4-16">    assertNotReject(</span>
+<span id="cb4-17">        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">lambda</span> rng: scipy.stats.ttest_1samp(samples, <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span>).pvalue,</span>
+<span id="cb4-18">        null_sample<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">lambda</span> rng:</span>
+<span id="cb4-19">            scipy.stats.ttest_1samp(under_h0(rng, samples), <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.0</span>).pvalue)</span>
+<span id="cb4-20"></span>
+<span id="cb4-21"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> test_median_zero(assertNotReject, samples):</span>
+<span id="cb4-22">    <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">"""A different statistic on the same data — strongly correlated."""</span></span>
+<span id="cb4-23">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> pvalue(data):</span>
+<span id="cb4-24">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> scipy.stats.binomtest(<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">int</span>((data <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>).<span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">sum</span>()), <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(data), <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.5</span>).pvalue</span>
+<span id="cb4-25"></span>
+<span id="cb4-26">    assertNotReject(</span>
+<span id="cb4-27">        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">lambda</span> rng: pvalue(samples),</span>
+<span id="cb4-28">        null_sample<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">lambda</span> rng: pvalue(under_h0(rng, samples)))</span></code></pre></div></div>
+<pre><code>pytest --correction=westfall-young --resamples=1000</code></pre>
+<p>The resample count is not a free knob: as above, it has to exceed <img src="https://latex.codecogs.com/png.latex?1/%5Calpha"> before any rejection is even representable. A thousand at <img src="https://latex.codecogs.com/png.latex?%5Calpha%20=%200.05"> is comfortable.</p>
+<p>Bootstrapping a centered copy is only one way to impose a null. When <img src="https://latex.codecogs.com/png.latex?H_0"> says two groups are exchangeable, the transform is a shuffle of the pooled data:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> test_groups_are_identical(assertNotReject, group_a, group_b):</span>
+<span id="cb6-2">    pooled <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> np.concatenate([group_a, group_b])</span>
+<span id="cb6-3">    n <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="bu" style="color: null;
+background-color: null;
+font-style: inherit;">len</span>(group_a)</span>
+<span id="cb6-4"></span>
+<span id="cb6-5">    <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">def</span> pvalue(x):</span>
+<span id="cb6-6">        <span class="cf" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">return</span> scipy.stats.ks_2samp(x[:n], x[n:]).pvalue</span>
+<span id="cb6-7"></span>
+<span id="cb6-8">    assertNotReject(</span>
+<span id="cb6-9">        <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">lambda</span> rng: pvalue(pooled),</span>
+<span id="cb6-10">        null_sample<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">lambda</span> rng: pvalue(rng.permutation(pooled)))</span></code></pre></div></div>
+<p>Sign-flipping (<code>data * rng.choice([-1, 1], size=len(data))</code>) is the third common idiom, for <img src="https://latex.codecogs.com/png.latex?H_0">s that assert symmetry about zero. Each is a different way of saying “here is what this dataset would have looked like if nothing were going on,” and the plugin does not care which one I pick.</p>
 </section>
 <section id="sample-size-fixtures" class="level2">
 <h2 class="anchored" data-anchor-id="sample-size-fixtures">Sample-size fixtures</h2>
 <p>Each test above starts by asking the plugin how many samples are needed to achieve the requested power. This is worth doing explicitly rather than picking a number by hand: a test with insufficient power will produce false negatives silently, and a test with excess samples wastes time.</p>
-<p>The plugin provides three fixtures, one per test family. They all read <code>--holm-alpha</code> and <code>--power</code> from the command line, so you set the targets once and the sizing follows automatically.</p>
+<p>The plugin provides three fixtures, one per test family. They all read <code>--alpha</code> and <code>--power</code> from the command line, so the targets are set once and the sizing follows automatically.</p>
 <p><strong>z-test</strong> (<code>ztest_sample_size</code>): closed-form solution</p>
 <p><img src="https://latex.codecogs.com/png.latex?n%20=%20%5Cleft%5Clceil%20%5Cleft(%5Cfrac%7Bz_%5Calpha%20+%20z_%5Cbeta%7D%7Bd%7D%5Cright)%5E2%20%5Cright%5Crceil"></p>
 <p>where <img src="https://latex.codecogs.com/png.latex?d"> is Cohen’s <img src="https://latex.codecogs.com/png.latex?d"> and <img src="https://latex.codecogs.com/png.latex?z_%5Calpha">, <img src="https://latex.codecogs.com/png.latex?z_%5Cbeta"> are the appropriate normal quantiles. At <img src="https://latex.codecogs.com/png.latex?%5Calpha%20=%200.05">, power <img src="https://latex.codecogs.com/png.latex?=%200.8">, <img src="https://latex.codecogs.com/png.latex?d%20=%200.5"> this gives <img src="https://latex.codecogs.com/png.latex?n%20=%2032">.</p>
@@ -1447,17 +1608,12 @@ font-style: inherit;">=</span> scipy.stats.chisquare(observed)</span>
 <p><strong>Kolmogorov-Smirnov</strong> (<code>ks_sample_size</code>): closed form derived from the Dvoretzky-Kiefer-Wolfowitz inequality. Given the maximum CDF discrepancy <img src="https://latex.codecogs.com/png.latex?%5CDelta"> and setting <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%201%20-%20%5Ctext%7Bpower%7D">, the bound is:</p>
 <p><img src="https://latex.codecogs.com/png.latex?n%20%5Cge%20%5Cfrac%7B%5Cleft(%5Csqrt%7B%5Cln(2/%5Calpha)%7D%20+%20%5Csqrt%7B%5Cln(2/%5Cbeta)%7D%5Cright)%5E2%7D%7B2%5CDelta%5E2%7D"></p>
 <p>The derivation equates the Type-I and Type-II DKW boundaries at the effect size, then solves for <img src="https://latex.codecogs.com/png.latex?n">. For a two-sample test with equal group sizes the effective <img src="https://latex.codecogs.com/png.latex?n"> is <img src="https://latex.codecogs.com/png.latex?n_%5Ctext%7Beach%7D/2">, so the returned per-group count is doubled.</p>
-<p>All three fixtures treat <code>--power</code> as a per-test rate, not a family-wise one. Rather than using the nominal <code>--holm-alpha</code> directly, the fixtures use Holm-Bonferroni corrected significance levels. At collection time the plugin counts the number of <code>assertNotReject</code> tests (<em>m</em>) and assigns <img src="https://latex.codecogs.com/png.latex?%5Calpha%20/%20(m%20-%20k%20+%201)"> to the <em>k</em>-th test that requests a sample size, in execution order. The first test receives the most stringent threshold (<img src="https://latex.codecogs.com/png.latex?%5Calpha%20/%20m">) and therefore the largest sample size; later tests receive progressively relaxed thresholds and smaller samples. Because of this, it is worth ordering your test suite so that more computationally expensive tests run later, where the required sample sizes are smaller.</p>
+<p>All three fixtures treat <code>--power</code> as a per-test rate, not a family-wise one. The sizing itself uses the conservative bound <img src="https://latex.codecogs.com/png.latex?%5Calpha/m">, where <img src="https://latex.codecogs.com/png.latex?m"> is the number of collected tests that use <code>assertNotReject</code>; a test that uses a sample-size fixture without <code>assertNotReject</code> is not in the family, sizes against the raw alpha, and does not raise <img src="https://latex.codecogs.com/png.latex?m"> for anyone else.</p>
 </section>
 <section id="loading-the-plugin" class="level2">
 <h2 class="anchored" data-anchor-id="loading-the-plugin">Loading the plugin</h2>
 <p>The package registers itself via a <code>pytest11</code> entry point, so installing it is sufficient:</p>
 <pre><code>uv add --dev pytest-familywise</code></pre>
-</section>
-<section id="limitations" class="level2">
-<h2 class="anchored" data-anchor-id="limitations">Limitations</h2>
-<p>The plugin does not model within-suite dependence. Holm-Bonferroni controls FWER under arbitrary dependence (it is valid beyond independence), but the power analysis for the sample-size fixtures assumes independence. If tests share data, the sizing estimates may be off.</p>
-<p>Tests that raise an exception before calling <code>assertNotReject</code> fail normally and are excluded from the Holm-Bonferroni set — the correction applies only to tests that complete and register a p-value.</p>
 
 
 </section>
@@ -1465,7 +1621,7 @@ font-style: inherit;">=</span> scipy.stats.chisquare(observed)</span>
  ]]></description>
   <category>tools</category>
   <guid>https://samanklesaria.github.io/posts/pytest_familywise/holm.html</guid>
-  <pubDate>Tue, 09 Jun 2026 06:00:00 GMT</pubDate>
+  <pubDate>Tue, 09 Jun 2026 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Targeted Learning Basics</title>
@@ -1495,7 +1651,7 @@ font-style: inherit;">=</span> scipy.stats.chisquare(observed)</span>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/targeted learning/targeted_basics.html</guid>
-  <pubDate>Fri, 05 Jun 2026 06:00:00 GMT</pubDate>
+  <pubDate>Fri, 05 Jun 2026 05:00:00 GMT</pubDate>
   <media:content url="https://tlverse.org/tlverse-handbook/img/logos/vdl-logo-transparent.svg" medium="image" type="image/svg+xml"/>
 </item>
 <item>
@@ -3872,7 +4028,7 @@ Final Value: -14.2998 at Step 199
 </section> ]]></description>
   <category>machine learning</category>
   <guid>https://samanklesaria.github.io/posts/sepreformer/sepreformer.html</guid>
-  <pubDate>Mon, 25 May 2026 06:00:00 GMT</pubDate>
+  <pubDate>Mon, 25 May 2026 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Introducing tbexport</title>
@@ -3943,7 +4099,7 @@ font-style: inherit;">uv</span> tool install .</span></code></pre></div></div>
  ]]></description>
   <category>machine learning</category>
   <guid>https://samanklesaria.github.io/posts/tbexport/tbexport.html</guid>
-  <pubDate>Sun, 24 May 2026 06:00:00 GMT</pubDate>
+  <pubDate>Sun, 24 May 2026 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Case Control Studies</title>
@@ -3974,7 +4130,7 @@ font-style: inherit;">uv</span> tool install .</span></code></pre></div></div>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/case_control/case control.html</guid>
-  <pubDate>Wed, 20 May 2026 06:00:00 GMT</pubDate>
+  <pubDate>Wed, 20 May 2026 05:00:00 GMT</pubDate>
   <media:content url="https://samanklesaria.github.io/posts/case_control/img.png" medium="image" type="image/png" height="71" width="144"/>
 </item>
 <item>
@@ -4213,7 +4369,7 @@ font-style: inherit;">SI</span>(N))</span></code></pre></div></div>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/nestedsurveys/NestedSurveys.html</guid>
-  <pubDate>Thu, 30 Apr 2026 06:00:00 GMT</pubDate>
+  <pubDate>Thu, 30 Apr 2026 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>A Recursive Bayesian Model of Reputation</title>
@@ -5732,7 +5888,7 @@ font-style: inherit;">end</span>;</span></code></pre></div></div>
  ]]></description>
   <category>machine learning</category>
   <guid>https://samanklesaria.github.io/posts/reputation/reputation.html</guid>
-  <pubDate>Tue, 31 Mar 2026 06:00:00 GMT</pubDate>
+  <pubDate>Tue, 31 Mar 2026 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Fitting Gaussians with Missing Observations</title>
@@ -6357,7 +6513,7 @@ font-style: inherit;">end</span></span></code></pre></div></div>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/missing_obs/missing_obs.html</guid>
-  <pubDate>Thu, 05 Feb 2026 07:00:00 GMT</pubDate>
+  <pubDate>Thu, 05 Feb 2026 06:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Air Quality and Congestion Pricing</title>
@@ -7108,7 +7264,7 @@ Fraser, Timothy, Yeonkyeong Gina Park, Danni Lu, Mohammad Tayarani, Haiyan Deng,
 </div></section></div> ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/congestion_pricing/Notebook.html</guid>
-  <pubDate>Fri, 19 Dec 2025 07:00:00 GMT</pubDate>
+  <pubDate>Fri, 19 Dec 2025 06:00:00 GMT</pubDate>
 </item>
 <item>
   <title>AnkiVec: Vector Search for Anki</title>
@@ -7158,7 +7314,7 @@ Fraser, Timothy, Yeonkyeong Gina Park, Danni Lu, Mohammad Tayarani, Haiyan Deng,
  ]]></description>
   <category>tools</category>
   <guid>https://samanklesaria.github.io/posts/ankivec/ankivec.html</guid>
-  <pubDate>Thu, 20 Nov 2025 07:00:00 GMT</pubDate>
+  <pubDate>Thu, 20 Nov 2025 06:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Classifying Ships with Gaussian Process Mixtures</title>
@@ -8623,7 +8779,7 @@ font-style: inherit;">plot_example</span>(o, kern, c_U, true_f)</span></code></p
  ]]></description>
   <category>machine learning</category>
   <guid>https://samanklesaria.github.io/posts/ships/ships.html</guid>
-  <pubDate>Wed, 19 Nov 2025 07:00:00 GMT</pubDate>
+  <pubDate>Wed, 19 Nov 2025 06:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Analyzing Coffee Yields</title>
@@ -9323,7 +9479,7 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/coffee/coffee.html</guid>
-  <pubDate>Sun, 19 Oct 2025 06:00:00 GMT</pubDate>
+  <pubDate>Sun, 19 Oct 2025 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Sizecheck: Making Tensor Code Self-Documenting with Runtime Shape Validation</title>
@@ -9436,7 +9592,7 @@ font-style: inherit;">=</span> attention(q, k, v)</span></code></pre></div></div
  ]]></description>
   <category>tools</category>
   <guid>https://samanklesaria.github.io/posts/sizecheck/sizecheck.html</guid>
-  <pubDate>Sat, 30 Aug 2025 06:00:00 GMT</pubDate>
+  <pubDate>Sat, 30 Aug 2025 05:00:00 GMT</pubDate>
   <media:content url="https://samanklesaria.github.io/posts/sizecheck/logo.png" medium="image" type="image/png" height="144" width="144"/>
 </item>
 <item>
@@ -9522,7 +9678,7 @@ font-style: inherit;">=</span> attention(q, k, v)</span></code></pre></div></div
   <category>statistics</category>
   <category>machine learning</category>
   <guid>https://samanklesaria.github.io/posts/books.html</guid>
-  <pubDate>Thu, 21 Aug 2025 06:00:00 GMT</pubDate>
+  <pubDate>Thu, 21 Aug 2025 05:00:00 GMT</pubDate>
   <media:content url="https://upload.wikimedia.org/wikipedia/commons/3/39/Noto_Emoji_v2.034_1f4da.svg" medium="image" type="image/svg+xml"/>
 </item>
 <item>
@@ -10029,7 +10185,7 @@ font-style: inherit;">list</span>(ks))</span></code></pre></div></div>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/Frequentist_Sample_Size_Estimation.html</guid>
-  <pubDate>Fri, 15 Aug 2025 06:00:00 GMT</pubDate>
+  <pubDate>Fri, 15 Aug 2025 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>Sample Size Estimation in Bayesian A/B/n Testing</title>
@@ -10323,7 +10479,7 @@ font-style: inherit;">end</span></span></code></pre></div></div>
  ]]></description>
   <category>statistics</category>
   <guid>https://samanklesaria.github.io/posts/bayesian_sample_size/notebook.html</guid>
-  <pubDate>Fri, 15 Aug 2025 06:00:00 GMT</pubDate>
+  <pubDate>Fri, 15 Aug 2025 05:00:00 GMT</pubDate>
 </item>
 <item>
   <title>An Opinionated Tooling Guide</title>
@@ -10384,7 +10540,7 @@ font-style: inherit;">end</span></span></code></pre></div></div>
  ]]></description>
   <category>tools</category>
   <guid>https://samanklesaria.github.io/posts/tooling_guide.html</guid>
-  <pubDate>Sun, 01 Jun 2025 06:00:00 GMT</pubDate>
+  <pubDate>Sun, 01 Jun 2025 05:00:00 GMT</pubDate>
   <media:content url="https://upload.wikimedia.org/wikipedia/commons/4/44/Drawing_Tools_Flat_Icon_Vector.svg" medium="image" type="image/svg+xml"/>
 </item>
 <item>
@@ -10911,7 +11067,7 @@ font-style: inherit;">False</span>)</span></code></pre></div></div>
  ]]></description>
   <category>machine learning</category>
   <guid>https://samanklesaria.github.io/posts/clustering/Clustering.html</guid>
-  <pubDate>Mon, 10 Feb 2025 07:00:00 GMT</pubDate>
+  <pubDate>Mon, 10 Feb 2025 06:00:00 GMT</pubDate>
   <media:content url="https://ollama.com/public/ollama.png" medium="image" type="image/png"/>
 </item>
 </channel>
