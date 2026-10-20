@@ -2,7 +2,6 @@
   {
     "listing": "/index.html",
     "items": [
-      "/posts/kudos/kudos_post.html",
       "/posts/julia_daemon/release.html",
       "/posts/pytest_familywise/holm.html",
       "/posts/targeted learning/targeted_basics.html",
@@ -11,6 +10,7 @@
       "/posts/case_control/case control.html",
       "/posts/nestedsurveys/NestedSurveys.html",
       "/posts/reputation/reputation.html",
+      "/posts/wordle/wordle.html",
       "/posts/missing_obs/missing_obs.html",
       "/posts/congestion_pricing/Notebook.html",
       "/posts/ankivec/ankivec.html",
