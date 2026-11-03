@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.27">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2026-11-03">
+
+<title>Mapping Process Bottlenecks – Sam’s Blog</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-ff63373b1067ca6f91cf1456aa1f00a2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">Sam’s Blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/samanklesaria"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Mapping Process Bottlenecks</h1>
+                                <div class="quarto-categories">
+                <div class="quarto-category">statistics</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">November 3, 2026</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<p>When I worked at the MN Department of Human services, part of my job was investigating why it was taking so long for childcare providers to get licensed. It can be quite a long and winding road to licensure, and it wasn’t immediately clear which of the many steps involved was a bottleneck.</p>
+<p>With a little data engineering, I found myself looking at tables like the following:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>date</th>
+<th>state</th>
+<th>applicant_id</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>2024-06-24</td>
+<td>application submission</td>
+<td>263</td>
+</tr>
+<tr class="even">
+<td>2024-06-30</td>
+<td>administrative review</td>
+<td>19</td>
+</tr>
+<tr class="odd">
+<td>2024-07-06</td>
+<td>changes requested for licence holder info</td>
+<td>32</td>
+</tr>
+<tr class="even">
+<td>2024-08-06</td>
+<td>fire safety check</td>
+<td>6</td>
+</tr>
+</tbody>
+</table>
+<p>From this timing data, I started out by creating maps of transition times between states. Note that the data visualized here is entirely made-up.</p>
+<p><img src="plots/rmst_graph.png" class="img-fluid"></p>
+<section id="average-transition-times" class="level2">
+<h2 class="anchored" data-anchor-id="average-transition-times">Average Transition Times</h2>
+<p>Finding the average transition time <span class="math inline">\(E[T]\)</span> between states isn’t quite as easy as you’d think. You can’t just take the empirical average of observed transition times because you might still have transitions in progress (known as <em>right censored</em> observations). Indeed, those transitions still in progress are the very ones most likely to take a long time, so if you dropped them, you’d be biasing your estimate downwards.</p>
+<p>Instead, we need to estimate the survival function <span class="math inline">\(S(t) = P(T &gt; t)\)</span>. You can use this to get the average transition time:</p>
+<p><span class="math display">\[E[T \land \tau] = E\int_0^\tau1_{t \leq T} \, dt = \int_0^\tau S(t) \, dt\]</span></p>
+<p>To find <span class="math inline">\(P(T &gt; t)\)</span>, note that this is just the probability we don’t transition at any intermediate point <span class="math inline">\(s\)</span>. If <span class="math inline">\(Y_s\)</span> is the number of applications in progress we observe at time <span class="math inline">\(s\)</span> and <span class="math inline">\(d_s\)</span> is the number of applications we observed transitioning at time <span class="math inline">\(s\)</span>, then the probability of a transition at time <span class="math inline">\(s\)</span> given no previous transitions is approximately <span class="math inline">\(d_s / Y_S\)</span>. This gives us the Kaplan Meier estimator:</p>
+<p><span class="math display">\[\hat{S}(t) = \prod_{s \leq t}(1 - d_s/Y_s)\]</span></p>
+<p>The estimator isn’t perfect, however. In particular, if <span class="math inline">\(\hat{S}(T) \neq 0\)</span> at last observed time <span class="math inline">\(T\)</span>, this would estimate <span class="math inline">\(E[T] = \infty\)</span>. This is why we always find <span class="math inline">\(E[T \land \tau]\)</span> for some <span class="math inline">\(\tau &lt; \infty\)</span>.</p>
+</section>
+<section id="transition-probabilities" class="level2">
+<h2 class="anchored" data-anchor-id="transition-probabilities">Transition Probabilities</h2>
+<p>The same right-censoring problem plagues estimates of transition probability. If the transition from state <span class="math inline">\(A\)</span> to state <span class="math inline">\(B\)</span> tends to take longer on average, we’ll be more likely to see fewer of those transitions if we just drop in-progress transitions from the dataset. So instead of estimating transition probabilities <span class="math inline">\(P(D=i)\)</span> directly, we estimate the cumulative incidence function <span class="math inline">\(F_i(t) = P(D=i, T \leq t)\)</span>.</p>
+<p>This is just the sum over all times <span class="math inline">\(s \leq t\)</span> of <span class="math inline">\(P(D=i, T = s)\)</span>. This occurs when we haven’t transitioned by the time immediately prior to <span class="math inline">\(s\)</span> (probability approximately <span class="math inline">\(\hat{S}(s^-)\)</span>), then make the transition at <span class="math inline">\(s\)</span> to state <span class="math inline">\(i\)</span> (conditional probability approximately <span class="math inline">\(\frac{d_{i,s}}{Y_s}\)</span>). Putting this all together yields the Aalen-Johansen estimator:</p>
+<p><span class="math display">\[\hat{F}_i(t) = \sum_{s \leq t} \hat{S}(s^-) \frac{d_{i,s}}{Y_s}\]</span></p>
+</section>
+<section id="conditional-timing" class="level2">
+<h2 class="anchored" data-anchor-id="conditional-timing">Conditional timing</h2>
+<p>Once we have estimates of the cumulative incidence function, we can use them to estimate the conditional transition times for each branch.</p>
+<p><span class="math display">\[
+\begin{aligned}
+E[\tau - T | D=i, T\le\tau] &amp;= \frac{E[(\tau - T)1_{D=i, T\le\tau}]}{P(D=i, T\le\tau)} \\
+&amp;= \frac{1}{P(D=i, T\le\tau)} \int_0^\tau P(\tau - T \geq u , D=i)du  \\
+&amp;= \frac{1}{P(D=i, T\le\tau)} \int_0^\tau F_i(\tau - u) du \\
+E[T | D=i, T \leq \tau] &amp;= \tau - \frac{1}{P(D=i, T\le\tau)} \int_0^\tau F_i(u) du
+\end{aligned}
+\]</span></p>
+<p>Altogether, this shows how every statistic in the state map above comes from the Kaplan Meier survival function estimator.</p>
+</section>
+<section id="occupancy" class="level2">
+<h2 class="anchored" data-anchor-id="occupancy">Occupancy</h2>
+<p>My original map showed average transition times. But even terribly slow states wouldn’t really be a bottleneck if few applicants entered them. Our real concern isn’t transition time alone, but <em>occupancy</em>: the average days a state holds an application over its whole trajectory. For my second take on the state maps, I plotted occupancy estimates instead. We can estimate this with <span class="math inline">\(E[T_i \land \tau]\left(\frac{N_i}{N}\right)\)</span> where <span class="math inline">\(N_i\)</span> sums state entrances and <span class="math inline">\(N\)</span> counts applications. As we’re taking the <span class="math inline">\(\tau\)</span>-restricted mean, this gives a lower bound per visit.</p>
+<p><img src="plots/occupancy_graph.png" class="img-fluid" style="width:100.0%"></p>
+<p>The factorization into a visit rate times a restricted mean sojourn is pleasant to look at and awful to put an error bar on. The two pieces live on different units — one is a mean over applications, the other a mean over sojourn rows — they’re plainly dependent, since an applicant who lingers in a state is also the sort who loops back to it, and the number of rows is itself random. I’ll come back to this below, because the fix turns out to be the same trick that handles covariates.</p>
+</section>
+<section id="generalizing-to-the-full-population" class="level2">
+<h2 class="anchored" data-anchor-id="generalizing-to-the-full-population">Generalizing to the Full Population</h2>
+<p>The timing data I had access to was technically only for applicants of “certification”, not full licensure. Theoretically, the steps required for certification were a subset of those for licensure, so all other things being equal, bottlenecks in certification were likely to be bottlenecks in licensure too. But all other things were <em>not</em> equal: certification applicants had demonstrably different demographics than license applicants, which could easily have influenced their survival curves.</p>
+<p><img src="plots/dist_shift.png" class="img-fluid" style="width:100.0%"></p>
+<p>To account for this discrepancy, I decided to condition the occupancy estimates by covariates, then average my predictions across true joint covariate distribution for both certification and license applicants.</p>
+</section>
+<section id="conditional-versions-of-the-estimators" class="level2">
+<h2 class="anchored" data-anchor-id="conditional-versions-of-the-estimators">Conditional Versions of the Estimators</h2>
+<p>This is where things could have gotten ugly. Every quantity on the map is a functional of a censored curve, and the obvious way to condition on covariates is to fit a second model of the process — a Cox model per transition, say — and then push the predictions back through all the integrals above. That’s a lot of machinery, and the delta method for the resulting standard errors is a small research project of its own.</p>
+<p>The trick I used instead comes from Andersen and Perme (2010): get rid of the censoring first, then regress. For each applicant, compute the jackknife pseudo-value</p>
+<p><span class="math display">\[\tilde\theta_m = n\hat\theta - (n-1)\hat\theta_{(-m)},\]</span></p>
+<p>where <span class="math inline">\(\hat\theta\)</span> is whichever functional I care about — restricted mean, branch probability, conditional timing — and <span class="math inline">\(\hat\theta_{(-m)}\)</span> is the same functional refit with observation <span class="math inline">\(m\)</span> deleted. The pseudo-values average back to <span class="math inline">\(\hat\theta\)</span> by construction, and the remarkable part is that they behave, to first order, like uncensored observations of the quantity. A censored row still gets a number, and that number carries the information the row actually contributed to the curve.</p>
+<p>Once each applicant has a plain number attached to it, the conditional model is just a regression. I ran OLS of the pseudo-values on language, age, log requested capacity and region, and then standardized: multiply the coefficients by the covariate means of the <em>target</em> population rather than the fitted one.</p>
+<p>For the standard errors, OLS’s usual <span class="math inline">\(\sigma^2(X'X)^{-1}\)</span> is wrong twice over. Pseudo-values are badly heteroskedastic by construction — a branch indicator’s residual variance tracks <span class="math inline">\(p(1-p)\)</span>, and a restricted mean’s grows with the follow-up left — and they aren’t independent across subjects, being leave-one-out perturbations of one shared fit. Andersen and Perme handle this by fitting a GEE with an independence working correlation, which with one time point per subject is exactly <code>lm</code> plus a robust sandwich. I used HC1 clustered on applicant id: an applicant can loop through a state a couple dozen times, and summing the meat over rows instead of over applicants would drop the within-applicant cross terms and understate every interval. Jacobsen and Martinussen (2016) point out that this sandwich slightly <em>over</em>estimates the asymptotic variance, since the second-order dependence among pseudo-values reads as extra noise; there’s a correction term, and I decided it wasn’t worth the code.</p>
+</section>
+<section id="occupancy-pseudo-values" class="level2">
+<h2 class="anchored" data-anchor-id="occupancy-pseudo-values">Occupancy Pseudo-Values</h2>
+<p>Occupancy needed one extra thought. It’s what a state costs an application over its entire passage, rework loops included, which means its sampling unit is the application, not the sojourn. Applications that never visit the state at all contribute a real zero and have to be kept — drop them and you’ve silently started estimating days per <em>visitor</em>, a different and larger number.</p>
+<p>So when I take the jackknife for occupancy, I leave out one entire application’s trajectory rather than one sojourn row. And here the arithmetic is kind: because an influence function is a derivative in the case weights, and derivatives add across sums, giving an application weight <span class="math inline">\(1+\varepsilon\)</span> gives each of its rows that weight too. The pseudo-value for an application’s occupancy is just the sum of the restricted-mean pseudo-values of its constituent sojourns.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>pv <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">pseudo</span>(km, <span class="at">times =</span> tau, <span class="at">type =</span> <span class="st">"rmst"</span>))  <span class="co"># one per sojourn row</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>o  <span class="ot">&lt;-</span> <span class="fu">numeric</span>(n)                                          <span class="co"># one per application</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>agg <span class="ot">&lt;-</span> <span class="fu">rowsum</span>(pv, <span class="fu">match</span>(d<span class="sc">$</span>id, ids))</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>o[<span class="fu">as.integer</span>(<span class="fu">rownames</span>(agg))] <span class="ot">&lt;-</span> agg                       <span class="co"># non-visitors stay 0</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>occupancy <span class="ot">&lt;-</span> <span class="fu">mean</span>(o)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>se        <span class="ot">&lt;-</span> <span class="fu">sd</span>(o) <span class="sc">/</span> <span class="fu">sqrt</span>(n)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>That’s the estimator and its standard error, in six lines, with no delta method and no covariance term anywhere. It isn’t a shortcut: summing to the application <em>before</em> squaring is precisely the grouped jackknife, so the within-application cross terms are inside <span class="math inline">\(o_i^2\)</span> for free, and the result is identical to the cluster-robust delta method applied to the visit-rate-times-sojourn factorization. An applicant who lingers once and tends to linger again on the way back widens the interval, as it should. The point estimate comes out right too, since the pseudo-values average to the restricted mean and there are <span class="math inline">\(K_i\)</span> of them for applicant <span class="math inline">\(i\)</span>.</p>
+<p>The nice consequence is that occupancy stops being special. It’s one number per application on the application’s own unit, so the covariate model is the same ordinary regression as everything else — and covariates that make an application come back more often and covariates that make each stay longer are both already inside <span class="math inline">\(o_i\)</span>, so the visit rate needs no separate model.</p>
+</section>
+<section id="handling-missingness" class="level2">
+<h2 class="anchored" data-anchor-id="handling-missingness">Handling Missingness</h2>
+<p>The covariates themselves had holes in them. To get around this, I sampled 50 imputations with <code>mice</code>, using multinomial logistic regression for the categorical columns and conditioning on the pseudo-value.</p>
+<p>I found that the default of ten imputations wasn’t enough: my branch probabilities and timings wandered by 11–15% of their own standard deviation just from changing the imputation seed. But at 50, everything sat inside a tenth of an SD. Each imputation gets the full downstream analysis — regress, standardize, done — and then the results combine by Rubin’s rules, so the reported uncertainty is within-imputation sampling error <em>and</em> between-imputation spread rather than only the latter: <span class="math display">\[
+\text{Var}[Q] \approx E[\text{Var}[Q | X_\text{missing}]] + (1 + \frac{1}{m})\hat{\text{Var}}[E[Q | X_\text{missing}]]
+\]</span></p>
+<p>One subtlety I nearly missed: I ran <code>mice</code> separately for the two populations. The certification applicants are the rows the regressions are fitted on, and they carry process data; the license applicants have no event log at all and enter only through the covariate mean I average the fitted values over. Imputing them together would have filled a systematically missing column in one population from the other, and then conditioned on the result.</p>
+<p><img src="plots/pseudo_graph.png" class="img-fluid" style="width:100.0%"></p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/samanklesaria\.github\.io");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

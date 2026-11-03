@@ -10,7 +10,170 @@
 <atom:link href="https://samanklesaria.github.io/index.xml" rel="self" type="application/rss+xml"/>
 <description>Dabbling in Data Science</description>
 <generator>quarto-1.8.27</generator>
-<lastBuildDate>Thu, 11 Jun 2026 05:00:00 GMT</lastBuildDate>
+<lastBuildDate>Tue, 03 Nov 2026 06:00:00 GMT</lastBuildDate>
+<item>
+  <title>Mapping Process Bottlenecks</title>
+  <link>https://samanklesaria.github.io/posts/survival_map/survival_maps.html</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>When I worked at the MN Department of Human services, part of my job was investigating why it was taking so long for childcare providers to get licensed. It can be quite a long and winding road to licensure, and it wasn’t immediately clear which of the many steps involved was a bottleneck.</p>
+<p>With a little data engineering, I found myself looking at tables like the following:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>date</th>
+<th>state</th>
+<th>applicant_id</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>2024-06-24</td>
+<td>application submission</td>
+<td>263</td>
+</tr>
+<tr class="even">
+<td>2024-06-30</td>
+<td>administrative review</td>
+<td>19</td>
+</tr>
+<tr class="odd">
+<td>2024-07-06</td>
+<td>changes requested for licence holder info</td>
+<td>32</td>
+</tr>
+<tr class="even">
+<td>2024-08-06</td>
+<td>fire safety check</td>
+<td>6</td>
+</tr>
+</tbody>
+</table>
+<p>From this timing data, I started out by creating maps of transition times between states. Note that the data visualized here is entirely made-up.</p>
+<p><img src="https://samanklesaria.github.io/posts/survival_map/plots/rmst_graph.png" class="img-fluid"></p>
+<section id="average-transition-times" class="level2">
+<h2 class="anchored" data-anchor-id="average-transition-times">Average Transition Times</h2>
+<p>Finding the average transition time <img src="https://latex.codecogs.com/png.latex?E%5BT%5D"> between states isn’t quite as easy as you’d think. You can’t just take the empirical average of observed transition times because you might still have transitions in progress (known as <em>right censored</em> observations). Indeed, those transitions still in progress are the very ones most likely to take a long time, so if you dropped them, you’d be biasing your estimate downwards.</p>
+<p>Instead, we need to estimate the survival function <img src="https://latex.codecogs.com/png.latex?S(t)%20=%20P(T%20%3E%20t)">. You can use this to get the average transition time:</p>
+<p><img src="https://latex.codecogs.com/png.latex?E%5BT%20%5Cland%20%5Ctau%5D%20=%20E%5Cint_0%5E%5Ctau1_%7Bt%20%5Cleq%20T%7D%20%5C,%20dt%20=%20%5Cint_0%5E%5Ctau%20S(t)%20%5C,%20dt"></p>
+<p>To find <img src="https://latex.codecogs.com/png.latex?P(T%20%3E%20t)">, note that this is just the probability we don’t transition at any intermediate point <img src="https://latex.codecogs.com/png.latex?s">. If <img src="https://latex.codecogs.com/png.latex?Y_s"> is the number of applications in progress we observe at time <img src="https://latex.codecogs.com/png.latex?s"> and <img src="https://latex.codecogs.com/png.latex?d_s"> is the number of applications we observed transitioning at time <img src="https://latex.codecogs.com/png.latex?s">, then the probability of a transition at time <img src="https://latex.codecogs.com/png.latex?s"> given no previous transitions is approximately <img src="https://latex.codecogs.com/png.latex?d_s%20/%20Y_S">. This gives us the Kaplan Meier estimator:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Chat%7BS%7D(t)%20=%20%5Cprod_%7Bs%20%5Cleq%20t%7D(1%20-%20d_s/Y_s)"></p>
+<p>The estimator isn’t perfect, however. In particular, if <img src="https://latex.codecogs.com/png.latex?%5Chat%7BS%7D(T)%20%5Cneq%200"> at last observed time <img src="https://latex.codecogs.com/png.latex?T">, this would estimate <img src="https://latex.codecogs.com/png.latex?E%5BT%5D%20=%20%5Cinfty">. This is why we always find <img src="https://latex.codecogs.com/png.latex?E%5BT%20%5Cland%20%5Ctau%5D"> for some <img src="https://latex.codecogs.com/png.latex?%5Ctau%20%3C%20%5Cinfty">.</p>
+</section>
+<section id="transition-probabilities" class="level2">
+<h2 class="anchored" data-anchor-id="transition-probabilities">Transition Probabilities</h2>
+<p>The same right-censoring problem plagues estimates of transition probability. If the transition from state <img src="https://latex.codecogs.com/png.latex?A"> to state <img src="https://latex.codecogs.com/png.latex?B"> tends to take longer on average, we’ll be more likely to see fewer of those transitions if we just drop in-progress transitions from the dataset. So instead of estimating transition probabilities <img src="https://latex.codecogs.com/png.latex?P(D=i)"> directly, we estimate the cumulative incidence function <img src="https://latex.codecogs.com/png.latex?F_i(t)%20=%20P(D=i,%20T%20%5Cleq%20t)">.</p>
+<p>This is just the sum over all times <img src="https://latex.codecogs.com/png.latex?s%20%5Cleq%20t"> of <img src="https://latex.codecogs.com/png.latex?P(D=i,%20T%20=%20s)">. This occurs when we haven’t transitioned by the time immediately prior to <img src="https://latex.codecogs.com/png.latex?s"> (probability approximately <img src="https://latex.codecogs.com/png.latex?%5Chat%7BS%7D(s%5E-)">), then make the transition at <img src="https://latex.codecogs.com/png.latex?s"> to state <img src="https://latex.codecogs.com/png.latex?i"> (conditional probability approximately <img src="https://latex.codecogs.com/png.latex?%5Cfrac%7Bd_%7Bi,s%7D%7D%7BY_s%7D">). Putting this all together yields the Aalen-Johansen estimator:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Chat%7BF%7D_i(t)%20=%20%5Csum_%7Bs%20%5Cleq%20t%7D%20%5Chat%7BS%7D(s%5E-)%20%5Cfrac%7Bd_%7Bi,s%7D%7D%7BY_s%7D"></p>
+</section>
+<section id="conditional-timing" class="level2">
+<h2 class="anchored" data-anchor-id="conditional-timing">Conditional timing</h2>
+<p>Once we have estimates of the cumulative incidence function, we can use them to estimate the conditional transition times for each branch.</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Baligned%7D%0AE%5B%5Ctau%20-%20T%20%7C%20D=i,%20T%5Cle%5Ctau%5D%20&amp;=%20%5Cfrac%7BE%5B(%5Ctau%20-%20T)1_%7BD=i,%20T%5Cle%5Ctau%7D%5D%7D%7BP(D=i,%20T%5Cle%5Ctau)%7D%20%5C%5C%0A&amp;=%20%5Cfrac%7B1%7D%7BP(D=i,%20T%5Cle%5Ctau)%7D%20%5Cint_0%5E%5Ctau%20P(%5Ctau%20-%20T%20%5Cgeq%20u%20,%20D=i)du%20%20%5C%5C%0A&amp;=%20%5Cfrac%7B1%7D%7BP(D=i,%20T%5Cle%5Ctau)%7D%20%5Cint_0%5E%5Ctau%20F_i(%5Ctau%20-%20u)%20du%20%5C%5C%0AE%5BT%20%7C%20D=i,%20T%20%5Cleq%20%5Ctau%5D%20&amp;=%20%5Ctau%20-%20%5Cfrac%7B1%7D%7BP(D=i,%20T%5Cle%5Ctau)%7D%20%5Cint_0%5E%5Ctau%20F_i(u)%20du%0A%5Cend%7Baligned%7D%0A"></p>
+<p>Altogether, this shows how every statistic in the state map above comes from the Kaplan Meier survival function estimator.</p>
+</section>
+<section id="occupancy" class="level2">
+<h2 class="anchored" data-anchor-id="occupancy">Occupancy</h2>
+<p>My original map showed average transition times. But even terribly slow states wouldn’t really be a bottleneck if few applicants entered them. Our real concern isn’t transition time alone, but <em>occupancy</em>: the average days a state holds an application over its whole trajectory. For my second take on the state maps, I plotted occupancy estimates instead. We can estimate this with <img src="https://latex.codecogs.com/png.latex?E%5BT_i%20%5Cland%20%5Ctau%5D%5Cleft(%5Cfrac%7BN_i%7D%7BN%7D%5Cright)"> where <img src="https://latex.codecogs.com/png.latex?N_i"> sums state entrances and <img src="https://latex.codecogs.com/png.latex?N"> counts applications. As we’re taking the <img src="https://latex.codecogs.com/png.latex?%5Ctau">-restricted mean, this gives a lower bound per visit.</p>
+<p><img src="https://samanklesaria.github.io/posts/survival_map/plots/occupancy_graph.png" class="img-fluid" style="width:100.0%"></p>
+<p>The factorization into a visit rate times a restricted mean sojourn is pleasant to look at and awful to put an error bar on. The two pieces live on different units — one is a mean over applications, the other a mean over sojourn rows — they’re plainly dependent, since an applicant who lingers in a state is also the sort who loops back to it, and the number of rows is itself random. I’ll come back to this below, because the fix turns out to be the same trick that handles covariates.</p>
+</section>
+<section id="generalizing-to-the-full-population" class="level2">
+<h2 class="anchored" data-anchor-id="generalizing-to-the-full-population">Generalizing to the Full Population</h2>
+<p>The timing data I had access to was technically only for applicants of “certification”, not full licensure. Theoretically, the steps required for certification were a subset of those for licensure, so all other things being equal, bottlenecks in certification were likely to be bottlenecks in licensure too. But all other things were <em>not</em> equal: certification applicants had demonstrably different demographics than license applicants, which could easily have influenced their survival curves.</p>
+<p><img src="https://samanklesaria.github.io/posts/survival_map/plots/dist_shift.png" class="img-fluid" style="width:100.0%"></p>
+<p>To account for this discrepancy, I decided to condition the occupancy estimates by covariates, then average my predictions across true joint covariate distribution for both certification and license applicants.</p>
+</section>
+<section id="conditional-versions-of-the-estimators" class="level2">
+<h2 class="anchored" data-anchor-id="conditional-versions-of-the-estimators">Conditional Versions of the Estimators</h2>
+<p>This is where things could have gotten ugly. Every quantity on the map is a functional of a censored curve, and the obvious way to condition on covariates is to fit a second model of the process — a Cox model per transition, say — and then push the predictions back through all the integrals above. That’s a lot of machinery, and the delta method for the resulting standard errors is a small research project of its own.</p>
+<p>The trick I used instead comes from Andersen and Perme (2010): get rid of the censoring first, then regress. For each applicant, compute the jackknife pseudo-value</p>
+<p><img src="https://latex.codecogs.com/png.latex?%5Ctilde%5Ctheta_m%20=%20n%5Chat%5Ctheta%20-%20(n-1)%5Chat%5Ctheta_%7B(-m)%7D,"></p>
+<p>where <img src="https://latex.codecogs.com/png.latex?%5Chat%5Ctheta"> is whichever functional I care about — restricted mean, branch probability, conditional timing — and <img src="https://latex.codecogs.com/png.latex?%5Chat%5Ctheta_%7B(-m)%7D"> is the same functional refit with observation <img src="https://latex.codecogs.com/png.latex?m"> deleted. The pseudo-values average back to <img src="https://latex.codecogs.com/png.latex?%5Chat%5Ctheta"> by construction, and the remarkable part is that they behave, to first order, like uncensored observations of the quantity. A censored row still gets a number, and that number carries the information the row actually contributed to the curve.</p>
+<p>Once each applicant has a plain number attached to it, the conditional model is just a regression. I ran OLS of the pseudo-values on language, age, log requested capacity and region, and then standardized: multiply the coefficients by the covariate means of the <em>target</em> population rather than the fitted one.</p>
+<p>For the standard errors, OLS’s usual <img src="https://latex.codecogs.com/png.latex?%5Csigma%5E2(X'X)%5E%7B-1%7D"> is wrong twice over. Pseudo-values are badly heteroskedastic by construction — a branch indicator’s residual variance tracks <img src="https://latex.codecogs.com/png.latex?p(1-p)">, and a restricted mean’s grows with the follow-up left — and they aren’t independent across subjects, being leave-one-out perturbations of one shared fit. Andersen and Perme handle this by fitting a GEE with an independence working correlation, which with one time point per subject is exactly <code>lm</code> plus a robust sandwich. I used HC1 clustered on applicant id: an applicant can loop through a state a couple dozen times, and summing the meat over rows instead of over applicants would drop the within-applicant cross terms and understate every interval. Jacobsen and Martinussen (2016) point out that this sandwich slightly <em>over</em>estimates the asymptotic variance, since the second-order dependence among pseudo-values reads as extra noise; there’s a correction term, and I decided it wasn’t worth the code.</p>
+</section>
+<section id="occupancy-pseudo-values" class="level2">
+<h2 class="anchored" data-anchor-id="occupancy-pseudo-values">Occupancy Pseudo-Values</h2>
+<p>Occupancy needed one extra thought. It’s what a state costs an application over its entire passage, rework loops included, which means its sampling unit is the application, not the sojourn. Applications that never visit the state at all contribute a real zero and have to be kept — drop them and you’ve silently started estimating days per <em>visitor</em>, a different and larger number.</p>
+<p>So when I take the jackknife for occupancy, I leave out one entire application’s trajectory rather than one sojourn row. And here the arithmetic is kind: because an influence function is a derivative in the case weights, and derivatives add across sums, giving an application weight <img src="https://latex.codecogs.com/png.latex?1+%5Cvarepsilon"> gives each of its rows that weight too. The pseudo-value for an application’s occupancy is just the sum of the restricted-mean pseudo-values of its constituent sojourns.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1">pv <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.numeric</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pseudo</span>(km, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">times =</span> tau, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">type =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"rmst"</span>))  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># one per sojourn row</span></span>
+<span id="cb1-2">o  <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">numeric</span>(n)                                          <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># one per application</span></span>
+<span id="cb1-3">agg <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rowsum</span>(pv, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">match</span>(d<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>id, ids))</span>
+<span id="cb1-4">o[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.integer</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rownames</span>(agg))] <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> agg                       <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># non-visitors stay 0</span></span>
+<span id="cb1-5"></span>
+<span id="cb1-6">occupancy <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">mean</span>(o)</span>
+<span id="cb1-7">se        <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sd</span>(o) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">/</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sqrt</span>(n)</span></code></pre></div></div>
+<p>That’s the estimator and its standard error, in six lines, with no delta method and no covariance term anywhere. It isn’t a shortcut: summing to the application <em>before</em> squaring is precisely the grouped jackknife, so the within-application cross terms are inside <img src="https://latex.codecogs.com/png.latex?o_i%5E2"> for free, and the result is identical to the cluster-robust delta method applied to the visit-rate-times-sojourn factorization. An applicant who lingers once and tends to linger again on the way back widens the interval, as it should. The point estimate comes out right too, since the pseudo-values average to the restricted mean and there are <img src="https://latex.codecogs.com/png.latex?K_i"> of them for applicant <img src="https://latex.codecogs.com/png.latex?i">.</p>
+<p>The nice consequence is that occupancy stops being special. It’s one number per application on the application’s own unit, so the covariate model is the same ordinary regression as everything else — and covariates that make an application come back more often and covariates that make each stay longer are both already inside <img src="https://latex.codecogs.com/png.latex?o_i">, so the visit rate needs no separate model.</p>
+</section>
+<section id="handling-missingness" class="level2">
+<h2 class="anchored" data-anchor-id="handling-missingness">Handling Missingness</h2>
+<p>The covariates themselves had holes in them. To get around this, I sampled 50 imputations with <code>mice</code>, using multinomial logistic regression for the categorical columns and conditioning on the pseudo-value.</p>
+<p>I found that the default of ten imputations wasn’t enough: my branch probabilities and timings wandered by 11–15% of their own standard deviation just from changing the imputation seed. But at 50, everything sat inside a tenth of an SD. Each imputation gets the full downstream analysis — regress, standardize, done — and then the results combine by Rubin’s rules, so the reported uncertainty is within-imputation sampling error <em>and</em> between-imputation spread rather than only the latter: <img src="https://latex.codecogs.com/png.latex?%0A%5Ctext%7BVar%7D%5BQ%5D%20%5Capprox%20E%5B%5Ctext%7BVar%7D%5BQ%20%7C%20X_%5Ctext%7Bmissing%7D%5D%5D%20+%20(1%20+%20%5Cfrac%7B1%7D%7Bm%7D)%5Chat%7B%5Ctext%7BVar%7D%7D%5BE%5BQ%20%7C%20X_%5Ctext%7Bmissing%7D%5D%5D%0A"></p>
+<p>One subtlety I nearly missed: I ran <code>mice</code> separately for the two populations. The certification applicants are the rows the regressions are fitted on, and they carry process data; the license applicants have no event log at all and enter only through the covariate mean I average the fitted values over. Imputing them together would have filled a systematically missing column in one population from the other, and then conditioned on the result.</p>
+<p><img src="https://samanklesaria.github.io/posts/survival_map/plots/pseudo_graph.png" class="img-fluid" style="width:100.0%"></p>
+
+
+</section>
+
+ ]]></description>
+  <category>statistics</category>
+  <guid>https://samanklesaria.github.io/posts/survival_map/survival_maps.html</guid>
+  <pubDate>Tue, 03 Nov 2026 06:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Fast Julia testing with julia-daemon</title>
   <link>https://samanklesaria.github.io/posts/julia_daemon/release.html</link>
@@ -9887,533 +10050,6 @@ font-style: inherit;">end</span></span></code></pre></div></div>
   <guid>https://samanklesaria.github.io/posts/tooling_guide.html</guid>
   <pubDate>Sun, 01 Jun 2025 05:00:00 GMT</pubDate>
   <media:content url="https://upload.wikimedia.org/wikipedia/commons/4/44/Drawing_Tools_Flat_Icon_Vector.svg" medium="image" type="image/svg+xml"/>
-</item>
-<item>
-  <title>Finding Common Topics</title>
-  <link>https://samanklesaria.github.io/posts/clustering/Clustering.html</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<p>How do you find thematic clusters in a large corpus of text documents? The techniques baked into <code>sklearn</code> (e.g.&nbsp;nonnegative matrix factorization, LDA) give you some intuition about common themes. But contemporary NLP has largely moved on from bag-of-words representations. We can do better with LLMs!</p>
-<p>For demonstration purposes, I’ll use a few categories from the standard 20-newsgroups dataset. Ideally, we should be able to recover the four categories in the dataset (atheism, computer graphics, space and religion).</p>
-<div id="a34f8ab8" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> json</span>
-<span id="cb1-2"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> numpy <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">as</span> np</span>
-<span id="cb1-3"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> requests</span>
-<span id="cb1-4"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">from</span> sklearn.datasets <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> fetch_20newsgroups</span>
-<span id="cb1-5"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">from</span> sklearn.cluster <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> KMeans</span>
-<span id="cb1-6"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">from</span> pydantic <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> BaseModel, Field</span>
-<span id="cb1-7"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> pandas <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">as</span> pd</span>
-<span id="cb1-8"><span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">from</span> IPython.display <span class="im" style="color: #00769E;
-background-color: null;
-font-style: inherit;">import</span> Markdown</span></code></pre></div></div>
-</div>
-<div id="a9a21ba0" class="cell" data-execution_count="2">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1">categories <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> [</span>
-<span id="cb2-2">    <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"alt.atheism"</span>,</span>
-<span id="cb2-3">    <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"talk.religion.misc"</span>,</span>
-<span id="cb2-4">    <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"comp.graphics"</span>,</span>
-<span id="cb2-5">    <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"sci.space"</span>,</span>
-<span id="cb2-6">]</span>
-<span id="cb2-7"></span>
-<span id="cb2-8">dataset <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> fetch_20newsgroups(</span>
-<span id="cb2-9">    remove<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>(<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"headers"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"footers"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"quotes"</span>),</span>
-<span id="cb2-10">    subset<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"all"</span>,</span>
-<span id="cb2-11">    categories<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>categories,</span>
-<span id="cb2-12">    shuffle<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">True</span>,</span>
-<span id="cb2-13">    random_state<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">42</span>,</span>
-<span id="cb2-14">)</span></code></pre></div></div>
-</div>
-<p>Some of the documents in the dataset are only a few words; I only want to deal with documents that are least a couple hundred characters. At the other end, a handful are rambling enough to blow past the context window, so I truncate each one to its first 500 words.</p>
-<div id="ccb822f3" class="cell" data-execution_count="3">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1">X <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> np.array([<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">" "</span>.join(d.split()[:<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">500</span>])</span>
-<span id="cb3-2">              <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> d <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> dataset.data <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">if</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">len</span>(d.strip()) <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">&gt;</span> <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">200</span>])</span></code></pre></div></div>
-</div>
-<p>First, I’ll map each document to its embedding using the open Gemma-embed model. It’s currently running on llama.cpp at port 8002</p>
-<div id="3054fa30" class="cell" data-execution_count="4">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1">EMBEDDING_URI <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"http://localhost:8002"</span></span>
-<span id="cb4-2"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> get_embeddings(X, batch_size<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">64</span>):</span>
-<span id="cb4-3">    vecs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> []</span>
-<span id="cb4-4">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> i <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">range</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>, <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">len</span>(X), batch_size):</span>
-<span id="cb4-5">        resp <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> requests.post(<span class="ss" style="color: #20794D;
-background-color: null;
-font-style: inherit;">f"</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">{</span>EMBEDDING_URI<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">}</span><span class="ss" style="color: #20794D;
-background-color: null;
-font-style: inherit;">/v1/embeddings"</span>,</span>
-<span id="cb4-6">                             json<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>{<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"input"</span>: <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">list</span>(X[i:i <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> batch_size])}, timeout<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">120</span>)</span>
-<span id="cb4-7">        resp.raise_for_status()</span>
-<span id="cb4-8">        vecs.extend(d[<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"embedding"</span>] <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> d <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> resp.json()[<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"data"</span>])</span>
-<span id="cb4-9">    vecs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> np.array(vecs)</span>
-<span id="cb4-10">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> vecs <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">/</span> np.linalg.norm(vecs, axis<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>, keepdims<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">True</span>)</span></code></pre></div></div>
-</div>
-<p>Next, I’ll cluster the embeddings with the standard k-means algorithm. There’s far more sophisticated clustering techniques in <code>sklearn</code>, but this should be sufficient for the toy problem.</p>
-<div id="6bee0bc1" class="cell" data-execution_count="5">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> get_clusters(embeddings):</span>
-<span id="cb5-2">    neural_kmeans <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> KMeans(n_clusters<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">4</span>, n_init<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">25</span>)</span>
-<span id="cb5-3">    neural_kmeans.fit(embeddings)</span>
-<span id="cb5-4">    docs_per_label <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> pd.DataFrame({<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'labels'</span>: neural_kmeans.labels_}).value_counts()</span>
-<span id="cb5-5">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> neural_kmeans, docs_per_label</span></code></pre></div></div>
-</div>
-<p>Finally, I’ll take a random set of documents closest to the center of each cluster and ask Gemma to find a title for the collection.</p>
-<div id="bc05ad36" class="cell" data-execution_count="6">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> top_per_cluster(X, embeddings, kmeans, k<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">25</span>, m<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">8</span>):</span>
-<span id="cb6-2">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> [np.random.choice(</span>
-<span id="cb6-3">        X[kmeans.labels_ <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">==</span> i][np.argsort(((embeddings[kmeans.labels_ <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">==</span> i]</span>
-<span id="cb6-4">                                                <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">-</span> c)<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">**</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">2</span>).<span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">sum</span>(axis<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=-</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">1</span>))[:k]], m)</span>
-<span id="cb6-5">        <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> i, c <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">enumerate</span>(kmeans.cluster_centers_)]</span></code></pre></div></div>
-</div>
-<p>I’ll let the LLM contemplate common themes to itself before deciding on a title. <code>llama.cpp</code> will happily constrain its own sampler to a JSON schema, so I can ask for both fields at once and get them back parsed.</p>
-<div id="32a855d8" class="cell" data-execution_count="7">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1">CHAT_URI <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"http://localhost:8001"</span></span>
-<span id="cb7-2"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">class</span> SampleAnalysis(BaseModel):</span>
-<span id="cb7-3">    analysis: <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">str</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> Field(description<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'Analysis of the texts.'</span>)</span>
-<span id="cb7-4">    category: <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">str</span> <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> Field(description<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'Category of the cluster.'</span>)</span></code></pre></div></div>
-</div>
-<div id="645feee4" class="cell" data-execution_count="8">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1">SYSTEM <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"""</span></span>
-<span id="cb8-2"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">Your task is to understand why the given documents were assigned to the same cluster.</span></span>
-<span id="cb8-3"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">- First analyze the documents in the cluster for common topics.</span></span>
-<span id="cb8-4"><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">- Then, propose a short category name for the cluster containing these documents based on the analysis."""</span></span>
-<span id="cb8-5"></span>
-<span id="cb8-6"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> llama_summarize(strs):</span>
-<span id="cb8-7">    resp <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> requests.post(<span class="ss" style="color: #20794D;
-background-color: null;
-font-style: inherit;">f"</span><span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">{</span>CHAT_URI<span class="sc" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">}</span><span class="ss" style="color: #20794D;
-background-color: null;
-font-style: inherit;">/v1/chat/completions"</span>, timeout<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">300</span>, json<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span>{</span>
-<span id="cb8-8">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"messages"</span>: [{<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"role"</span>: <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"system"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"content"</span>: SYSTEM}]</span>
-<span id="cb8-9">                    <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">+</span> [{<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"role"</span>: <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"user"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"content"</span>: s} <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> s <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> strs],</span>
-<span id="cb8-10">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"temperature"</span>: <span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>,</span>
-<span id="cb8-11">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"response_format"</span>: {<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"type"</span>: <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"json_schema"</span>, <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"json_schema"</span>:</span>
-<span id="cb8-12">                            {<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"name"</span>: <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"analysis"</span>,</span>
-<span id="cb8-13">                             <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"schema"</span>: SampleAnalysis.model_json_schema()}}})</span>
-<span id="cb8-14">    resp.raise_for_status()</span>
-<span id="cb8-15">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> SampleAnalysis(<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">**</span>json.loads(resp.json()[<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"choices"</span>][<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">0</span>][<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"message"</span>][<span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">"content"</span>]))</span></code></pre></div></div>
-</div>
-<p>Let’s try it out!</p>
-<div id="e022987f" class="cell" data-execution_count="9">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">def</span> get_topics(X):</span>
-<span id="cb9-2">    embeddings <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> get_embeddings(X)</span>
-<span id="cb9-3">    neural_kmeans, docs_per_label <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> get_clusters(embeddings)</span>
-<span id="cb9-4">    top_embeddings <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> top_per_cluster(X, embeddings, neural_kmeans)</span>
-<span id="cb9-5">    results <span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span> [llama_summarize([a <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> a <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> t]) <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> t <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> top_embeddings]</span>
-<span id="cb9-6">    <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">return</span> pd.DataFrame({</span>
-<span id="cb9-7">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'category'</span>: [r.category <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> r <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> results],</span>
-<span id="cb9-8">        <span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'n_docs'</span>: [<span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">int</span>(docs_per_label[a]) <span class="cf" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">for</span> a <span class="kw" style="color: #003B4F;
-background-color: null;
-font-weight: bold;
-font-style: inherit;">in</span> <span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">range</span>(<span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">len</span>(docs_per_label))]</span>
-<span id="cb9-9">    }).sort_values(by<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="st" style="color: #20794D;
-background-color: null;
-font-style: inherit;">'n_docs'</span>, ascending<span class="op" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;">=</span><span class="va" style="color: #111111;
-background-color: null;
-font-style: inherit;">False</span>)</span></code></pre></div></div>
-</div>
-<div id="7d789db8" class="cell" data-execution_count="10">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1">Markdown(get_topics(X).to_markdown())</span></code></pre></div></div>
-<div class="cell-output cell-output-display cell-output-markdown" data-execution_count="10">
-<table class="caption-top table table-sm table-striped small">
-<thead>
-<tr class="header">
-<th style="text-align: right;"></th>
-<th style="text-align: left;">category</th>
-<th style="text-align: right;">n_docs</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">2</td>
-<td style="text-align: left;">Computer Graphics and Visualization</td>
-<td style="text-align: right;">726</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">1</td>
-<td style="text-align: left;">Philosophy of Religion and Belief Systems</td>
-<td style="text-align: right;">704</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">3</td>
-<td style="text-align: left;">Space Program Strategy and Technology</td>
-<td style="text-align: right;">670</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">0</td>
-<td style="text-align: left;">War Ethics and Political Philosophy</td>
-<td style="text-align: right;">557</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<p>Sounds about right!</p>
-
-
-
- ]]></description>
-  <category>machine learning</category>
-  <guid>https://samanklesaria.github.io/posts/clustering/Clustering.html</guid>
-  <pubDate>Mon, 10 Feb 2025 06:00:00 GMT</pubDate>
-  <media:content url="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/light/gemma-color.png" medium="image" type="image/png"/>
 </item>
 </channel>
 </rss>
